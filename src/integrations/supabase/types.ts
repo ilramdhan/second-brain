@@ -882,6 +882,33 @@ export type Database = {
           },
         ];
       };
+      telegram_link_codes: {
+        Row: {
+          code_hash: string;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          used_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          code_hash: string;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          used_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          code_hash?: string;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          used_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       templates: {
         Row: {
           created_at: string;

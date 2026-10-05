@@ -8,7 +8,17 @@ import {
 import { getIdleMinutes, IDLE_KEY } from "@/hooks/use-idle-logout";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Send, Bell, Link2, Unlink, Download, Upload, CalendarDays, Loader2 } from "lucide-react";
+import {
+  Send,
+  Bell,
+  Link2,
+  Unlink,
+  Download,
+  Upload,
+  CalendarDays,
+  Loader2,
+  Copy,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePreferences, type Locale, type Theme } from "@/lib/preferences";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createTelegramLinkCode } from "@/lib/telegram.functions";
 import {
   completeGoogleCalendarConnect,
   disconnectGoogleCalendar,
@@ -168,21 +179,7 @@ function SettingsPage() {
             </Button>
           </div>
         ) : (
-          <div className="mt-4 rounded-xl border border-dashed p-4 text-sm">
-            <p className="flex items-center gap-1.5 font-medium">
-              <Link2 className="h-4 w-4" /> Cara menghubungkan
-            </p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-              <li>Buka bot Second Brain di Telegram.</li>
-              <li>
-                Kirim perintah <code className="rounded bg-secondary px-1">/start</code>.
-              </li>
-              <li>
-                Bot membalas dengan kode tautan — akun Anda otomatis terhubung jika email Telegram
-                sesuai, atau masukkan kode di sini.
-              </li>
-            </ol>
-          </div>
+          <TelegramLinkPanel onLinked={load} />
         )}
       </section>
 
@@ -210,6 +207,95 @@ function SettingsPage() {
 
       <BackupPanel />
     </PageContainer>
+  );
+}
+
+function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void }) {
+  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  const remainingMs = link ? new Date(link.expiresAt).getTime() - now : 0;
+  const expired = Boolean(link) && remainingMs <= 0;
+
+  // While a code is active, tick the countdown and re-check the link status every few seconds.
+  useEffect(() => {
+    if (!link || expired) return;
+    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    const poll = window.setInterval(() => void onLinked(), 4000);
+    return () => {
+      window.clearInterval(tick);
+      window.clearInterval(poll);
+    };
+  }, [link, expired, onLinked]);
+
+  async function generate() {
+    setBusy(true);
+    try {
+      const result = await createTelegramLinkCode();
+      setLink(result);
+      setNow(Date.now());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal membuat kode tautan Telegram.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Perintah disalin");
+    } catch {
+      toast.error("Gagal menyalin — salin manual");
+    }
+  }
+
+  const minutes = Math.floor(Math.max(remainingMs, 0) / 60_000);
+  const seconds = Math.floor((Math.max(remainingMs, 0) % 60_000) / 1000);
+  const command = link ? `/link ${link.code}` : "";
+
+  return (
+    <div className="mt-4 rounded-xl border border-dashed p-4 text-sm">
+      <p className="flex items-center gap-1.5 font-medium">
+        <Link2 className="h-4 w-4" /> Cara menghubungkan
+      </p>
+      <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+        <li>Klik "Hubungkan Telegram" untuk membuat kode sekali pakai (berlaku 10 menit).</li>
+        <li>Buka bot Second Brain di Telegram.</li>
+        <li>
+          Kirim perintah <code className="rounded bg-secondary px-1">/link KODE</code> ke bot.
+        </li>
+      </ol>
+
+      {link && !expired ? (
+        <div className="mt-4 rounded-xl bg-secondary px-4 py-3">
+          <p className="text-xs text-muted-foreground">Kirim perintah ini ke bot:</p>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+            <code
+              className="font-mono text-lg font-semibold tracking-wider text-secondary-foreground"
+              aria-label={`Perintah tautan ${command}`}
+            >
+              {command}
+            </code>
+            <Button variant="ghost" size="sm" onClick={() => copy(command)}>
+              <Copy className="h-3.5 w-3.5" /> Salin
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
+            Berlaku {minutes}:{String(seconds).padStart(2, "0")} lagi · sekali pakai. Halaman ini
+            otomatis diperbarui setelah akun terhubung.
+          </p>
+        </div>
+      ) : expired ? (
+        <p className="mt-4 text-xs text-destructive">Kode kedaluwarsa. Buat kode baru.</p>
+      ) : null}
+
+      <Button onClick={generate} disabled={busy} className="mt-4">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        {link ? "Buat kode baru" : "Hubungkan Telegram"}
+      </Button>
+    </div>
   );
 }
 
