@@ -105,7 +105,7 @@ A Gantt-style timeline of projects, tasks, milestones and launch dates, with a "
 - **PARA** classification (`project` / `area` / `resource` / `archive`), status, color, start, due and launch dates.
 - Nested projects (`parent_id`) with **grid, kanban and tree** views.
 - Each project page has tabs for overview, tasks, milestones, timeline, notes and team.
-- **Sharing**: the owner invites people by email (`project_invites`). When an invited user signs in, `accept_project_invites()` turns the invitation into a `project_members` row. Members see and edit the project's tasks, notes, milestones and canvases. `list_project_people()` resolves names and emails.
+- **Sharing**: the owner invites people by email (`project_invites`). When an invited user signs in, `accept_project_invites()` turns the invitation into a `project_members` row. Members see and edit the project's tasks, notes, milestones and canvases; only the owner edits or deletes the project itself, and only a row's creator or the project owner can trash or delete it. `list_project_people()` resolves names and emails.
 
 ### Notes (`/notes`, `/notes/$noteId`)
 
@@ -123,7 +123,7 @@ A Gantt-style timeline of projects, tasks, milestones and launch dates, with a "
 
 ### Real-time collaboration
 
-When several users open the same note, edits sync through **Yjs** updates over a Supabase Realtime broadcast channel (`note-collab:<noteId>`). Presence shows how many people are active, and live cursors are rendered. Durable state is still saved to `notes.blocks`.
+When several users open the same note, edits sync through **Yjs** updates over a private Supabase Realtime channel (`note-collab:<noteId>`) that only the note's owner and project members can join. Presence shows how many people are active, and live cursors are rendered. Durable state is still saved to `notes.blocks`.
 
 ### Graph view (`/graph`)
 
@@ -249,12 +249,18 @@ External: Lovable AI Gateway · Lovable connector gateway (Telegram, Google Cale
 ### Row Level Security
 
 - Every table has RLS enabled. Owner policies use `auth.uid() = user_id`.
-- Team access uses the **security-definer** helpers `is_project_owner`, `is_project_member` and `can_access_task`. These avoid recursive policies. Tasks, notes, milestones, canvases, comments, dependencies and note versions in a shared project are visible to all members.
+- Team access uses the **security-definer** helpers `is_project_owner`, `is_project_member`, `can_access_task`, `can_access_note` and `can_access_canvas_board`. These avoid recursive policies. Tasks, notes, milestones, canvases, comments, dependencies and note versions in a shared project are visible to all members.
+- Shared rows use separate select/insert/update/delete policies (migration `0010`):
+  - Inserts require `user_id = (select auth.uid())` and membership of the target project.
+  - Members may edit and archive tasks, notes, milestones and boards in a shared project, but `user_id` can never change (a `BEFORE UPDATE` trigger) and rows can only move into projects the user belongs to.
+  - Trashing/restoring (`deleted_at`) and hard deletes are limited to the row's creator or the project owner. Canvas nodes and edges are edited only by their author.
+  - Only the project owner can update or delete a project, so members cannot take it over.
+- RLS regression checks live in `supabase/tests/rls_phase1.sql`.
 - `app_config` and `app_user_connections` have no policies, so only the service role can read them.
 
 ### Realtime
 
-Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`, plus presence on `note-collab:<noteId>`. Other views stay in sync through the TanStack Query cache, not `postgres_changes`.
+Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`, plus presence on the **private** channel `note-collab:<noteId>`. Realtime Authorization policies on `realtime.messages` (migration `0009`) allow joining, receiving and sending only for the note's owner and members of its project (`can_access_note`). Other views stay in sync through the TanStack Query cache, not `postgres_changes`.
 
 ### Database-side automation
 
@@ -657,6 +663,9 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0005 | `throttle_note_version_snapshots`  | Snapshot at most every 10 minutes                                                                                                                                                |
 | 0006 | `complete_activity_audit_triggers` | Audit triggers on all main tables                                                                                                                                                |
 | 0007 | `archive_trash_templates`          | `deleted_at` / `archived_at`, templates table                                                                                                                                    |
+| 0008 | `telegram_link_codes`              | One-time Telegram link codes (hash only, 10-minute TTL)                                                                                                                          |
+| 0009 | `private_note_collab_channels`     | `can_access_note`, Realtime Authorization policies for `note-collab:<noteId>`                                                                                                    |
+| 0010 | `member_ownership_guards`          | Immutable `user_id`, per-operation member policies, trash/delete limited to row or project owner                                                                                 |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `LOVABLE_DB_MIGRATION_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 

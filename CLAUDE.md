@@ -38,7 +38,8 @@ Before finishing a change, run `bun run lint` and `bun run test`, and run `bun r
 - **Drag & drop**: `@dnd-kit/core` for kanban and calendar. Timeline bars use raw pointer events.
 - **Team access**: enforced in RLS with the security-definer `is_project_member`, `is_project_owner` and `can_access_task`. Never write policies that query `projects` or `project_members` directly (recursion).
 - **Google Calendar**: per-user App User Connector. Connection handles are AES-GCM-encrypted in `app_user_connections` (service role only). They never reach the browser.
-- **Collaboration**: Yjs over the Supabase Realtime channel `note-collab:<id>` (`src/hooks/use-note-collaboration.ts`). Durable state is still `notes.blocks`.
+- **Collaboration**: Yjs over the **private** Supabase Realtime channel `note-collab:<id>` (`src/hooks/use-note-collaboration.ts`), authorized by `realtime.messages` policies via `can_access_note` (migration 0009). Durable state is still `notes.blocks`.
+- **Ownership**: `user_id` is immutable on update (trigger, migration 0010). Members edit shared rows, but only the row creator or project owner may trash/restore/delete, and only the project owner edits a project. New member policies must be per-operation and use `(select auth.uid())`.
 
 ## Directory map
 

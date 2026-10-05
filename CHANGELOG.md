@@ -28,8 +28,15 @@ minor releases may contain breaking changes; they are called out under **Changed
   10-minute TTL, single use) and shows the linked status once the bot confirms. New table
   `telegram_link_codes` (migration `0008_telegram_link_codes`).
 
+- `supabase/tests/rls_phase1.sql`: RLS regression checks for shared projects and note
+  collaboration channels (with `realtime_stub.sql` for databases without the Realtime service).
+
 ### Changed
 
+- **Breaking:** only the project owner can edit or delete a project; the "Ubah" button is hidden
+  for members. Members can still edit and archive shared tasks, notes and milestones, but only a
+  row's creator or the project owner can move it to the trash, restore it or delete it
+  (migration `0010_member_ownership_guards`).
 - **Breaking:** the Telegram bot links accounts with `/link <code>` instead of `/link <email>`.
   Users who are already linked stay linked.
 
@@ -38,6 +45,12 @@ minor releases may contain breaking changes; they are called out under **Changed
 - Telegram webhook fails closed: requests are rejected with 401 when `TELEGRAM_WEBHOOK_SECRET`
   is unset or the `X-Telegram-Bot-Api-Secret-Token` header does not match (constant-time
   comparison). Deployments must set the secret and re-register it with `setWebhook`.
+- Note collaboration uses a private Realtime channel. Policies on `realtime.messages` allow only
+  the note owner and project members to join, receive and broadcast (migration
+  `0009_private_note_collab_channels`, helper `can_access_note`).
+- Members of a shared project can no longer take it over by changing `projects.user_id`, create
+  rows as another user, or change a row's `user_id`. Member `FOR ALL` policies on tasks, notes,
+  milestones and canvas tables were split into per-operation policies.
 - Telegram account linking no longer trusts an email address, which let anyone link their chat to
   another user's account and revealed whether an email was registered. The `auth.admin.listUsers()`
   lookup was removed.

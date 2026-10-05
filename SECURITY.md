@@ -97,12 +97,34 @@ code doesn't match.
   Policies for tasks, notes, milestones, comments and members call these helpers instead of
   querying `projects` / `project_members` directly, which avoids recursive policy evaluation.
   Tasks, notes and milestones in a shared project are visible to its members.
+- Shared-project rows have separate select/insert/update/delete policies
+  (`0010_member_ownership_guards.sql`, all using `(select auth.uid())`):
+  - Inserts require `user_id = auth.uid()` and membership of the target project.
+  - A `BEFORE UPDATE` trigger (`prevent_user_id_change`) rejects any change of `user_id` by an
+    end-user role on projects, tasks, notes, milestones, canvas tables, comments and
+    dependencies.
+  - Members may edit and archive shared tasks, notes, milestones and boards. Trashing or
+    restoring (`deleted_at`, enforced by the `guard_project_row_update` trigger) and hard deletes
+    are limited to the row's creator or the project owner. Rows can only be moved into projects
+    the user belongs to. Canvas nodes and edges are updated only by their author.
+  - Only the project owner can update or delete a project.
 - Other `SECURITY DEFINER` functions (`accept_project_invites`, `list_project_people`,
   `search_semantic_documents`, the sign-up trigger, audit and note-version triggers) all pin
   `SET search_path = public` and constrain results with `auth.uid()`.
 - Service-role-only tables: `app_config` (holds `cron_token`) and `app_user_connections` (encrypted
   connector handles) have RLS enabled with no policies for `authenticated`, and grants only to
   `service_role`.
+
+### Realtime
+
+- Note collaboration uses the **private** channel `note-collab:<noteId>`
+  (`src/hooks/use-note-collaboration.ts`, `config.private = true`, JWT refreshed with
+  `supabase.realtime.setAuth()`). Realtime Authorization policies on `realtime.messages`
+  (`0009_private_note_collab_channels.sql`) allow SELECT (join/receive) and INSERT
+  (broadcast/presence) only when `can_access_note` holds for the topic's note: the caller owns the
+  note or is a member of its project, and the note is not in the trash. Topics that are not
+  `note-collab:<uuid>` are denied without raising.
+- The client ignores collaboration payloads that do not arrive on the live private channel.
 
 ### Server functions
 
@@ -165,24 +187,27 @@ These are known weaknesses or missing defenses. They are tracked here so self-ho
 risk; contributions are welcome (please coordinate via an issue or a private advisory for the
 first one).
 
-1. **Note collaboration channels are not private.** `use-note-collaboration.ts` joins the Supabase
-   Realtime channel `note-collab:<noteId>` without `private: true` or Realtime Authorization
-   policies, so a client with the public anon key that knows a note's UUID could subscribe to its
-   broadcast updates and inject changes into open editors (persistence still goes through RLS).
-   Fix: private channels plus `realtime.messages` policies based on note access.
-2. **Reminder cron token.** The token is static (no rotation or expiry), compared with a plain
+1. **Reminder cron token.** The token is static (no rotation or expiry), compared with a plain
    string comparison rather than a constant-time one, and the generated `cron-auth.ts` helper
    (`LOVABLE_CRON_SECRET`) is unused. Rotate it with
    `update app_config set value = gen_random_uuid()::text where key = 'cron_token'` if leaked.
-3. **Outgoing webhook SSRF surface.** Automation webhooks accept any `https:` URL, including hosts
+2. **Outgoing webhook SSRF surface.** Automation webhooks accept any `https:` URL, including hosts
    that resolve to private or link-local addresses. Consider blocking private ranges and adding a
    timeout.
-4. **No application-level rate limiting** on AI server functions or public endpoints; AI usage is
+3. **No application-level rate limiting** on AI server functions or public endpoints; AI usage is
    billed to the deployment's `LOVABLE_API_KEY`.
-5. **No Content-Security-Policy or other security headers** are set by the app. Configure them at
+4. **No Content-Security-Policy or other security headers** are set by the app. Configure them at
    the hosting layer (for example `vercel.json` headers) for production deployments.
 
 ### Fixed
+
+- **Note collaboration channels were public** (anyone with the anon key and a note UUID could
+  read live edits and inject Yjs updates that the victim's editor autosaved). The channel is now
+  private and authorized by `realtime.messages` policies. See "Realtime".
+- **Project members could take over a project** by setting `projects.user_id` to themselves, and
+  could insert or reassign tasks, notes, milestones and canvas rows as other users, or trash and
+  delete other members' rows. Fixed with immutable `user_id`, per-operation policies and
+  owner-only project updates. See "Authorization: Row Level Security".
 
 - **Telegram `/link <email>` had no verification** (anyone who knew a user's email could link
   their own chat, receive that user's reminders and write to their Inbox; replies also revealed
@@ -202,6 +227,8 @@ first one).
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
 - Add security headers (CSP, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`)
   at the hosting layer.
+- In Supabase _Realtime → Settings_, consider disabling "Allow public access" so every channel
+  must be private.
 - Keep dependencies updated (Dependabot is configured) and review CodeQL alerts.
 
 ## Automated checks
