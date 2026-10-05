@@ -666,17 +666,9 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 
 ## Deployment to Vercel
 
-The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. With no explicit option, Nitro's `defaultPreset` is **`cloudflare-module`**, but Nitro's zero-config detection still picks Vercel when the build runs on Vercel. Pin the preset explicitly so the target is predictable:
+The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. With no explicit option the target is **`cloudflare-module`** (the wrapper's `defaultPreset`; Lovable's sandbox always forces it). `vite.config.ts` selects the target from the environment, so no code change is needed per platform:
 
-1. **Pin the Nitro preset** in `vite.config.ts`. This applies only outside Lovable's sandbox, where Lovable keeps building for Cloudflare:
-   ```ts
-   export default defineConfig({
-     tanstackStart: { server: { entry: "server" } },
-     nitro: { preset: "vercel" },
-     vite: {/* … unchanged … */},
-   });
-   ```
-   Alternatively, set the env var `NITRO_PRESET=vercel` in the Vercel project.
+1. **Nitro preset (already configured).** When the `VERCEL` env var is set, which Vercel does automatically during builds, `vite.config.ts` pins `nitro: { preset: "vercel" }` and the build writes `.vercel/output` (Build Output API). `NITRO_PRESET=<preset>` overrides this for any target. Plain `bun run build` (local, CI, Lovable) still builds for Cloudflare. To reproduce a Vercel build locally: `VERCEL=1 bun run build`.
 2. **Import the repo** in Vercel. Framework preset: _Other_. Install command: `bun install`. Build command: `bun run build`. Leave the output directory empty, because Nitro's Vercel preset writes `.vercel/output` (Build Output API).
 3. **Set the environment variables** from the table above for Production and Preview. Put `VITE_*` and the server-side Supabase variables in both. The `nitro` devDependency (≥ 3.0.260603-beta) is already in `package.json`.
 4. **Supabase Auth URLs:** in _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your custom domain), and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list.
