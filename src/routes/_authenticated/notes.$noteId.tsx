@@ -35,13 +35,15 @@ import { summarizeMeeting } from "@/lib/ai.functions";
 import { indexBlocks, linksOf, loadBlocks, toMarkdown, type Block } from "@/lib/blocks";
 import { NOTE_STATUS } from "@/lib/constants";
 import {
+  useBacklinks,
   useNote,
   useNoteActions,
   useNoteBlocks,
+  useNotes,
   useProjects,
-  type NoteBlocks,
   type NoteDetail,
 } from "@/lib/data";
+import { useDebounced } from "@/hooks/use-debounced";
 import type { Json } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,8 +96,10 @@ function NotePage() {
 }
 
 function NoteEditor({ note }: { note: NoteDetail }) {
-  // Every note's blocks, for backlinks and block refs. Fetched on this route only.
+  // Every note's blocks, for block refs/embeds (shared with BlockEditor). Fetched on this route
+  // and the graph only.
   const { data: notes = [] } = useNoteBlocks();
+  const { data: noteList = [] } = useNotes();
   const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
   const actions = useNoteActions();
@@ -159,32 +163,35 @@ function NoteEditor({ note }: { note: NoteDetail }) {
     schedule();
   };
 
-  // Backlinks: notes that link here by [[title]] or reference one of this note's blocks.
+  // Backlinks: notes that link here by [[title]] or reference one of this note's blocks. Postgres
+  // answers from the stored `links`/`refs` (migration 0018); the block ids are debounced so typing
+  // does not issue a request per keystroke (they only change when blocks are added/removed).
+  const blockIdKey = useDebounced(blocks.map((b) => b.id).join(","), 800);
+  const backlinkTitle = note.title.trim().toLowerCase();
+  const { data: backlinks } = useBacklinks(
+    note.id,
+    backlinkTitle,
+    useMemo(() => (blockIdKey ? blockIdKey.split(",") : []), [blockIdKey]),
+  );
   const { linked, unlinked } = useMemo(() => {
-    const myTitle = note.title.trim().toLowerCase();
-    const myBlocks = new Set(blocks.map((b) => b.id));
-    const linked: { note: NoteBlocks; snippets: string[] }[] = [];
-    const unlinked: NoteBlocks[] = [];
-    for (const n of notes) {
-      if (n.id === note.id) continue;
-      const bl = loadBlocks(n);
-      const snippets = bl
+    const myBlocks = new Set(blockIdKey.split(","));
+    const linked = (backlinks?.linked ?? []).map((n) => ({
+      note: n,
+      snippets: loadBlocks({ blocks: n.blocks ?? [], content: n.content ?? "" })
         .filter((b) => {
           const l = linksOf([b]);
-          return l.titles.has(myTitle) || [...l.refs].some((r) => myBlocks.has(r));
+          return l.titles.has(backlinkTitle) || [...l.refs].some((r) => myBlocks.has(r));
         })
-        .map((b) => b.text);
-      if (snippets.length) linked.push({ note: n, snippets });
-      else if (myTitle.length > 2 && n.content.toLowerCase().includes(myTitle)) unlinked.push(n);
-    }
-    return { linked, unlinked };
-  }, [notes, note.id, note.title, blocks]);
+        .map((b) => b.text),
+    }));
+    return { linked, unlinked: backlinks?.unlinked ?? [] };
+  }, [backlinks, backlinkTitle, blockIdKey]);
   const index = useMemo(() => indexBlocks(notes), [notes]);
   const noteLinks = useNoteLinksValue();
   const outgoing = useMemo(() => {
     const { titles } = linksOf(blocks);
-    return notes.filter((n) => titles.has(n.title.trim().toLowerCase()));
-  }, [blocks, notes]);
+    return noteList.filter((n) => titles.has(n.title.trim().toLowerCase()));
+  }, [blocks, noteList]);
 
   async function summarize() {
     const text = toMarkdown(blocks);

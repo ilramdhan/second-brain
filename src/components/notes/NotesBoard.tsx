@@ -19,8 +19,10 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, labelOf, NOTE_STATUS } from "@/lib/constants";
+import { useDebounced } from "@/hooks/use-debounced";
 import {
   useNoteActions,
+  useNoteSearch,
   useNotes,
   useProjects,
   type NoteSummary as Note,
@@ -58,10 +60,17 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
     [notes, projectId],
   );
   const tags = useMemo(() => [...new Set(scoped.flatMap((n) => n.tags))].sort(), [scoped]);
+  // The list holds only excerpts, so body search runs in Postgres (`ilike` on title + content).
+  // Until the server answers, titles and excerpts are matched locally.
+  const term = useDebounced(q.trim(), 250);
+  const { data: hits } = useNoteSearch(term);
+  const needle = q.trim().toLowerCase();
   const filtered = scoped.filter(
     (n) =>
       (tag === "all" || n.tags.includes(tag)) &&
-      (!q.trim() || `${n.title} ${n.content}`.toLowerCase().includes(q.toLowerCase())),
+      (!needle ||
+        `${n.title} ${n.excerpt}`.toLowerCase().includes(needle) ||
+        (term === q.trim() && !!hits?.has(n.id))),
   );
 
   const paged = usePaged(filtered, 24, `${q}-${tag}`);
@@ -218,14 +227,14 @@ function NoteCard({
         <h3 className="line-clamp-2 text-sm font-semibold">{note.title}</h3>
         {note.pinned && <Pin className="h-3.5 w-3.5 shrink-0 fill-current text-primary" />}
       </div>
-      {note.content && (
+      {note.excerpt && (
         <p
           className={cn(
             "mt-1 whitespace-pre-line text-xs text-muted-foreground",
             compact ? "line-clamp-3" : "line-clamp-5",
           )}
         >
-          {note.content}
+          {note.excerpt}
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">

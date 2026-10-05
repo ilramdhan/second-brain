@@ -4,9 +4,10 @@ import { addDays, format, startOfDay } from "date-fns";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import type { Json, Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { notifyUnblocked, runAutomations } from "@/lib/automations.functions";
 import type { Trigger } from "@/lib/automation-types";
+import { withNoteIndex } from "@/lib/blocks";
 import {
   afterPinned,
   ilikePattern,
@@ -34,14 +35,14 @@ export const MILESTONE_COLS = "id,user_id,project_id,title,description,due_date,
 export const DEP_COLS = "id,blocker_id,blocked_id";
 export const AUTOMATION_COLS =
   "id,user_id,name,enabled,trigger,conditions,actions,run_count,last_run_at,created_at";
-// Notes list: everything except `blocks` (the jsonb source of truth, roughly the markdown
-// mirror again plus per-block JSON). `content` stays for card previews and search; a true
-// server-side excerpt needs a generated column (migration, out of scope for Phase 3).
+// Notes list: no `blocks` (the jsonb source of truth) and no `content` (its markdown mirror);
+// cards show the stored 200-character `excerpt` (migration 0018) and full-text search runs in
+// Postgres (`useNoteSearch`).
 export const NOTE_LIST_COLS =
-  "id,title,content,tags,status,pinned,project_id,position,properties,created_at,updated_at";
-export const NOTE_DETAIL_COLS = `${NOTE_LIST_COLS},blocks`;
-/** Only what backlinks, the block index (transclusion/refs) and the graph need. */
-export const NOTE_BLOCK_COLS = "id,title,tags,project_id,blocks,content";
+  "id,title,excerpt,tags,status,pinned,project_id,position,properties,created_at,updated_at";
+export const NOTE_DETAIL_COLS = `${NOTE_LIST_COLS},content,blocks`;
+/** Only what the block index (transclusion/refs) and the graph need. */
+export const NOTE_BLOCK_COLS = "id,title,tags,project_id,blocks,content,links,refs";
 
 export type Task = Omit<
   Tables<"tasks">,
@@ -55,7 +56,7 @@ export type NoteSummary = Pick<
   Note,
   | "id"
   | "title"
-  | "content"
+  | "excerpt"
   | "tags"
   | "status"
   | "pinned"
@@ -65,8 +66,13 @@ export type NoteSummary = Pick<
   | "created_at"
   | "updated_at"
 >;
-export type NoteDetail = NoteSummary & Pick<Note, "blocks">;
-export type NoteBlocks = Pick<Note, "id" | "title" | "tags" | "project_id" | "blocks" | "content">;
+export type NoteDetail = NoteSummary & Pick<Note, "blocks" | "content">;
+export type NoteBlocks = Pick<
+  Note,
+  "id" | "title" | "tags" | "project_id" | "blocks" | "content" | "links" | "refs"
+>;
+/** A note returned by `useBacklinks`. `blocks`/`content` are only set for linked notes. */
+export type Backlink = { id: string; title: string; blocks: Json | null; content: string | null };
 export type Milestone = Tables<"milestones">;
 export type Dependency = Pick<Tables<"task_dependencies">, "id" | "blocker_id" | "blocked_id">;
 export type Automation = Tables<"automations">;
@@ -177,6 +183,66 @@ export function useNoteBlocks() {
         .is("archived_at", null);
       if (error) throw error;
       return data;
+    },
+  });
+}
+/**
+ * Notes linking to this one by `[[title]]` or referencing one of `blockIds`, plus unlinked
+ * mentions of the title. Answered by Postgres (`note_backlinks`, GIN indexes on `links`/`refs`,
+ * migration 0018) under the caller's RLS, instead of parsing every note on each keystroke.
+ * `title` is normalised like the stored links (trim + lower-case); callers should pass debounced
+ * values so typing does not issue one request per key.
+ */
+export function useBacklinks(noteId: string, title: string, blockIds: readonly string[]) {
+  const t = title.trim().toLowerCase();
+  const ids = [...blockIds].sort();
+  return useQuery({
+    queryKey: ["notes", "backlinks", noteId, t, ids.join(",")],
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("note_backlinks", {
+        _note_id: noteId,
+        _title: t,
+        _block_ids: ids,
+      });
+      if (error) throw error;
+      const linked: Backlink[] = [];
+      const unlinked: Backlink[] = [];
+      for (const r of data ?? [])
+        (r.linked ? linked : unlinked).push({
+          id: r.id,
+          title: r.title,
+          blocks: r.blocks,
+          content: r.content,
+        });
+      return { linked, unlinked };
+    },
+  });
+}
+
+/**
+ * Ids of visible notes whose title or markdown `content` matches `term` (`ilike` in Postgres).
+ * Used by the notes list, which no longer downloads `content`. `null` while the term is empty.
+ */
+export function useNoteSearch(term: string) {
+  const t = term.trim();
+  return useQuery({
+    queryKey: ["notes", "search", t],
+    enabled: !!t,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+    queryFn: async (): Promise<Set<string>> => {
+      // Double-quoted so commas/parentheses in the term cannot break the PostgREST `or` list.
+      const pattern = `"${ilikePattern(t).replace(/[\\"]/g, (c) => `\\${c}`)}"`;
+      const { data, error } = await supabase
+        .from("notes")
+        .select("id")
+        .is("deleted_at", null)
+        .is("archived_at", null)
+        .or(`title.ilike.${pattern},content.ilike.${pattern}`)
+        .limit(1000);
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.id));
     },
   });
 }
@@ -299,7 +365,18 @@ const COLS: Record<TableName, string> = {
   milestones: MILESTONE_COLS,
   automations: AUTOMATION_COLS,
 };
-const NOTE_BLOCK_FIELDS = ["id", "title", "tags", "project_id", "blocks", "content"] as const;
+const NOTE_BLOCK_FIELDS = [
+  "id",
+  "title",
+  "tags",
+  "project_id",
+  "blocks",
+  "content",
+  "links",
+  "refs",
+] as const;
+/** Fields the notes list cache (qk.notes) never holds. */
+const NOTE_HEAVY_FIELDS = ["blocks", "content", "links", "refs"] as const;
 
 type Snapshot = [QueryKey, unknown][];
 /** Every cached query under `key` (list, detail, blocks...), for rollback. */
@@ -310,11 +387,12 @@ const restore = (qc: QueryClient, snap: Snapshot) =>
 
 /**
  * What a patch looks like in a given cached query: the notes list (qk.notes) never holds
- * `blocks`, the blocks cache only holds its own fields, everything else takes it whole.
+ * `blocks`/`content`/`links`/`refs`, the blocks cache only holds its own fields, everything else
+ * takes it whole.
  */
 function patchFor(table: TableName, queryKey: QueryKey, patch: object): object {
   if (table !== "notes") return patch;
-  if (queryKey.length === 1) return omitKeys(patch as Record<string, unknown>, ["blocks"]);
+  if (queryKey.length === 1) return omitKeys(patch as Record<string, unknown>, NOTE_HEAVY_FIELDS);
   if (queryKey[1] === "blocks")
     return pickKeys(patch as Record<string, unknown>, NOTE_BLOCK_FIELDS as unknown as string[]);
   return patch;
@@ -344,8 +422,10 @@ function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: re
     void invalidate();
   }
 
-  async function create(input: Omit<Ins, "user_id">): Promise<Row | null> {
+  async function create(raw: Omit<Ins, "user_id">): Promise<Row | null> {
     const user_id = await getUid();
+    // Notes store their link index and excerpt next to `blocks` (migration 0018).
+    const input = table === "notes" ? withNoteIndex(raw as { blocks?: unknown }) : raw;
     const { data, error } = await from()
       .insert({ ...input, user_id })
       .select(COLS[table])
@@ -363,23 +443,22 @@ function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: re
       ),
     );
     if (table === "notes" && qc.getQueryData(qk.noteBlocks)) {
-      const blocks = (input as { blocks?: unknown }).blocks ?? [];
+      const extra = input as Partial<NoteBlocks>;
       qc.setQueryData<NoteBlocks[]>(qk.noteBlocks, (old) =>
         insertRow(old, {
-          ...pickKeys(row as unknown as NoteSummary, [
-            "id",
-            "title",
-            "tags",
-            "project_id",
-            "content",
-          ]),
-          blocks,
+          ...pickKeys(row as unknown as NoteSummary, ["id", "title", "tags", "project_id"]),
+          blocks: extra.blocks ?? [],
+          content: extra.content ?? "",
+          links: extra.links ?? [],
+          refs: extra.refs ?? [],
         } as NoteBlocks),
       );
     }
     return row;
   }
-  async function update(id: string, patch: Upd) {
+  async function update(id: string, raw: Upd) {
+    const patch: object =
+      table === "notes" ? withNoteIndex(raw as { blocks?: unknown }) : (raw as object);
     const withTs =
       table === "milestones" || table === "automations"
         ? patch
@@ -388,6 +467,12 @@ function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: re
     mapCached((data, k) => patchCached(data, id, patchFor(table, k, withTs as object)));
     const { error } = await from().update(withTs).eq("id", id);
     if (error) fail(snap, error.message);
+    else if (table === "notes" && ("content" in patch || "title" in patch)) {
+      // Other notes' backlinks and server-side search results may have changed; refetch them
+      // on next use instead of now.
+      for (const sub of ["backlinks", "search"])
+        void qc.invalidateQueries({ queryKey: [...key, sub], refetchType: "none" });
+    }
   }
   async function hide(id: string, patch: Record<string, string>, done: string) {
     const snap = snapshot(qc, key);

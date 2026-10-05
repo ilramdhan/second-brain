@@ -491,11 +491,14 @@ export type Database = {
           content: string;
           created_at: string;
           deleted_at: string | null;
+          excerpt: string;
           id: string;
+          links: string[];
           pinned: boolean;
           position: number;
           project_id: string | null;
           properties: Json;
+          refs: string[];
           status: string;
           tags: string[];
           title: string;
@@ -508,11 +511,14 @@ export type Database = {
           content?: string;
           created_at?: string;
           deleted_at?: string | null;
+          excerpt?: string;
           id?: string;
+          links?: string[];
           pinned?: boolean;
           position?: number;
           project_id?: string | null;
           properties?: Json;
+          refs?: string[];
           status?: string;
           tags?: string[];
           title: string;
@@ -525,11 +531,14 @@ export type Database = {
           content?: string;
           created_at?: string;
           deleted_at?: string | null;
+          excerpt?: string;
           id?: string;
+          links?: string[];
           pinned?: boolean;
           position?: number;
           project_id?: string | null;
           properties?: Json;
+          refs?: string[];
           status?: string;
           tags?: string[];
           title?: string;
@@ -1082,6 +1091,16 @@ export type Database = {
         Returns: string;
       };
       n8n_user_id_by_email: { Args: { _email: string }; Returns: string };
+      note_backlinks: {
+        Args: { _block_ids: string[]; _note_id: string; _title: string };
+        Returns: {
+          blocks: Json | null;
+          content: string | null;
+          id: string;
+          linked: boolean;
+          title: string;
+        }[];
+      };
       search_semantic_documents: {
         Args: { _limit?: number; _query_embedding: string };
         Returns: {
