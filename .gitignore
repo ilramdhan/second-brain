@@ -44,3 +44,6 @@ coverage
 
 # Reference-only n8n workflows from another project (not part of this app)
 docs/n8n/
+
+# Claude Code local worktrees and session files
+.claude/

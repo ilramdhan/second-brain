@@ -85,6 +85,7 @@ public/                          manifest.webmanifest, sw.js, icons
 - New AI server functions must call the per-user limiter (`enforceRateLimit` with `AI_RATE_LIMIT`, `src/server/rateLimit.server.ts`) and put `.max()` on every text input.
 - Security headers live in `src/server/securityHeaders.ts` (applied by `src/server.ts` in production) and are mirrored in `vercel.json`; a test fails if they drift. The resource CSP is report-only, so add new browser-side origins there before enforcing it.
 - Bun's `minimumReleaseAge` (24 h) guard is in `bunfig.toml`. Ask the user before adding exclusions.
+- Current status, open PRs and next steps: read `docs/HANDOVER.md` first, then the relevant phase in `docs/IMPLEMENTATION_PLAN.md`.
 - `docs/n8n/` is unrelated reference material (git-ignored). This app's n8n templates go in `integrations/n8n/`.
 
 ## How to add a migration
