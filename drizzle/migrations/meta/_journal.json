@@ -64,6 +64,13 @@
       "when": 1791205819488,
       "tag": "0008_telegram_link_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791207282653,
+      "tag": "0009_private_note_collab_channels",
+      "breakpoints": true
     }
   ]
 }

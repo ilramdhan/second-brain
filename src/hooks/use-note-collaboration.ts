@@ -7,6 +7,13 @@ type Peer = { id: string; label: string; x?: number; y?: number };
 const encode = (value: Uint8Array) => btoa(String.fromCharCode(...value));
 const decode = (value: string) => Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
 
+/**
+ * Realtime topic for a note's collaboration channel. Must stay in sync with
+ * `public.note_collab_topic_note_id` (migration 0009), which only authorizes
+ * `note-collab:<lowercase uuid>` on private channels.
+ */
+export const noteCollabTopic = (noteId: string) => `note-collab:${noteId.toLowerCase()}`;
+
 export function useNoteCollaboration(
   noteId: string,
   initialBlocks: Block[],
@@ -24,8 +31,15 @@ export function useNoteCollaboration(
     docRef.current = doc;
     const shared = doc.getMap<string>("note");
     shared.set("blocks", JSON.stringify(initialBlocks));
-    const channel = supabase.channel(`note-collab:${noteId}`, {
-      config: { presence: { key: userRef.current.id }, broadcast: { self: false } },
+    let cancelled = false;
+    // Private channel: Realtime checks the join, broadcasts and presence against the RLS policies
+    // on realtime.messages, so only the note owner and project members can receive or send.
+    const channel = supabase.channel(noteCollabTopic(noteId), {
+      config: {
+        private: true,
+        presence: { key: userRef.current.id },
+        broadcast: { self: false },
+      },
     });
     channelRef.current = channel;
     const onUpdate = (update: Uint8Array, origin: unknown) => {
@@ -38,16 +52,27 @@ export function useNoteCollaboration(
     };
     doc.on("update", onUpdate);
     channel.on("broadcast", { event: "y-update" }, ({ payload }) => {
-      if (typeof payload.update !== "string") return;
+      // Only accept updates delivered on this private, authorized channel.
+      if (cancelled || channelRef.current !== channel || !channel.private) return;
+      if (typeof payload?.update !== "string") return;
       applyingRemote.current = true;
-      Y.applyUpdate(doc, decode(payload.update), "remote");
-      const value = shared.get("blocks");
-      if (value) onRemoteBlocks(JSON.parse(value) as Block[]);
-      applyingRemote.current = false;
+      try {
+        Y.applyUpdate(doc, decode(payload.update), "remote");
+        const value = shared.get("blocks");
+        if (value) {
+          const parsed: unknown = JSON.parse(value);
+          if (Array.isArray(parsed)) onRemoteBlocks(parsed as Block[]);
+        }
+      } catch {
+        // Malformed update: ignore it rather than breaking the editor.
+      } finally {
+        applyingRemote.current = false;
+      }
     });
-    channel.on("broadcast", { event: "cursor" }, ({ payload }) =>
-      setPeers((old) => [...old.filter((p) => p.id !== payload.id), payload as Peer]),
-    );
+    channel.on("broadcast", { event: "cursor" }, ({ payload }) => {
+      if (cancelled || !channel.private || typeof payload?.id !== "string") return;
+      setPeers((old) => [...old.filter((p) => p.id !== payload.id), payload as Peer]);
+    });
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState<Peer>();
       setPeers(
@@ -56,10 +81,16 @@ export function useNoteCollaboration(
           .filter((peer) => peer.id !== userRef.current.id),
       );
     });
-    channel.subscribe((status) => {
-      if (status === "SUBSCRIBED") void channel.track(userRef.current);
+    // Private channels authorize with the user's JWT; make sure Realtime has the current one
+    // before joining (the client also refreshes it on token refresh).
+    void supabase.realtime.setAuth().then(() => {
+      if (cancelled) return;
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") void channel.track(userRef.current);
+      });
     });
     return () => {
+      cancelled = true;
       doc.off("update", onUpdate);
       doc.destroy();
       channelRef.current = null;
