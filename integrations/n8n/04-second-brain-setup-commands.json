@@ -109,7 +109,7 @@
     },
     {
       "parameters": {
-        "content": "## 🛠️ Setup bot (jalankan manual sekali)\n1. **setMyCommands** (id + default) → menu `/` di Telegram.\n2. **getMe** + **getWebhookInfo** → cek token & webhook aktif.\n\nNode **disabled** (pilih salah satu mode, lalu enable & Execute):\n- **setWebhook → app**: mode *native* — Telegram langsung ke `SECOND_BRAIN_URL/api/public/telegram/webhook` dengan `secret_token = TELEGRAM_WEBHOOK_SECRET` (dicek app via header `x-telegram-bot-api-secret-token`). Jangan aktifkan workflow 01 di mode ini.\n- **deleteWebhook**: bersihkan webhook sebelum pindah mode. Untuk mode n8n cukup *activate* workflow 01 — Telegram Trigger mendaftarkan webhook-nya sendiri.\n\nEnv: `TELEGRAM_BOT_TOKEN` (+ `SECOND_BRAIN_URL`, `TELEGRAM_WEBHOOK_SECRET` untuk setWebhook).",
+        "content": "## 🛠️ Setup bot (jalankan manual sekali)\n1. **setMyCommands** (id + default) → menu `/` di Telegram.\n2. **getMe** + **getWebhookInfo** → cek token & webhook aktif.\n\nNode **disabled** (pilih salah satu mode, lalu enable & Execute):\n- **setWebhook → app**: mode *app* — Telegram langsung ke `SECOND_BRAIN_URL/api/public/telegram/webhook` dengan `secret_token = TELEGRAM_WEBHOOK_SECRET` (dicek app via header `x-telegram-bot-api-secret-token`). Jangan aktifkan workflow 01 di mode ini.\n- **deleteWebhook**: bersihkan webhook sebelum pindah mode. Untuk mode n8n cukup *activate* workflow 01 — Telegram Trigger mendaftarkan webhook-nya sendiri.\n\nEnv: `TELEGRAM_BOT_TOKEN` (+ `SECOND_BRAIN_URL`, `TELEGRAM_WEBHOOK_SECRET` untuk setWebhook).",
         "height": 360,
         "width": 720,
         "color": "6"

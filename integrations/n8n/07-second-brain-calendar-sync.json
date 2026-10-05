@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📅 Google Calendar sync helper\n**Arah app → Google (direkomendasikan):** tiap 30 menit `POST /api/public/n8n/calendar/sync`. Server memakai koneksi per-user (App User Connector, handle terenkripsi di `app_user_connections`) untuk menjalankan logika `syncTaskToGoogle` pada tugas bertanggal yang berubah sejak sync terakhir. **Kredensial Google user tidak pernah melewati n8n.**\n\n**Arah Google → app (opsional, single-user, disabled):** Google Calendar Trigger (kalender milik owner, kredensial OAuth n8n) → event baru dengan tag `#task` di judul/deskripsi → `POST /api/public/n8n/capture` (target `task`). Event yang dibuat app (punya `google_event_id`) diabaikan server agar tidak loop.\n\n**Env:** `SECOND_BRAIN_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, `SECOND_BRAIN_OWNER_EMAIL`.",
+        "content": "## 📅 Google Calendar sync\n**Arah app → Google:** tiap 30 menit `POST /api/public/n8n/calendar/sync`. Server memakai OAuth Google milik app (refresh token per user, terenkripsi AES-GCM di `app_user_connections`, di-refresh di server). `CALENDAR_SYNC_MODE=linked` (default) hanya memperbarui tugas yang pernah dikirim ke Google (tombol *Kirim ke Google Calendar*) dan menghapus event tugas yang dihapus/diarsip; `all` juga membuat event untuk setiap tugas bertanggal yang berubah. **Kredensial Google user tidak pernah melewati n8n.**\n\n**Arah Google → app (opsional, single-user, disabled):** Google Calendar Trigger (kalender owner, credential OAuth n8n) → event dengan `#task` → `POST /api/public/n8n/capture` (target `task`, idempoten via `external_id`). Event buatan app punya `extendedProperties.private.second_brain_task_id` dan dilewati agar tidak loop.\n\n**Env:** `SECOND_BRAIN_URL`, `CALENDAR_SYNC_MODE`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, `SECOND_BRAIN_OWNER_EMAIL`.",
         "height": 400,
         "width": 760,
         "color": "6"
@@ -42,7 +42,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ since_minutes: 45, limit: 200 }) }}"
+        "jsonBody": "={{ JSON.stringify({ since_minutes: 45, limit: 200, mode: $env.CALENDAR_SYNC_MODE === 'all' ? 'all' : 'linked' }) }}"
       },
       "id": "9d717a6c-0f2e-411a-9361-86a4d3905ce3",
       "name": "Sync app → Google",
@@ -61,7 +61,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json;\nconst failed = (r.results || []).filter(x => !x.ok);\nif (!failed.length) return [];\nreturn [{ json: { text: `📅 Calendar sync: ${r.synced ?? 0} OK, ${failed.length} gagal\\n` + failed.slice(0, 10).map(f => `• ${f.title || f.task_id}: ${f.error}`).join('\\n') } }];"
+        "jsCode": "const r = $json;\nconst failed = (r.results || []).filter(x => !x.ok);\nif (!failed.length) return [];\nreturn [{ json: { text: `📅 Calendar sync: ${r.synced ?? 0} OK, ${failed.length} gagal (${r.users ?? 0} user)\\n` + failed.slice(0, 10).map(f => `• ${f.title || f.task_id}: ${f.error}`).join('\\n') } }];"
       },
       "id": "29889fe2-c2d3-4723-9aa1-11eaf423b4d2",
       "name": "Ada yang gagal?",
