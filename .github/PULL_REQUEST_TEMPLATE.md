@@ -37,7 +37,8 @@ Closes #
 - [ ] Server-only secrets stay in `*.server.ts` / server functions and are never exposed via `VITE_*`
 - [ ] Accessibility considered: keyboard reachable, labelled controls, visible focus, sufficient contrast (see `ACCESSIBILITY.md`)
 - [ ] UI strings added for both Indonesian and English where the i18n layer applies
-- [ ] Docs updated (`README.md`, `CHANGELOG.md` under _Unreleased_, `AGENTS.md` if an architecture rule changed)
+- [ ] PR title follows Conventional Commits (it drives the version bump and `CHANGELOG.md`; don't edit the changelog by hand)
+- [ ] Docs updated (`README.md`, `AGENTS.md` if an architecture rule changed)
 - [ ] No force-push / history rewrite of commits already on `main` (keep published history intact)
 
 ## Notes for reviewers
