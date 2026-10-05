@@ -78,6 +78,13 @@
       "when": 1791207283653,
       "tag": "0010_member_ownership_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791207284653,
+      "tag": "0011_rate_limits",
+      "breakpoints": true
     }
   ]
 }

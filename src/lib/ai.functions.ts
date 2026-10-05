@@ -4,10 +4,48 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+// Input limits (ANALYSIS S8): bound AI cost and serverless memory. Base64 payloads are checked
+// by length before decoding (4 base64 chars = 3 bytes).
+const MAX_DUMP_CHARS = 20_000;
+const MAX_POINT_CHARS = 5_000;
+const MAX_MEETING_CHARS = 50_000;
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const b64Len = (bytes: number) => Math.ceil(bytes / 3) * 4;
+
+const text = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1, "Teks kosong")
+    .max(max, `Teks terlalu panjang (maks ${max.toLocaleString("id-ID")} karakter)`);
+const base64 = (maxBytes: number, label: string) =>
+  z
+    .string()
+    .min(1)
+    .max(b64Len(maxBytes), `${label} terlalu besar (maks ${maxBytes / 1024 / 1024}MB)`)
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/, `${label} tidak valid`);
+const audioMime = z
+  .string()
+  .max(100)
+  .regex(/^audio\/[\w.+-]+(;[\w=.+\- ]*)*$/i, "Format audio tidak didukung");
+const imageMime = z
+  .string()
+  .regex(/^image\/(png|jpe?g|webp|gif|heic|heif|avif|bmp)$/i, "Format gambar tidak didukung");
+
+/** Spends one unit of the per-user AI budget (30 calls / 10 min) or throws a friendly error. */
+async function limitAi(
+  supabase: Parameters<typeof import("@/server/rateLimit.server").enforceRateLimit>[0],
+) {
+  const { enforceRateLimit, AI_RATE_LIMIT } = await import("@/server/rateLimit.server");
+  await enforceRateLimit(supabase, AI_RATE_LIMIT);
+}
+
 export const parseBrainDump = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ dump: z.string().min(1) }))
+  .inputValidator(z.object({ dump: text(MAX_DUMP_CHARS) }))
   .handler(async ({ data, context }) => {
+    await limitAi(context.supabase);
     const request = getRequest();
     const { aiParseBrainDump } = await import("./ai.server");
     const { data: projects } = await context.supabase.from("projects").select("name");
@@ -20,8 +58,9 @@ export const parseBrainDump = createServerFn({ method: "POST" })
 
 export const paraphrasePoint = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ point: z.string().min(1) }))
-  .handler(async ({ data }) => {
+  .inputValidator(z.object({ point: text(MAX_POINT_CHARS) }))
+  .handler(async ({ data, context }) => {
+    await limitAi(context.supabase);
     const request = getRequest();
     const { aiText } = await import("./ai.server");
     return aiText(
@@ -33,8 +72,9 @@ export const paraphrasePoint = createServerFn({ method: "POST" })
 
 export const summarizeMeeting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ notes: z.string().min(1) }))
-  .handler(async ({ data }) => {
+  .inputValidator(z.object({ notes: text(MAX_MEETING_CHARS) }))
+  .handler(async ({ data, context }) => {
+    await limitAi(context.supabase);
     const request = getRequest();
     const { aiText } = await import("./ai.server");
     return aiText(
@@ -46,18 +86,21 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
 
 export const transcribeVoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ audioBase64: z.string().min(1), mimeType: z.string() }))
-  .handler(async ({ data }) => {
+  .inputValidator(
+    z.object({ audioBase64: base64(MAX_AUDIO_BYTES, "Rekaman"), mimeType: audioMime }),
+  )
+  .handler(async ({ data, context }) => {
+    await limitAi(context.supabase);
     const { aiTranscribe } = await import("./ai.server");
     const bytes = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
-    if (bytes.length > 10 * 1024 * 1024) throw new Error("Rekaman terlalu besar (maks 10MB)");
     return aiTranscribe(new Blob([bytes], { type: data.mimeType }), data.mimeType);
   });
 
 export const ocrImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ imageBase64: z.string().min(1), mimeType: z.string() }))
-  .handler(async ({ data }) => {
+  .inputValidator(z.object({ imageBase64: base64(MAX_IMAGE_BYTES, "Gambar"), mimeType: imageMime }))
+  .handler(async ({ data, context }) => {
+    await limitAi(context.supabase);
     const request = getRequest();
     const { aiText } = await import("./ai.server");
     return aiText(

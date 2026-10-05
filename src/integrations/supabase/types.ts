@@ -672,6 +672,27 @@ export type Database = {
           },
         ];
       };
+      rate_limits: {
+        Row: {
+          bucket: string;
+          count: number;
+          user_id: string;
+          window_start: string;
+        };
+        Insert: {
+          bucket: string;
+          count?: number;
+          user_id: string;
+          window_start?: string;
+        };
+        Update: {
+          bucket?: string;
+          count?: number;
+          user_id?: string;
+          window_start?: string;
+        };
+        Relationships: [];
+      };
       semantic_documents: {
         Row: {
           embedding: string | null;
@@ -995,6 +1016,10 @@ export type Database = {
       accept_project_invites: { Args: never; Returns: number };
       can_access_task: {
         Args: { _task_id: string; _user_id: string };
+        Returns: boolean;
+      };
+      consume_rate_limit: {
+        Args: { _bucket: string; _max: number; _window_seconds: number };
         Returns: boolean;
       };
       is_project_member: {

@@ -96,6 +96,10 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Gambar terlalu besar (maks 8MB)");
+      return;
+    }
     setBusy(true);
     try {
       const base64 = await fileToBase64(file);
