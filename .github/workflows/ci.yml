@@ -40,10 +40,6 @@ jobs:
     name: Format (Prettier)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # TODO(format): the codebase imported from Lovable is not yet Prettier-formatted
-    # (77 files at the time this workflow was added). Remove `continue-on-error`
-    # after a one-off `bun run format` commit so formatting becomes blocking.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
