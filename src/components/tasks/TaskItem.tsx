@@ -2,7 +2,8 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { CalendarDays, ListChecks, Lock, Repeat, User } from "lucide-react";
 
-import { CheckCircle, useTaskDialog } from "@/components/tasks/TaskDialogProvider";
+import { CheckCircle } from "@/components/tasks/CheckCircle";
+import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { color, labelOf, priorityOf, TASK_STATUS } from "@/lib/constants";
 import { openBlockers, useDeps, useTaskActions, type Project, type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";

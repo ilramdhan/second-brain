@@ -24,6 +24,9 @@ export default defineConfig(({ command, mode }) => {
   const plugins: PluginOption[] = [
     tailwindcss(),
     tsConfigPaths({ projects: ["./tsconfig.json"] }),
+    // Route-level code splitting is always on: TanStack Start forces the router plugin's
+    // `autoCodeSplitting` (it is omitted from the Start options schema), so every file in
+    // src/routes gets its own chunk. Heavy pieces mounted by the layout are React.lazy instead.
     tanstackStart({
       // Server-only modules must never be pulled into the client bundle.
       importProtection: {

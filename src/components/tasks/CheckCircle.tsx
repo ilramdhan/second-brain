@@ -1,0 +1,34 @@
+import { Check } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+export function CheckCircle({
+  done,
+  onClick,
+  className,
+}: {
+  done: boolean;
+  onClick: () => void;
+  className?: string | undefined;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+      aria-label={done ? "Tandai belum selesai" : "Tandai selesai"}
+      className={cn(
+        "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+        done
+          ? "border-success bg-success text-success-foreground"
+          : "border-input hover:border-primary",
+        className,
+      )}
+    >
+      {done && <Check className="h-3 w-3" strokeWidth={3} />}
+    </button>
+  );
+}

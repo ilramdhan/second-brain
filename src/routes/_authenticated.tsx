@@ -25,14 +25,13 @@ import {
   BarChart3,
   LayoutTemplate,
   Archive,
+  Loader2,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { TaskDialogProvider, useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { QuickCapture } from "@/components/QuickCapture";
-import { QuickTask } from "@/components/tasks/QuickTask";
 import {
   Dialog,
   DialogContent,
@@ -45,8 +44,22 @@ import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/lib/preferences";
 import { logActivity } from "@/lib/activity";
 
-// Loaded on first Ctrl+K / search click, not with the app shell.
+// Dialog bodies are loaded the first time they open, not with the app shell.
 const CommandMenu = lazy(() => import("@/components/CommandMenu"));
+const QuickCapture = lazy(() =>
+  import("@/components/QuickCapture").then((m) => ({ default: m.QuickCapture })),
+);
+const QuickTask = lazy(() =>
+  import("@/components/tasks/QuickTask").then((m) => ({ default: m.QuickTask })),
+);
+
+function DialogFallback() {
+  return (
+    <div className="flex justify-center py-8">
+      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -314,7 +327,9 @@ function Shell() {
               Ketik, rekam suara, atau foto catatan. Semuanya masuk Inbox untuk dirapikan AI.
             </DialogDescription>
           </DialogHeader>
-          <QuickCapture onCaptured={() => setCapture(false)} />
+          <Suspense fallback={<DialogFallback />}>
+            {capture && <QuickCapture onCaptured={() => setCapture(false)} />}
+          </Suspense>
           <button
             onClick={() => {
               setCapture(false);
@@ -344,7 +359,9 @@ function Shell() {
               Ketik seperti biasa — tanggal, jam, tag, orang, dan prioritas dikenali otomatis.
             </DialogDescription>
           </DialogHeader>
-          <QuickTask onDone={() => setQuick(false)} />
+          <Suspense fallback={<DialogFallback />}>
+            {quick && <QuickTask onDone={() => setQuick(false)} />}
+          </Suspense>
         </DialogContent>
       </Dialog>
 
