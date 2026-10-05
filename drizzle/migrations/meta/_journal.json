@@ -92,6 +92,34 @@
       "when": 1791207285653,
       "tag": "0012_n8n_integration",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791207286653,
+      "tag": "0013_single_audit_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791207287653,
+      "tag": "0014_access_path_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791207288653,
+      "tag": "0015_rls_auth_uid_initplan",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791207289653,
+      "tag": "0016_user_fks_and_checks",
+      "breakpoints": true
     }
   ]
 }
