@@ -45,7 +45,16 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("all");
 
-  const scoped = notes.filter((n) => !projectId || n.project_id === projectId);
+  // Pinned first, newest first (the server order), re-applied so optimistic edits re-sort.
+  const scoped = useMemo(
+    () =>
+      notes
+        .filter((n) => !projectId || n.project_id === projectId)
+        .sort(
+          (a, b) => Number(b.pinned) - Number(a.pinned) || b.updated_at.localeCompare(a.updated_at),
+        ),
+    [notes, projectId],
+  );
   const tags = useMemo(() => [...new Set(scoped.flatMap((n) => n.tags))].sort(), [scoped]);
   const filtered = scoped.filter(
     (n) =>
