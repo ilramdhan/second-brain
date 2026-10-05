@@ -24,25 +24,25 @@ Workflow [n8n](https://n8n.io) siap-impor untuk Second Brain: bot Telegram (teks
 
 ## Variabel lingkungan n8n
 
-| Variabel                                | Contoh                             | Keterangan                                              |
-| --------------------------------------- | ---------------------------------- | ------------------------------------------------------- |
-| `N8N_BLOCK_ENV_ACCESS_IN_NODE`          | `false`                            | **Wajib** agar `$env.*` bisa dibaca di node             |
-| `GENERIC_TIMEZONE`                      | `Asia/Jakarta`                     | Zona waktu jadwal (workflow juga set `timezone`)        |
-| `SECOND_BRAIN_URL`                      | `https://second-brain.lovable.app` | Base URL app, tanpa `/` di akhir                        |
-| `TELEGRAM_BOT_TOKEN`                    | `123456:ABC…`                      | Dari @BotFather                                         |
-| `TELEGRAM_ALLOWED_CHAT_IDS`             | `11111111,22222222`                | Allow-list chat; **kosong = tolak semua** (fail-closed) |
-| `TELEGRAM_ADMIN_CHAT_ID`                | `11111111`                         | Penerima alert error/automation                         |
-| `TELEGRAM_WEBHOOK_SECRET`               | string acak 32+ karakter           | Hanya untuk mode _native_ (setWebhook → app)            |
-| `OPENAI_VISION_MODEL`                   | `gpt-4.1-mini`                     | Model OCR (default `gpt-4.1-mini`)                      |
-| `OPENAI_TRANSCRIBE_MODEL`               | `gpt-4o-mini-transcribe`           | Model transkripsi (alternatif `whisper-1`)              |
-| `REMINDER_LEAD_MINUTES`                 | `60`                               | Pengingat dikirim N menit sebelum tenggat               |
-| `SECOND_BRAIN_CRON_TOKEN`               | nilai `app_config.cron_token`      | Hanya untuk node legacy `hooks/reminders`               |
-| `BACKUP_RETENTION_DAYS`                 | `56`                               | Retensi file backup di Drive                            |
-| `BACKUP_EMAIL_FROM` / `BACKUP_EMAIL_TO` |                                    | Jika memakai backup via email                           |
-| `AUTOMATION_WEBHOOK_TOKEN`              | string acak 32+ karakter           | Token `?token=` di URL webhook automation               |
-| `DISCORD_WEBHOOK_URL`                   |                                    | Opsional, untuk cabang Discord/Slack                    |
-| `SECOND_BRAIN_OWNER_EMAIL`              | `anda@email.com`                   | Akun pemilik untuk Google → app (07)                    |
-| `EMAIL_ALLOWED_SENDERS`                 | `anda@email.com,kantor@email.com`  | Allow-list pengirim email (08)                          |
+| Variabel                                | Contoh                            | Keterangan                                              |
+| --------------------------------------- | --------------------------------- | ------------------------------------------------------- |
+| `N8N_BLOCK_ENV_ACCESS_IN_NODE`          | `false`                           | **Wajib** agar `$env.*` bisa dibaca di node             |
+| `GENERIC_TIMEZONE`                      | `Asia/Jakarta`                    | Zona waktu jadwal (workflow juga set `timezone`)        |
+| `SECOND_BRAIN_URL`                      | `https://second-brain.vercel.app` | Base URL app, tanpa `/` di akhir                        |
+| `TELEGRAM_BOT_TOKEN`                    | `123456:ABC…`                     | Dari @BotFather                                         |
+| `TELEGRAM_ALLOWED_CHAT_IDS`             | `11111111,22222222`               | Allow-list chat; **kosong = tolak semua** (fail-closed) |
+| `TELEGRAM_ADMIN_CHAT_ID`                | `11111111`                        | Penerima alert error/automation                         |
+| `TELEGRAM_WEBHOOK_SECRET`               | string acak 32+ karakter          | Hanya untuk mode _native_ (setWebhook → app)            |
+| `OPENAI_VISION_MODEL`                   | `gpt-4.1-mini`                    | Model OCR (default `gpt-4.1-mini`)                      |
+| `OPENAI_TRANSCRIBE_MODEL`               | `gpt-4o-mini-transcribe`          | Model transkripsi (alternatif `whisper-1`)              |
+| `REMINDER_LEAD_MINUTES`                 | `60`                              | Pengingat dikirim N menit sebelum tenggat               |
+| `SECOND_BRAIN_CRON_TOKEN`               | nilai `SECOND_BRAIN_CRON_SECRET`  | Hanya untuk node legacy `hooks/reminders`               |
+| `BACKUP_RETENTION_DAYS`                 | `56`                              | Retensi file backup di Drive                            |
+| `BACKUP_EMAIL_FROM` / `BACKUP_EMAIL_TO` |                                   | Jika memakai backup via email                           |
+| `AUTOMATION_WEBHOOK_TOKEN`              | string acak 32+ karakter          | Token `?token=` di URL webhook automation               |
+| `DISCORD_WEBHOOK_URL`                   |                                   | Opsional, untuk cabang Discord/Slack                    |
+| `SECOND_BRAIN_OWNER_EMAIL`              | `anda@email.com`                  | Akun pemilik untuk Google → app (07)                    |
+| `EMAIL_ALLOWED_SENDERS`                 | `anda@email.com,kantor@email.com` | Allow-list pengirim email (08)                          |
 
 Di sisi **web app** tambahkan secret `N8N_API_KEY` (string acak ≥ 32 karakter, mis. `openssl rand -hex 32`) dan, bila memakai mode native, `TELEGRAM_WEBHOOK_SECRET` (sudah dibaca oleh `/api/public/telegram/webhook`).
 
@@ -111,22 +111,22 @@ Workflow 01 memakai **OpenAI** via HTTP Request (bisa diganti tanpa mengubah kon
 | OCR foto/gambar        | `POST /v1/responses` + `input_image` (`gpt-4.1-mini`, detail high)        | Mistral OCR (`POST https://api.mistral.ai/v1/ocr`, `mistral-ocr-latest`, ±$1/1000 halaman, sangat bagus untuk dokumen/PDF), Google Cloud Vision `DOCUMENT_TEXT_DETECTION` (1000 unit gratis/bulan), node **OpenAI → Analyze Image** bawaan n8n, Tesseract self-hosted (gratis, akurasi tulisan tangan rendah) |
 | OCR PDF                | `input_file` (PDF base64) di Responses API                                | Mistral OCR (native PDF, multi-halaman)                                                                                                                                                                                                                                                                       |
 | Transkripsi            | `POST /v1/audio/transcriptions` (`gpt-4o-mini-transcribe`, `language=id`) | `whisper-1`, Groq Whisper (`whisper-large-v3-turbo`, sangat murah/cepat), Deepgram                                                                                                                                                                                                                            |
-| Ringkasan / capture AI | Di server (Lovable AI Gateway, `ai.server.ts`) — **bukan** di n8n         | —                                                                                                                                                                                                                                                                                                             |
+| Ringkasan / capture AI | Di server (provider `AI_*`, `ai.server.ts`) — **bukan** di n8n            | —                                                                                                                                                                                                                                                                                                             |
 
-Perkiraan biaya (cek harga terbaru provider): satu foto ±1–3 ribu token input pada `gpt-4.1-mini` ≈ < $0,002; voice 1 menit `gpt-4o-mini-transcribe` ≈ $0,003. OCR tidak dijalankan untuk teks biasa, sehingga biaya hanya muncul saat mengirim file. Batasi dengan allow-list dan batas ukuran file (19 MB, batas `getFile` Telegram). Alternatif tanpa API key OpenAI: buat endpoint `/n8n/bot` menerima `file_base64` dan memakai `ocrImage`/`transcribeVoice` yang sudah ada di app (Lovable AI Gateway) — tetapi perhatikan batas ukuran body serverless (±4,5 MB).
+Perkiraan biaya (cek harga terbaru provider): satu foto ±1–3 ribu token input pada `gpt-4.1-mini` ≈ < $0,002; voice 1 menit `gpt-4o-mini-transcribe` ≈ $0,003. OCR tidak dijalankan untuk teks biasa, sehingga biaya hanya muncul saat mengirim file. Batasi dengan allow-list dan batas ukuran file (19 MB, batas `getFile` Telegram). Alternatif tanpa API key OpenAI: buat endpoint `/n8n/bot` menerima `file_base64` dan memakai `ocrImage`/`transcribeVoice` yang sudah ada di app (provider `AI_*`) — tetapi perhatikan batas ukuran body serverless (±4,5 MB).
 
 ## Endpoint backend yang wajib dibangun
 
 Sudah ada di app:
 
-| Method & path                       | Auth                                                                 | Catatan                                                                           |
-| ----------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `POST /api/public/telegram/webhook` | header `x-telegram-bot-api-secret-token` = `TELEGRAM_WEBHOOK_SECRET` | Mode native: `/start`, `/link <kode>`, teks → `inbox_items`                       |
-| `POST /api/public/hooks/reminders`  | `Authorization: Bearer <app_config.cron_token>`                      | Pengingat ≤ 24 jam, kirim via gateway Telegram Lovable, set `tasks.reminded=true` |
+| Method & path                       | Auth                                                                                   | Catatan                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `POST /api/public/telegram/webhook` | header `x-telegram-bot-api-secret-token` = `TELEGRAM_WEBHOOK_SECRET`                   | Mode native: `/start`, `/link <kode>`, teks → `inbox_items`       |
+| `POST /api/public/hooks/reminders`  | `Authorization: Bearer <SECOND_BRAIN_CRON_SECRET>` (atau `app_config.cron_token` lama) | Pengingat ≤ 24 jam, kirim via Telegram, set `tasks.reminded=true` |
 
 Belum ada — rancang di `src/routes/api/public/n8n/*`. Aturan umum:
 
-- Auth: header `x-api-key` dibandingkan dengan `process.env.N8N_API_KEY` memakai `timingSafeEqual` (pola seperti `src/integrations/supabase/cron-auth.ts`); salah/absen → `401 {"error":"unauthorized"}`; env kosong → `500`.
+- Auth: header `x-api-key` dibandingkan dengan `process.env.N8N_API_KEY` memakai `timingSafeEqual` (pola seperti `src/server/cronAuth.server.ts`); salah/absen → `401 {"error":"unauthorized"}`; env kosong → `500`.
 - Pakai `supabaseAdmin` (service role) **dan selalu filter `user_id`** dari profil yang dipetakan (`profiles.telegram_chat_id` atau email), termasuk akses tugas proyek bersama via `is_project_member`. Kecualikan `deleted_at`/`archived_at` seperti hook di `src/lib/data.ts`.
 - Body divalidasi dengan `zod`; error validasi → `400 {"error": "..."}`.
 - Idempoten: simpan `update_id` / `external_id` terakhir (mis. tabel `n8n_events` atau kolom unik) agar retry n8n tidak membuat duplikat.

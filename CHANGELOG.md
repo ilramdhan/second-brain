@@ -36,6 +36,24 @@ minor releases may contain breaking changes; they are called out under **Changed
 
 ### Changed
 
+- **BREAKING:** the app no longer depends on Lovable for building or AI and deploys on Vercel
+  (free) + Supabase (free). Rename these environment variables before deploying:
+
+  | Old                            | New                                                       | Notes                                    |
+  | ------------------------------ | --------------------------------------------------------- | ---------------------------------------- |
+  | `LOVABLE_CRON_SECRET`          | `SECOND_BRAIN_CRON_SECRET`                                | `CRON_SECRET` (Vercel Cron) is unchanged |
+  | `LOVABLE_CRON_SECRET_PREVIOUS` | `SECOND_BRAIN_CRON_SECRET_PREVIOUS`                       | rotation slot                            |
+  | `LOVABLE_DB_MIGRATION_URL`     | `DATABASE_URL`                                            | drizzle-kit only                         |
+  | `LOVABLE_API_KEY` (AI)         | `AI_API_KEY` (+ `AI_PROVIDER`, `AI_BASE_URL`, `AI_MODEL`) | still needed for Telegram/Google for now |
+
+- `vite.config.ts` is now an explicit Vite config (TanStack Start, React, Tailwind, tsconfig
+  paths, Nitro) instead of `@lovable.dev/vite-tanstack-config`. Nitro builds for the `vercel`
+  preset by default (`.vercel/output`); override with `NITRO_PRESET`.
+- AI calls go directly to OpenAI or any OpenAI-compatible API (OpenRouter, Groq, Gemini, ...)
+  through the AI SDK. New optional settings: `AI_VISION_MODEL`, `AI_TRANSCRIBE_MODEL`. Without
+  `AI_API_KEY` the AI features show "AI belum dikonfigurasi" instead of failing.
+- Client error boundaries report through `src/lib/error-reporting.ts` (console, plus an optional
+  `setErrorReporter` hook for Sentry and similar).
 - **Breaking:** only the project owner can edit or delete a project; the "Ubah" button is hidden
   for members. Members can still edit and archive shared tasks, notes and milestones, but only a
   row's creator or the project owner can move it to the trash, restore it or delete it
@@ -48,6 +66,11 @@ minor releases may contain breaking changes; they are called out under **Changed
 - The reminder endpoint accepts `GET` (for Vercel Cron) as well as `POST`, skips trashed and
   archived tasks, and loads Telegram chat IDs in one query instead of one per task.
 - Backup restore skips rows owned by other users and reports how many rows were restored.
+
+### Removed
+
+- `@lovable.dev/vite-tanstack-config`, the Lovable preview auth-storage broker, Lovable editor
+  error reporting and the unused generated `cron-auth.ts`.
 
 ### Security
 
@@ -64,7 +87,7 @@ minor releases may contain breaking changes; they are called out under **Changed
   internal hostnames and private/loopback/link-local/CGNAT/metadata addresses (after DNS
   resolution, IPv4 and IPv6) are rejected, redirects are not followed, 5-second timeout and at
   most 64 KB of the response is read.
-- The reminder cron authenticates with `LOVABLE_CRON_SECRET` / `LOVABLE_CRON_SECRET_PREVIOUS` /
+- The reminder cron authenticates with `SECOND_BRAIN_CRON_SECRET` / `SECOND_BRAIN_CRON_SECRET_PREVIOUS` /
   `CRON_SECRET` in constant time; the legacy `app_config.cron_token` still works.
 - AI server functions validate input sizes (base64 checked before decoding) and are limited to 30
   calls per user per 10 minutes.

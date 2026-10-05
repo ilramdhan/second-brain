@@ -6,7 +6,7 @@
 
 A personal and team **task & notes management PWA**: capture thoughts quickly (text, voice, photo, Telegram), let AI turn raw brain dumps into structured tasks and notes, then plan the work across list, kanban, calendar and Gantt-style timeline views. A block-based notes editor provides bidirectional links, block references, a graph view and live collaboration.
 
-Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgres + Auth + Realtime). The project is synced with [Lovable](https://lovable.dev).
+Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgres + Auth + Realtime). It runs on the **Vercel free (Hobby) + Supabase free** tiers. The project was originally scaffolded with Lovable and no longer depends on it.
 
 > The default UI language is Indonesian, and you can switch to English in Settings. AI prompts and Telegram bot replies are in Indonesian.
 
@@ -27,7 +27,7 @@ Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgre
 11. [Deployment to Vercel](#deployment-to-vercel)
 12. [Integrations](#integrations)
 13. [Testing](#testing)
-14. [Lovable sync caveat](#lovable-sync-caveat)
+14. [Git history](#git-history)
 15. [Contributing / Community](#contributing--community)
 16. [License](#license)
 
@@ -196,14 +196,14 @@ Supabase email/password sign-up and sign-in (`/login`). Every page under the `_a
 | UI                 | React 19, Tailwind CSS 4, shadcn/ui (Radix primitives), lucide-react, sonner, cmdk, vaul                      |
 | Data fetching      | TanStack Query 5 (shared cache, optimistic updates)                                                           |
 | Routing            | TanStack Router 1.170 (generated `routeTree.gen.ts`)                                                          |
-| Build              | Vite 8 (rolldown) via `@lovable.dev/vite-tanstack-config`, Nitro 3 (server bundling and deploy presets)       |
+| Build              | Vite 8 (rolldown) with an explicit `vite.config.ts`, Nitro 3 (server bundling, `vercel` preset by default)    |
 | Backend / DB       | Supabase: Postgres + RLS, Auth, Realtime (broadcast/presence), `pgvector`                                     |
 | Migrations         | Hand-written SQL in `drizzle/migrations` tracked by drizzle-kit                                               |
 | Drag & drop        | `@dnd-kit/core` / `sortable`                                                                                  |
 | Collaboration      | Yjs over Supabase Realtime                                                                                    |
 | Graph              | d3-force                                                                                                      |
 | Charts             | Recharts                                                                                                      |
-| AI                 | Vercel AI SDK (`ai`, `@ai-sdk/openai`) through the Lovable AI Gateway                                         |
+| AI                 | Vercel AI SDK (`ai`, `@ai-sdk/openai`): OpenAI or any OpenAI-compatible API (OpenRouter, Groq, Gemini, ...)   |
 | Forms / validation | react-hook-form, zod                                                                                          |
 | Dates              | date-fns 4                                                                                                    |
 | Testing            | Vitest 4, Testing Library, jsdom                                                                              |
@@ -225,11 +225,11 @@ TanStack Start server (Nitro)
  ├─ src/server.ts        SSR entry wrapper (normalizes swallowed h3 errors into an HTML 500 page)
  ├─ *.functions.ts       createServerFn + requireSupabaseAuth → per-request Supabase client as the user
  │     ai.functions.ts, automations.functions.ts, googleCalendar.functions.ts
- ├─ *.server.ts          server-only helpers (AI gateway, Telegram send, AES-GCM crypto)
+ ├─ *.server.ts          server-only helpers (AI provider, Telegram send, AES-GCM crypto)
  └─ src/routes/api/public/*   unauthenticated HTTP endpoints (Telegram webhook, reminder cron)
         └─ supabaseAdmin (service role) — bypasses RLS, used only on the server
  ▼
-External: Lovable AI Gateway · Lovable connector gateway (Telegram, Google Calendar) · user webhooks
+External: AI provider (OpenAI-compatible) · Lovable connector gateway (Telegram, Google Calendar; to be replaced) · user webhooks
 ```
 
 ### Data flow
@@ -278,9 +278,9 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
 ├── CLAUDE.md                  # Guide for Claude Code
 ├── roadmap.md                 # Feature roadmap / status
 ├── package.json               # Scripts and dependencies (Bun)
-├── vite.config.ts             # @lovable.dev/vite-tanstack-config wrapper (server entry → src/server.ts)
+├── vite.config.ts             # Vite + TanStack Start + Nitro config (server entry → src/server.ts)
 ├── vitest.config.ts           # Vitest (jsdom, @ alias)
-├── drizzle.config.ts          # drizzle-kit config (LOVABLE_DB_MIGRATION_URL)
+├── drizzle.config.ts          # drizzle-kit config (DATABASE_URL)
 ├── drizzle/
 │   ├── schema.ts              # Intentionally blank (auto-generated placeholder)
 │   └── migrations/            # 0000–0007 SQL migrations + meta journal/snapshots
@@ -312,7 +312,7 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   ├── automations.functions.ts # runAutomations / notifyUnblocked server fns
     │   ├── automation-types.ts    # Shared trigger/condition/action types
     │   ├── ai.functions.ts        # AI server fns (brain dump, paraphrase, minutes, transcribe, OCR)
-    │   ├── ai.server.ts           # Lovable AI Gateway client (AI SDK)
+    │   ├── ai.server.ts           # AI provider client (AI SDK, AI_* env)
     │   ├── googleCalendar.functions.ts # Google Calendar connect/disconnect/status/sync server fns
     │   ├── telegram.server.ts     # sendTelegram via connector gateway
     │   ├── blocks.ts              # Block model, markdown, links/refs, graph, query engine
@@ -320,7 +320,7 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   ├── preferences.tsx        # Theme + locale provider and i18n strings
     │   ├── activity.ts            # log_activity RPC helper
     │   ├── constants.ts           # Status/priority/PARA/recurrence/color enums
-    │   └── error-*.ts, lovable-error-reporting.ts, utils.ts
+    │   └── error-*.ts, error-reporting.ts, utils.ts
     ├── components/
     │   ├── ui/                    # shadcn/ui primitives
     │   ├── common/                # PageContainer, PageHeader, LoadMore/usePaged, TagInput
@@ -585,22 +585,29 @@ erDiagram
 
 Copy `.env.example` to `.env` locally (it is git-ignored) and set the same variables in your hosting provider.
 
-| Variable                                               | Side                | Required                   | Purpose                                                                                                                             |
-| ------------------------------------------------------ | ------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_SUPABASE_URL`                                    | Client (build-time) | Yes                        | Supabase project URL for the browser client                                                                                         |
-| `VITE_SUPABASE_PUBLISHABLE_KEY`                        | Client (build-time) | Yes                        | Supabase anon/publishable key for the browser client                                                                                |
-| `SUPABASE_URL`                                         | Server              | Yes                        | Supabase URL for SSR, auth middleware and the admin client                                                                          |
-| `SUPABASE_PUBLISHABLE_KEY`                             | Server              | Yes                        | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                            |
-| `SUPABASE_SERVICE_ROLE_KEY`                            | Server (secret)     | Yes                        | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store |
-| `LOVABLE_API_KEY`                                      | Server (secret)     | For AI / Telegram / Google | Bearer key for the Lovable AI Gateway (`ai.gateway.lovable.dev`) and the connector gateway (`connector-gateway.lovable.dev`)        |
-| `TELEGRAM_API_KEY`                                     | Server (secret)     | For Telegram               | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token                               |
-| `TELEGRAM_WEBHOOK_SECRET`                              | Server (secret)     | Required for the bot       | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches                 |
-| `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`    | Server (secret)     | For Google Calendar        | Client API key of the Lovable Google Calendar App User Connector                                                                    |
-| `APP_USER_CONNECTION_KEY_SECRET`                       | Server (secret)     | For Google Calendar        | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`)                    |
-| `LOVABLE_DB_MIGRATION_URL`                             | Tooling             | For migrations             | Postgres connection string used by `drizzle-kit`                                                                                    |
-| `LOVABLE_CRON_SECRET` / `LOVABLE_CRON_SECRET_PREVIOUS` | Server (secret)     | For the reminder cron      | Bearer secret for `/api/public/hooks/reminders` (constant-time compare); keep the old value in `_PREVIOUS` while rotating           |
-| `CRON_SECRET`                                          | Server (secret)     | For Vercel Cron / n8n      | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`                  |
-| `SECURITY_HEADERS`                                     | Server              | No                         | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                        |
+| Variable                                            | Side                | Required              | Purpose                                                                                                                             |
+| --------------------------------------------------- | ------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                                 | Client (build-time) | Yes                   | Supabase project URL for the browser client                                                                                         |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`                     | Client (build-time) | Yes                   | Supabase anon/publishable key for the browser client                                                                                |
+| `SUPABASE_URL`                                      | Server              | Yes                   | Supabase URL for SSR, auth middleware and the admin client                                                                          |
+| `SUPABASE_PUBLISHABLE_KEY`                          | Server              | Yes                   | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                            |
+| `SUPABASE_SERVICE_ROLE_KEY`                         | Server (secret)     | Yes                   | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store |
+| `AI_PROVIDER`                                       | Server              | No                    | `openai` (default, Responses API) or `openai-compatible` (Chat Completions at `AI_BASE_URL`)                                        |
+| `AI_API_KEY`                                        | Server (secret)     | For AI features       | Provider API key. Without it the AI buttons show "AI belum dikonfigurasi" and the rest of the app works                             |
+| `AI_BASE_URL`                                       | Server              | For openai-compatible | e.g. `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`, `https://generativelanguage.googleapis.com/v1beta/openai`    |
+| `AI_MODEL`                                          | Server              | No                    | Text model (default `gpt-4o-mini`)                                                                                                  |
+| `AI_VISION_MODEL`                                   | Server              | No                    | Model for photo OCR (defaults to `AI_MODEL`; must accept images)                                                                    |
+| `AI_TRANSCRIBE_MODEL`                               | Server              | No                    | Voice capture model for `/audio/transcriptions` (default `whisper-1`; Groq: `whisper-large-v3`)                                     |
+| `SECOND_BRAIN_CRON_SECRET` / `..._PREVIOUS`         | Server (secret)     | For the reminder cron | Bearer secret for `/api/public/hooks/reminders` from n8n or other schedulers; keep the old value in `_PREVIOUS` while rotating      |
+| `CRON_SECRET`                                       | Server (secret)     | For Vercel Cron       | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`                  |
+| `DATABASE_URL`                                      | Tooling             | For migrations        | Postgres connection string used by `drizzle-kit`                                                                                    |
+| `NITRO_PRESET`                                      | Build               | No                    | Nitro deploy preset (default `vercel`; e.g. `node-server` to self-host)                                                             |
+| `SECURITY_HEADERS`                                  | Server              | No                    | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                        |
+| `LOVABLE_API_KEY`                                   | Server (secret)     | For Telegram / Google | Legacy: still used by the Telegram and Google Calendar connector gateway until they move to direct APIs                             |
+| `TELEGRAM_API_KEY`                                  | Server (secret)     | For Telegram          | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token                               |
+| `TELEGRAM_WEBHOOK_SECRET`                           | Server (secret)     | Required for the bot  | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches                 |
+| `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY` | Server (secret)     | For Google Calendar   | Client API key of the Lovable Google Calendar App User Connector                                                                    |
+| `APP_USER_CONNECTION_KEY_SECRET`                    | Server (secret)     | For Google Calendar   | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`)                    |
 
 `VITE_*` variables are inlined at build time. Rebuild after you change them.
 
@@ -622,7 +629,9 @@ VITE_SUPABASE_PUBLISHABLE_KEY=<anon-or-publishable-key>
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_PUBLISHABLE_KEY=<anon-or-publishable-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
-LOVABLE_DB_MIGRATION_URL=postgresql://postgres:<password>@db.<project>.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:<password>@db.<project>.supabase.co:5432/postgres
+# Optional: AI features
+AI_API_KEY=<key>
 EOF
 
 # 2. Apply the database schema (see "Database migrations")
@@ -670,39 +679,39 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0010 | `member_ownership_guards`          | Immutable `user_id`, per-operation member policies, trash/delete limited to row or project owner                                                                                 |
 | 0011 | `rate_limits`                      | `rate_limits` table and `consume_rate_limit` (per-user fixed-window limiter for AI calls)                                                                                        |
 
-**Apply:** `bunx drizzle-kit migrate` (uses `LOVABLE_DB_MIGRATION_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
+**Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
-**Add a migration:** create `drizzle/migrations/NNNN_short_name.sql` with idempotent SQL where possible (`IF NOT EXISTS`). Enable RLS and add policies and `GRANT`s for `authenticated` and `service_role`. Register the file in `meta/_journal.json` (or let drizzle-kit generate it), then regenerate `src/integrations/supabase/types.ts` (for example `supabase gen types typescript --project-id <id> > src/integrations/supabase/types.ts`). On Lovable, Lovable applies the migrations itself.
+**Add a migration:** create `drizzle/migrations/NNNN_short_name.sql` with idempotent SQL where possible (`IF NOT EXISTS`). Enable RLS and add policies and `GRANT`s for `authenticated` and `service_role`. Register the file in `meta/_journal.json` (or let drizzle-kit generate it), then regenerate `src/integrations/supabase/types.ts` (for example `supabase gen types typescript --project-id <id> > src/integrations/supabase/types.ts`).
 
 ---
 
 ## Deployment to Vercel
 
-The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. With no explicit option the target is **`cloudflare-module`** (the wrapper's `defaultPreset`; Lovable's sandbox always forces it). `vite.config.ts` selects the target from the environment, so no code change is needed per platform:
+Target: **Vercel Hobby (free) + Supabase Free**. `vite build` uses Nitro with the `vercel` preset by default, so it writes `.vercel/output` (Build Output API, one `nodejs22.x` function plus static assets). Set `NITRO_PRESET` to build for another host (for example `node-server`).
 
-1. **Nitro preset (already configured).** When the `VERCEL` env var is set, which Vercel does automatically during builds, `vite.config.ts` pins `nitro: { preset: "vercel" }` and the build writes `.vercel/output` (Build Output API). `NITRO_PRESET=<preset>` overrides this for any target. Plain `bun run build` (local, CI, Lovable) still builds for Cloudflare. To reproduce a Vercel build locally: `VERCEL=1 bun run build`.
-2. **Import the repo** in Vercel. Framework preset: _Other_. Install command: `bun install`. Build command: `bun run build`. Leave the output directory empty, because Nitro's Vercel preset writes `.vercel/output` (Build Output API).
-3. **Set the environment variables** from the table above for Production and Preview. Put `VITE_*` and the server-side Supabase variables in both. The `nitro` devDependency (≥ 3.0.260603-beta) is already in `package.json`.
-4. **Supabase Auth URLs:** in _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your custom domain), and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list.
-5. **Database:** run the migrations against the production database (`LOVABLE_DB_MIGRATION_URL=… bunx drizzle-kit migrate`).
-6. **Telegram webhook:** register the webhook URL with a secret:
+1. **Supabase project (free tier).** Create a project. From _Project Settings → API_ copy the project URL, the anon/publishable key and the service-role key. From _Project Settings → Database → Connection string_ copy a Postgres URL for migrations (the session pooler URL works over IPv4).
+2. **Database schema.** Run the migrations once from your machine or CI: `DATABASE_URL=… bunx drizzle-kit migrate` (or paste the files in `drizzle/migrations/` in order into the SQL editor). The `vector` extension is enabled by migration 0004.
+3. **Import the repo in Vercel.** Framework preset: _Other_. Install command: `bun install`. Build command: `bun run build`. Leave the output directory empty (Nitro writes `.vercel/output`).
+4. **Environment variables** (Production and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, plus the optional groups below. `VITE_*` values are inlined at build time, so redeploy after changing them.
+5. **AI (optional).** Set `AI_API_KEY`. For a free tier, use an OpenAI-compatible provider: for example `AI_PROVIDER=openai-compatible`, `AI_BASE_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.3-70b-versatile`, `AI_TRANSCRIBE_MODEL=whisper-large-v3`, and an image-capable `AI_VISION_MODEL` for OCR. OpenRouter (`https://openrouter.ai/api/v1`, `:free` models) and Gemini (`https://generativelanguage.googleapis.com/v1beta/openai`, `gemini-2.0-flash`) work the same way. Without a key the AI buttons show "AI belum dikonfigurasi".
+6. **Supabase Auth URLs.** In _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your domain) and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list.
+7. **Reminder cron.** Pick one:
+   - **Vercel Cron**: set `CRON_SECRET` (`openssl rand -hex 32`) and add to `vercel.json` (Hobby allows daily schedules only):
+     ```json
+     { "crons": [{ "path": "/api/public/hooks/reminders", "schedule": "0 7 * * *" }] }
+     ```
+   - **n8n (self-hosted) or another scheduler** for hourly runs: set `SECOND_BRAIN_CRON_SECRET` and call `GET` or `POST /api/public/hooks/reminders` with `Authorization: Bearer <secret>` (templates in `integrations/n8n/`). Supabase `pg_cron` + `pg_net` also works. The legacy `app_config.cron_token` is still accepted.
+8. **Security headers.** `vercel.json` sets HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and the CSP (enforced framing rules plus a report-only resource policy), and the server adds the same headers to SSR responses. Check the browser console for CSP reports before enforcing the full policy (see `SECURITY.md`).
+9. **Telegram and Google Calendar (optional).** These still use the Lovable connector gateway (`LOVABLE_API_KEY`, `TELEGRAM_API_KEY`, `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`, `APP_USER_CONNECTION_KEY_SECRET`) and will move to the Telegram Bot API and Google OAuth directly. For the bot, register the webhook with a secret:
    ```
    https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://<your-app>/api/public/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>
    ```
-   Outgoing messages go through the Lovable connector gateway (`LOVABLE_API_KEY` + `TELEGRAM_API_KEY`).
-7. **Reminder cron:** set `CRON_SECRET` (`openssl rand -hex 32`) and add a Vercel Cron job, which calls `GET /api/public/hooks/reminders` with `Authorization: Bearer $CRON_SECRET`:
-   ```json
-   { "crons": [{ "path": "/api/public/hooks/reminders", "schedule": "0 * * * *" }] }
-   ```
-   (merge into `vercel.json`; Hobby plans only allow daily crons). Any other scheduler (Supabase `pg_cron` + `pg_net`, n8n) can `GET` or `POST` with `Authorization: Bearer <secret>` using `CRON_SECRET` or `LOVABLE_CRON_SECRET`. The legacy `app_config.cron_token` still works.
-8. **Security headers:** `vercel.json` sets HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and the CSP (enforced framing rules plus a report-only resource policy) on every path, and the server adds the same headers to SSR responses. Check the browser console for CSP reports before enforcing the full policy (see `SECURITY.md`).
-9. **Google Calendar OAuth:** the flow runs through the Lovable App User Connector. The return URL is computed from the request origin: `https://<your-app>/oauth/google-calendar/return`. Make sure that URL is allowed for the connector, and set `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`, `APP_USER_CONNECTION_KEY_SECRET` and `LOVABLE_API_KEY`.
+   The Google return URL is `https://<your-app>/oauth/google-calendar/return`.
 
-**Caveats**
+**Notes**
 
-- AI, Telegram and Google Calendar all call **Lovable gateways** (`ai.gateway.lovable.dev`, `connector-gateway.lovable.dev`). A Vercel deployment still needs a valid `LOVABLE_API_KEY` and connector keys, or those features fail and the rest of the app keeps working. Replacing them with direct OpenAI, Telegram Bot API or Google OAuth calls would require code changes.
-- `cron-auth.ts`, `auth-middleware.ts`, `auth-attacher.ts`, `client.ts` and `client.server.ts` are Lovable-generated. Avoid hand-editing them.
-- Do not commit the `.vercel` directory (it is already git-ignored).
+- To reproduce the Vercel build locally run `bun run build` and inspect `.vercel/output`. Do not commit `.vercel` (git-ignored).
+- `.github/workflows/deploy.yml` can deploy prebuilt output with the Vercel CLI instead of Vercel's Git integration.
 
 ---
 
@@ -742,14 +751,9 @@ bun run lint
 
 ---
 
-## Lovable sync caveat
+## Git history
 
-This repository is connected to Lovable:
-
-- **Never rewrite published history.** Do not force-push, and do not rebase, amend or squash commits that are already pushed. Lovable mirrors git history, and the project history would be lost.
-- Commits pushed to the connected branch (`main`) sync back into the Lovable editor. Keep the branch buildable.
-- Don't add Vite plugins that `@lovable.dev/vite-tanstack-config` already includes (TanStack Start, React, Tailwind, tsconfig paths, Nitro, and others), or the build breaks with duplicate plugins.
-- `src/routeTree.gen.ts`, `src/integrations/supabase/*` and `drizzle/schema.ts` are generated.
+The repository was originally imported from Lovable. Keep published history intact: don't force-push, and don't rebase, amend or squash commits that are already pushed. Keep `main` buildable. `src/routeTree.gen.ts` is generated by the router plugin, and `src/integrations/supabase/types.ts` by `supabase gen types`.
 
 ---
 

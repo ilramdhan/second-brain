@@ -30,7 +30,7 @@ Please include:
 - A description of the issue and its impact (what an attacker can read, change or do).
 - Steps to reproduce or a proof of concept, including the affected route, server function, table
   or migration.
-- The commit hash you tested, and whether it was local, self-hosted or a Lovable preview.
+- The commit hash you tested, and whether it was local or self-hosted (Vercel or another host).
 - Any suggested fix.
 
 Please test only against your own deployment and accounts. Don't access other users' data,
@@ -144,7 +144,8 @@ code doesn't match.
 
 ### Secrets
 
-- Server secrets (`SUPABASE_SERVICE_ROLE_KEY`, `LOVABLE_API_KEY`, `TELEGRAM_API_KEY`,
+- Server secrets (`SUPABASE_SERVICE_ROLE_KEY`, `AI_API_KEY`, `SECOND_BRAIN_CRON_SECRET`,
+  `CRON_SECRET`, `LOVABLE_API_KEY` (legacy connector gateway), `TELEGRAM_API_KEY`,
   `TELEGRAM_WEBHOOK_SECRET`, `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`,
   `APP_USER_CONNECTION_KEY_SECRET`) are read only via `process.env[...]` in server-only modules
   (`*.server.ts`, `src/server/`, server function handlers, API routes). They are never prefixed
@@ -164,10 +165,10 @@ code doesn't match.
 
 These routes have no user session and authenticate the caller themselves:
 
-| Route                                    | Authentication                                                                                                                                                                                                                                                                                               |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `POST /api/public/telegram/webhook`      | Fails closed: requires `TELEGRAM_WEBHOOK_SECRET` to be set and a matching `X-Telegram-Bot-Api-Secret-Token` header (constant-time comparison); otherwise 401.                                                                                                                                                |
-| `GET`/`POST /api/public/hooks/reminders` | Requires `Authorization: Bearer <token>` matching `LOVABLE_CRON_SECRET`, `LOVABLE_CRON_SECRET_PREVIOUS` (rotation) or `CRON_SECRET` (Vercel Cron), compared in constant time. The legacy `app_config.cron_token` still works and is only looked up when a bearer token is present and no env secret matched. |
+| Route                                    | Authentication                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/public/telegram/webhook`      | Fails closed: requires `TELEGRAM_WEBHOOK_SECRET` to be set and a matching `X-Telegram-Bot-Api-Secret-Token` header (constant-time comparison); otherwise 401.                                                                                                                                                          |
+| `GET`/`POST /api/public/hooks/reminders` | Requires `Authorization: Bearer <token>` matching `SECOND_BRAIN_CRON_SECRET`, `SECOND_BRAIN_CRON_SECRET_PREVIOUS` (rotation) or `CRON_SECRET` (Vercel Cron), compared in constant time. The legacy `app_config.cron_token` still works and is only looked up when a bearer token is present and no env secret matched. |
 
 ### Telegram account linking
 
@@ -195,8 +196,10 @@ These routes have no user session and authenticate the caller themselves:
   only the static checks apply; Workers cannot reach private networks, so this mainly matters
   on Node hosts. DNS rebinding between the check and the request is mitigated, not eliminated,
   by the redirect, timeout and size limits.
-- AI, Telegram and Google Calendar calls go to Lovable gateways (`ai.gateway.lovable.dev`,
-  `connector-gateway.lovable.dev`) with server-side keys.
+- AI calls go directly to the configured provider (`AI_BASE_URL`, default `api.openai.com`) with
+  a server-side key; OpenAI requests set `store: false`. Telegram and Google Calendar still go
+  through the Lovable connector gateway (`connector-gateway.lovable.dev`) until they are moved to
+  the providers' own APIs.
 
 ## Known hardening items
 
@@ -249,8 +252,8 @@ first one).
 `src/server/securityHeaders.ts` defines one header set. `src/server.ts` adds it to every SSR and
 API response in production builds on any host (routes may set their own values, which win;
 `SECURITY_HEADERS=off` disables it), and `vercel.json` applies the same set to static assets on
-Vercel (a unit test keeps both in sync). Dev servers do not send them, because the Lovable editor
-preview embeds the app in an iframe.
+Vercel (a unit test keeps both in sync). `vite dev` does not send them, so HSTS is never pinned
+on localhost and dev tooling is not blocked by the CSP.
 
 | Header                                | Value                                                                                          |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -276,9 +279,8 @@ base-uri 'self'; object-src 'none'; form-action 'self'
 
 Why report-only: TanStack Start emits inline hydration scripts without a nonce (so
 `script-src` needs `'unsafe-inline'`), the browser talks to Supabase directly (a custom Supabase
-domain needs its own `connect-src` entry), and the Lovable editor injects its own scripts in
-previews. AI, Telegram and Google calls run on the server, so the browser needs no Lovable or
-Google origins. To enforce: open the deployed app, use every feature (login, realtime notes,
+domain needs its own `connect-src` entry). AI, Telegram and Google calls run on the server, so
+the browser needs no AI provider or Google origins. To enforce: open the deployed app, use every feature (login, realtime notes,
 voice capture, Google Calendar connect, PWA install) with the console open, add any reported
 origin, then move the policy from `CSP_REPORT_ONLY` to `CSP_ENFORCED` in
 `src/server/securityHeaders.ts` and regenerate the `vercel.json` entry (the unit test fails until
@@ -292,9 +294,9 @@ both match).
   environment variables; never in `VITE_*`.
 - Restrict Supabase Auth redirect URLs to your own domains.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
-- Set `LOVABLE_CRON_SECRET` or `CRON_SECRET` (`openssl rand -hex 32`) for the reminder cron and
+- Set `SECOND_BRAIN_CRON_SECRET` or `CRON_SECRET` (`openssl rand -hex 32`) for the reminder cron and
   stop relying on `app_config.cron_token`. To rotate, move the old value to
-  `LOVABLE_CRON_SECRET_PREVIOUS` until every scheduler uses the new one.
+  `SECOND_BRAIN_CRON_SECRET_PREVIOUS` until every scheduler uses the new one.
 - Check the browser console for `Content-Security-Policy-Report-Only` violations on your domain
   before enforcing the full CSP (see "Content Security Policy").
 - In Supabase _Realtime → Settings_, consider disabling "Allow public access" so every channel

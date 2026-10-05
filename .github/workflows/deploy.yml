@@ -65,7 +65,7 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      # The Lovable Vite config defaults Nitro to the cloudflare-module preset.
+      # vite.config.ts defaults to this preset; kept explicit so the CLI deploy never drifts.
       NITRO_PRESET: vercel
       TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
     steps:

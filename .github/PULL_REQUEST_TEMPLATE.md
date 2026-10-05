@@ -38,7 +38,7 @@ Closes #
 - [ ] Accessibility considered: keyboard reachable, labelled controls, visible focus, sufficient contrast (see `ACCESSIBILITY.md`)
 - [ ] UI strings added for both Indonesian and English where the i18n layer applies
 - [ ] Docs updated (`README.md`, `CHANGELOG.md` under _Unreleased_, `AGENTS.md` if an architecture rule changed)
-- [ ] No force-push / history rewrite of commits already on `main` (Lovable sync)
+- [ ] No force-push / history rewrite of commits already on `main` (keep published history intact)
 
 ## Notes for reviewers
 

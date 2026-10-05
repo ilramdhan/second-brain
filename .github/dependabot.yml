@@ -17,8 +17,8 @@ updates:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
     ignore:
-      # Pinned on purpose: must stay in lockstep with @lovable.dev/vite-tanstack-config
-      # and TanStack Start. Upgrade these manually and verify `bun run build`.
+      # Pinned on purpose: TanStack Start, its router packages, Vite and Nitro must move
+      # in lockstep. Upgrade these manually and verify `bun run build`.
       - dependency-name: "@tanstack/react-start"
       - dependency-name: "@tanstack/react-router"
       - dependency-name: "@tanstack/router-plugin"

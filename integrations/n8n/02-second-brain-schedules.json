@@ -346,7 +346,7 @@
     },
     {
       "parameters": {
-        "content": "## Legacy (sudah ada di app)\n`POST /api/public/hooks/reminders` dengan `Authorization: Bearer <app_config.cron_token>` — mengirim pengingat ≤ 24 jam langsung via gateway Telegram Lovable. Node ini **disabled**; aktifkan jika endpoint `/n8n/reminders` belum dibangun (jangan aktifkan keduanya).",
+        "content": "## Legacy (sudah ada di app)\n`POST /api/public/hooks/reminders` dengan `Authorization: Bearer <app_config.cron_token>` — mengirim pengingat ≤ 24 jam langsung via Telegram. Node ini **disabled**; aktifkan jika endpoint `/n8n/reminders` belum dibangun (jangan aktifkan keduanya).",
         "height": 200,
         "width": 520,
         "color": "7"
