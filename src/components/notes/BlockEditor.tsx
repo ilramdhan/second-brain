@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, Copy, GripVertical, Link2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,30 +21,20 @@ import {
   type BlockIndex,
   type BlockType,
 } from "@/lib/blocks";
-import { useNoteActions, useNoteBlocks, useNotes, useProjects, useTasks } from "@/lib/data";
+import { useNoteBlocks, useNotes, useProjects, useTasks } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { NoteLinksContext, noteTitleKey, useNoteLinks, useNoteLinksValue } from "./note-links";
 
 type Menu = { kind: "slash" | "wiki" | "ref"; query: string; index: number } | null;
 const CONTINUES: BlockType[] = ["bullet", "numbered", "todo"];
 
 /* ---------- inline rendering ---------- */
-function useOpenTitle() {
-  const { data: notes = [] } = useNotes();
-  const { create } = useNoteActions();
-  const navigate = useNavigate();
-  return async (title: string) => {
-    const t = title.trim();
-    const hit = notes.find((n) => n.title.trim().toLowerCase() === t.toLowerCase());
-    if (hit) return navigate({ to: "/notes/$noteId", params: { noteId: hit.id } });
-    const row = await create({ title: t.slice(0, 200), content: "", blocks: [] });
-    if (row) {
-      toast.success(`Catatan "${t}" dibuat`);
-      navigate({ to: "/notes/$noteId", params: { noteId: row.id } });
-    }
-  };
-}
-
-export function InlineText({
+/**
+ * Renders inline markup (links, refs, bold, code, URLs, tags). Note titles come from
+ * `NoteLinksContext` (one memoised map per editor) instead of a `useNotes`
+ * subscription per fragment; `memo` skips blocks whose text didn't change.
+ */
+export const InlineText = memo(function InlineText({
   text,
   index,
   depth = 0,
@@ -53,8 +43,7 @@ export function InlineText({
   index: BlockIndex;
   depth?: number;
 }) {
-  const openTitle = useOpenTitle();
-  const { data: notes = [] } = useNotes();
+  const { titles, openTitle } = useNoteLinks();
   const parts = useMemo(
     () =>
       text.split(
@@ -68,9 +57,7 @@ export function InlineText({
         if (!p) return null;
         if (p.startsWith("[[")) {
           const [target, alias] = p.slice(2, -2).split("|");
-          const exists = notes.some(
-            (n) => n.title.trim().toLowerCase() === target!.trim().toLowerCase(),
-          );
+          const exists = titles.has(noteTitleKey(target!));
           return (
             <button
               key={i}
@@ -143,7 +130,7 @@ export function InlineText({
       })}
     </>
   );
-}
+});
 
 function QueryView({ query }: { query: string }) {
   const { data: notes = [] } = useNotes();
@@ -237,6 +224,7 @@ export function BlockEditor({
   blocks: Block[];
   onChange: (b: Block[]) => void;
 }) {
+  const noteLinks = useNoteLinksValue();
   const { data: notes = [] } = useNotes();
   // Block refs/embeds need every note's blocks; the list cache (`useNotes`) has no blocks.
   const { data: blockNotes = [] } = useNoteBlocks();
@@ -255,9 +243,6 @@ export function BlockEditor({
       el.setSelectionRange(c, c);
     }
   }, [focus, blocks]);
-  useEffect(() => {
-    refs.current.forEach(autosize);
-  });
 
   const set = (id: string, patch: Partial<Block>) =>
     onChange(blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
@@ -461,261 +446,264 @@ export function BlockEditor({
 
   let num = 0;
   return (
-    <div className="space-y-0.5 pb-24" onDragEnd={() => setDrag(null)}>
-      {blocks.map((b) => {
-        num = b.type === "numbered" ? num + 1 : 0;
-        const editing = focus?.id === b.id;
-        const textCls = {
-          p: "text-[15px] leading-relaxed",
-          h1: "text-2xl font-semibold tracking-tight mt-3",
-          h2: "text-xl font-semibold tracking-tight mt-2",
-          h3: "text-base font-semibold mt-1",
-          todo: "text-[15px]",
-          bullet: "text-[15px]",
-          numbered: "text-[15px]",
-          quote: "text-[15px] italic text-muted-foreground",
-          code: "font-mono text-sm",
-          divider: "",
-          query: "font-mono text-sm",
-          embed: "font-mono text-sm",
-        }[b.type];
-        return (
-          <div
-            key={b.id}
-            id={`b-${b.id}`}
-            className={cn(
-              "group relative flex items-start gap-1 rounded-md",
-              drag?.over === b.id && drag.from !== b.id && "border-t-2 border-primary",
-            )}
-            onDragOver={(e) => {
-              if (drag) {
+    <NoteLinksContext.Provider value={noteLinks}>
+      <div className="space-y-0.5 pb-24" onDragEnd={() => setDrag(null)}>
+        {blocks.map((b) => {
+          num = b.type === "numbered" ? num + 1 : 0;
+          const editing = focus?.id === b.id;
+          const textCls = {
+            p: "text-[15px] leading-relaxed",
+            h1: "text-2xl font-semibold tracking-tight mt-3",
+            h2: "text-xl font-semibold tracking-tight mt-2",
+            h3: "text-base font-semibold mt-1",
+            todo: "text-[15px]",
+            bullet: "text-[15px]",
+            numbered: "text-[15px]",
+            quote: "text-[15px] italic text-muted-foreground",
+            code: "font-mono text-sm",
+            divider: "",
+            query: "font-mono text-sm",
+            embed: "font-mono text-sm",
+          }[b.type];
+          return (
+            <div
+              key={b.id}
+              id={`b-${b.id}`}
+              className={cn(
+                "group relative flex items-start gap-1 rounded-md",
+                drag?.over === b.id && drag.from !== b.id && "border-t-2 border-primary",
+              )}
+              onDragOver={(e) => {
+                if (drag) {
+                  e.preventDefault();
+                  if (drag.over !== b.id) setDrag({ ...drag, over: b.id });
+                }
+              }}
+              onDrop={(e) => {
                 e.preventDefault();
-                if (drag.over !== b.id) setDrag({ ...drag, over: b.id });
-              }
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              drop(b.id);
-            }}
-          >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = "move";
-                    setDrag({ from: b.id, over: null });
-                  }}
-                  className="mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-100 hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
-                  aria-label="Pegangan blok"
-                >
-                  <GripVertical className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuLabel className="text-xs">Ubah jadi</DropdownMenuLabel>
-                <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
-                  {BLOCK_TYPES.filter((t) => t.id !== "embed").map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => set(b.id, { type: t.id })}
-                      className={cn(
-                        "rounded px-2 py-1 text-left text-xs hover:bg-accent",
-                        b.type === t.id && "bg-accent",
-                      )}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    navigator.clipboard?.writeText(`((${b.id}))`);
-                    toast.success("Referensi blok disalin — tempel di catatan lain");
-                  }}
-                >
-                  <Copy /> Salin referensi blok
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => insertAfter(b.id, { id: newId(), type: "p", text: "" })}
-                >
-                  <Plus /> Blok baru di bawah
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => move(b.id, -1)}>
-                  <ArrowUp /> Pindah ke atas
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => move(b.id, 1)}>
-                  <ArrowDown /> Pindah ke bawah
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => remove(b.id)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 /> Hapus blok
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="relative min-w-0 flex-1">
-              {b.type === "divider" ? (
-                <button
-                  className="block w-full py-3"
-                  onClick={() => setFocus({ id: b.id, caret: 0 })}
-                  aria-label="Pemisah"
-                >
-                  <hr />
-                </button>
-              ) : (
-                <div
-                  className={cn(
-                    "flex items-start gap-2",
-                    b.type === "quote" && "border-l-2 border-primary/40 pl-3",
-                    b.type === "code" && "rounded-lg bg-secondary/70 p-3",
-                  )}
-                >
-                  {b.type === "todo" && (
-                    <input
-                      type="checkbox"
-                      checked={!!b.checked}
-                      onChange={() => set(b.id, { checked: !b.checked })}
-                      className="mt-1.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
-                      aria-label="Centang"
-                    />
-                  )}
-                  {b.type === "bullet" && (
-                    <span className="mt-[0.6rem] h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/60" />
-                  )}
-                  {b.type === "numbered" && (
-                    <span className="mt-0.5 w-5 shrink-0 text-right text-[15px] text-muted-foreground">
-                      {num}.
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    {editing || (!b.text && b.type !== "query" && b.type !== "embed") ? (
-                      <textarea
-                        ref={(el) => {
-                          if (el) refs.current.set(b.id, el);
-                          else refs.current.delete(b.id);
-                        }}
-                        value={b.text}
-                        rows={1}
-                        onFocus={(e) => {
-                          if (focus?.id !== b.id)
-                            setFocus({ id: b.id, caret: e.currentTarget.selectionStart });
-                        }}
-                        onBlur={() =>
-                          setTimeout(
-                            () =>
-                              setFocus((f) =>
-                                f?.id === b.id && document.activeElement !== refs.current.get(b.id)
-                                  ? null
-                                  : f,
-                              ),
-                            150,
-                          )
-                        }
-                        onChange={(e) => onInput(b, e.currentTarget)}
-                        onKeyDown={(e) => onKey(b, e)}
-                        placeholder={
-                          b.type === "query"
-                            ? "TABLE rating FROM #buku WHERE rating > 4"
-                            : b.type === "embed"
-                              ? "Cari blok untuk disematkan…"
-                              : blocks.length === 1
-                                ? "Mulai menulis, ketik / untuk perintah, [[ untuk tautan…"
-                                : b.type === "p"
-                                  ? ""
-                                  : BLOCK_TYPES.find((t) => t.id === b.type)?.label
-                        }
+                drop(b.id);
+              }}
+            >
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      setDrag({ from: b.id, over: null });
+                    }}
+                    className="mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-100 hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+                    aria-label="Pegangan blok"
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  <DropdownMenuLabel className="text-xs">Ubah jadi</DropdownMenuLabel>
+                  <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
+                    {BLOCK_TYPES.filter((t) => t.id !== "embed").map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => set(b.id, { type: t.id })}
                         className={cn(
-                          "block w-full resize-none overflow-hidden bg-transparent py-0.5 outline-none placeholder:text-muted-foreground/60",
-                          textCls,
-                          b.type === "todo" && b.checked && "text-muted-foreground line-through",
-                        )}
-                      />
-                    ) : (
-                      <div
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest("a,button,input")) return;
-                          setFocus({ id: b.id, caret: b.text.length });
-                        }}
-                        className={cn(
-                          "min-h-[1.6rem] cursor-text whitespace-pre-wrap break-words py-0.5",
-                          textCls,
-                          b.type === "query" || b.type === "embed" ? "font-sans text-[15px]" : "",
-                          b.type === "todo" && b.checked && "text-muted-foreground line-through",
+                          "rounded px-2 py-1 text-left text-xs hover:bg-accent",
+                          b.type === t.id && "bg-accent",
                         )}
                       >
-                        {b.type === "query" ? (
-                          <QueryView query={b.text} />
-                        ) : b.type === "embed" ? (
-                          <EmbedView id={b.text} index={index} />
-                        ) : b.type === "code" ? (
-                          b.text
-                        ) : (
-                          <InlineText text={b.text} index={index} />
-                        )}
-                      </div>
-                    )}
-                    {editing && b.type === "query" && (
-                      <div className="mt-2">
-                        <QueryView query={b.text} />
-                      </div>
-                    )}
+                        {t.label}
+                      </button>
+                    ))}
                   </div>
-                </div>
-              )}
-              {editing && menu && menuItems.length > 0 && (
-                <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-72 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
-                  <p className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {menu.kind === "slash"
-                      ? "Blok"
-                      : menu.kind === "wiki"
-                        ? "Tautkan catatan"
-                        : "Referensi blok"}
-                  </p>
-                  {menuItems.map((it, i) => (
-                    <button
-                      key={it.key + i}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        const el = refs.current.get(b.id);
-                        if (el) pick(b, el, it.key);
-                      }}
-                      className={cn(
-                        "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm",
-                        i === menu.index ? "bg-accent" : "hover:bg-accent/60",
-                      )}
-                    >
-                      <span className="truncate">{it.label}</span>
-                      <span className="shrink-0 truncate text-[10px] text-muted-foreground">
-                        {it.hint}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      navigator.clipboard?.writeText(`((${b.id}))`);
+                      toast.success("Referensi blok disalin — tempel di catatan lain");
+                    }}
+                  >
+                    <Copy /> Salin referensi blok
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => insertAfter(b.id, { id: newId(), type: "p", text: "" })}
+                  >
+                    <Plus /> Blok baru di bawah
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => move(b.id, -1)}>
+                    <ArrowUp /> Pindah ke atas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => move(b.id, 1)}>
+                    <ArrowDown /> Pindah ke bawah
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => remove(b.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 /> Hapus blok
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="relative min-w-0 flex-1">
+                {b.type === "divider" ? (
+                  <button
+                    className="block w-full py-3"
+                    onClick={() => setFocus({ id: b.id, caret: 0 })}
+                    aria-label="Pemisah"
+                  >
+                    <hr />
+                  </button>
+                ) : (
+                  <div
+                    className={cn(
+                      "flex items-start gap-2",
+                      b.type === "quote" && "border-l-2 border-primary/40 pl-3",
+                      b.type === "code" && "rounded-lg bg-secondary/70 p-3",
+                    )}
+                  >
+                    {b.type === "todo" && (
+                      <input
+                        type="checkbox"
+                        checked={!!b.checked}
+                        onChange={() => set(b.id, { checked: !b.checked })}
+                        className="mt-1.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+                        aria-label="Centang"
+                      />
+                    )}
+                    {b.type === "bullet" && (
+                      <span className="mt-[0.6rem] h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/60" />
+                    )}
+                    {b.type === "numbered" && (
+                      <span className="mt-0.5 w-5 shrink-0 text-right text-[15px] text-muted-foreground">
+                        {num}.
                       </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                    )}
+                    <div className="min-w-0 flex-1">
+                      {editing || (!b.text && b.type !== "query" && b.type !== "embed") ? (
+                        <AutoTextarea
+                          textareaRef={(el) => {
+                            if (el) refs.current.set(b.id, el);
+                            else refs.current.delete(b.id);
+                          }}
+                          value={b.text}
+                          rows={1}
+                          onFocus={(e) => {
+                            if (focus?.id !== b.id)
+                              setFocus({ id: b.id, caret: e.currentTarget.selectionStart });
+                          }}
+                          onBlur={() =>
+                            setTimeout(
+                              () =>
+                                setFocus((f) =>
+                                  f?.id === b.id &&
+                                  document.activeElement !== refs.current.get(b.id)
+                                    ? null
+                                    : f,
+                                ),
+                              150,
+                            )
+                          }
+                          onChange={(e) => onInput(b, e.currentTarget)}
+                          onKeyDown={(e) => onKey(b, e)}
+                          placeholder={
+                            b.type === "query"
+                              ? "TABLE rating FROM #buku WHERE rating > 4"
+                              : b.type === "embed"
+                                ? "Cari blok untuk disematkan…"
+                                : blocks.length === 1
+                                  ? "Mulai menulis, ketik / untuk perintah, [[ untuk tautan…"
+                                  : b.type === "p"
+                                    ? ""
+                                    : BLOCK_TYPES.find((t) => t.id === b.type)?.label
+                          }
+                          className={cn(
+                            "block w-full resize-none overflow-hidden bg-transparent py-0.5 outline-none placeholder:text-muted-foreground/60",
+                            textCls,
+                            b.type === "todo" && b.checked && "text-muted-foreground line-through",
+                          )}
+                        />
+                      ) : (
+                        <div
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest("a,button,input")) return;
+                            setFocus({ id: b.id, caret: b.text.length });
+                          }}
+                          className={cn(
+                            "min-h-[1.6rem] cursor-text whitespace-pre-wrap break-words py-0.5",
+                            textCls,
+                            b.type === "query" || b.type === "embed" ? "font-sans text-[15px]" : "",
+                            b.type === "todo" && b.checked && "text-muted-foreground line-through",
+                          )}
+                        >
+                          {b.type === "query" ? (
+                            <QueryView query={b.text} />
+                          ) : b.type === "embed" ? (
+                            <EmbedView id={b.text} index={index} />
+                          ) : b.type === "code" ? (
+                            b.text
+                          ) : (
+                            <InlineText text={b.text} index={index} />
+                          )}
+                        </div>
+                      )}
+                      {editing && b.type === "query" && (
+                        <div className="mt-2">
+                          <QueryView query={b.text} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {editing && menu && menuItems.length > 0 && (
+                  <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-72 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
+                    <p className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {menu.kind === "slash"
+                        ? "Blok"
+                        : menu.kind === "wiki"
+                          ? "Tautkan catatan"
+                          : "Referensi blok"}
+                    </p>
+                    {menuItems.map((it, i) => (
+                      <button
+                        key={it.key + i}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const el = refs.current.get(b.id);
+                          if (el) pick(b, el, it.key);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+                          i === menu.index ? "bg-accent" : "hover:bg-accent/60",
+                        )}
+                      >
+                        <span className="truncate">{it.label}</span>
+                        <span className="shrink-0 truncate text-[10px] text-muted-foreground">
+                          {it.hint}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
-      <button
-        onClick={() => {
-          const last = blocks[blocks.length - 1];
-          if (last && !last.text && last.type === "p") setFocus({ id: last.id, caret: 0 });
-          else {
-            const nb: Block = { id: newId(), type: "p", text: "" };
-            onChange([...blocks, nb]);
-            setFocus({ id: nb.id, caret: 0 });
-          }
-        }}
-        className="ml-6 flex items-center gap-1.5 rounded-md px-1 py-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <Plus className="h-3.5 w-3.5" /> Tambah blok
-      </button>
-    </div>
+          );
+        })}
+        <button
+          onClick={() => {
+            const last = blocks[blocks.length - 1];
+            if (last && !last.text && last.type === "p") setFocus({ id: last.id, caret: 0 });
+            else {
+              const nb: Block = { id: newId(), type: "p", text: "" };
+              onChange([...blocks, nb]);
+              setFocus({ id: nb.id, caret: 0 });
+            }
+          }}
+          className="ml-6 flex items-center gap-1.5 rounded-md px-1 py-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" /> Tambah blok
+        </button>
+      </div>
+    </NoteLinksContext.Provider>
   );
 }
 
@@ -747,4 +735,31 @@ function EmbedView({ id, index }: { id: string; index: BlockIndex }) {
 function autosize(el: HTMLTextAreaElement) {
   el.style.height = "0px";
   el.style.height = `${el.scrollHeight}px`;
+}
+
+/**
+ * Textarea that grows with its content. It resizes only itself, and only when its own
+ * value or styling changes, instead of the editor measuring every textarea after
+ * every render (each measurement forces a synchronous layout).
+ */
+export function AutoTextarea({
+  textareaRef,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  textareaRef?: (el: HTMLTextAreaElement | null) => void;
+}) {
+  const own = useRef<HTMLTextAreaElement | null>(null);
+  const { value, className } = props;
+  useLayoutEffect(() => {
+    if (own.current) autosize(own.current);
+  }, [value, className]);
+  return (
+    <textarea
+      {...props}
+      ref={(el) => {
+        own.current = el;
+        textareaRef?.(el);
+      }}
+    />
+  );
 }
