@@ -6,6 +6,8 @@
 // not own (see `planUpserts`).
 import { z } from "zod";
 
+import { withNoteIndex } from "@/lib/blocks";
+
 export const BACKUP_TABLES = [
   "projects",
   "tasks",
@@ -179,7 +181,10 @@ export function prepareBackup(input: unknown, userId: string): PreparedBackup {
       const clean = parsed.data as Record<string, unknown> & { id: string };
       if (seen.has(clean.id)) throw new BackupError(`ID ganda di ${table}: ${clean.id}`);
       seen.add(clean.id);
-      return { ...clean, user_id: userId };
+      // Notes: recompute the link index and excerpt (never trusted from the file, migration 0018).
+      const indexed =
+        table === "notes" ? { ...clean, ...withNoteIndex(clean as { content?: string }) } : clean;
+      return { ...indexed, user_id: userId };
     });
   }
   return out;

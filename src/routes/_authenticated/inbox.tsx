@@ -12,6 +12,7 @@ import { QuickCapture } from "@/components/QuickCapture";
 import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { PageContainer } from "@/components/common/PageContainer";
+import { withNoteIndex } from "@/lib/blocks";
 import { qk, useProjects } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
@@ -97,12 +98,14 @@ function InboxPage() {
 
       const noteRows = parsed
         .filter((t) => t.kind === "note")
-        .map((t) => ({
-          user_id: user.id,
-          title: t.title,
-          content: t.description ?? "",
-          project_id: t.project ? (projectMap.get(t.project.toLowerCase()) ?? null) : null,
-        }));
+        .map((t) =>
+          withNoteIndex({
+            user_id: user.id,
+            title: t.title,
+            content: t.description ?? "",
+            project_id: t.project ? (projectMap.get(t.project.toLowerCase()) ?? null) : null,
+          }),
+        );
       if (noteRows.length) {
         const { error } = await supabase.from("notes").insert(noteRows);
         if (error) throw error;

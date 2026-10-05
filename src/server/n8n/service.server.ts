@@ -8,7 +8,7 @@ import { addDays, addMonths, addWeeks } from "date-fns";
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
-import { loadBlocks, toMarkdown } from "@/lib/blocks";
+import { loadBlocks, noteIndexFields, toMarkdown } from "@/lib/blocks";
 
 import { runAutomationRules } from "../automationEngine.server";
 
@@ -389,7 +389,10 @@ export async function snoozeTask(
 
 /* ---------------- notes & inbox ---------------- */
 
-/** Creates a note with `blocks` as source of truth and the mirrored markdown `content`. */
+/**
+ * Creates a note with `blocks` as source of truth, the mirrored markdown `content` and the
+ * derived `links`/`refs`/`excerpt` (migration 0018).
+ */
 export async function createNote(
   userId: string,
   title: string,
@@ -397,13 +400,15 @@ export async function createNote(
   extra: { tags?: string[]; project_id?: string | null } = {},
 ) {
   const blocks = loadBlocks({ blocks: [], content: body });
+  const content = toMarkdown(blocks);
   const { data, error } = await supabaseAdmin
     .from("notes")
     .insert({
       user_id: userId,
       title: title.slice(0, 300) || "Catatan",
       blocks: blocks as unknown as Json,
-      content: toMarkdown(blocks),
+      content,
+      ...noteIndexFields(blocks, content),
       tags: extra.tags ?? [],
       project_id: extra.project_id ?? null,
     })
