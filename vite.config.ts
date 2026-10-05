@@ -12,13 +12,29 @@ const srcDir = fileURLToPath(new URL("./src", import.meta.url));
 // API). Override with `NITRO_PRESET=<preset>` (e.g. `node-server`, `cloudflare-module`).
 const nitroPreset = process.env["NITRO_PRESET"] || "vercel";
 
+// VITE_* values are inlined at build time; the browser Supabase client cannot start without these.
+const REQUIRED_CLIENT_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
+
 export default defineConfig(({ command, mode }) => {
   const isDevBuild = command === "build" && mode === "development";
 
   // Inline VITE_* variables (from .env files and the process env) as import.meta.env.* constants.
+  const viteEnv = loadEnv(mode, process.cwd(), "VITE_");
   const envDefine: Record<string, string> = {};
-  for (const [key, value] of Object.entries(loadEnv(mode, process.cwd(), "VITE_"))) {
+  for (const [key, value] of Object.entries(viteEnv)) {
     envDefine[`import.meta.env.${key}`] = JSON.stringify(value);
+  }
+
+  // On Vercel, fail the build instead of shipping a client bundle without Supabase config:
+  // the browser client would throw on hydration and every page would show the error page.
+  if (command === "build" && process.env["VERCEL"]) {
+    const missing = REQUIRED_CLIENT_ENV.filter((key) => !viteEnv[key]);
+    if (missing.length > 0) {
+      throw new Error(
+        `Missing build-time env for the client bundle: ${missing.join(", ")}. ` +
+          "Set them in Vercel → Settings → Environment Variables (Production and Preview) and redeploy.",
+      );
+    }
   }
 
   const plugins: PluginOption[] = [
