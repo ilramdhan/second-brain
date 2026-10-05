@@ -1,0 +1,105 @@
+import { useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { Plus } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+type Column = { id: string; label: string };
+
+export function Kanban<T extends { id: string }>({
+  columns,
+  items,
+  getColumn,
+  renderCard,
+  onMove,
+  onAdd,
+}: {
+  columns: readonly Column[];
+  items: T[];
+  getColumn: (item: T) => string;
+  renderCard: (item: T) => React.ReactNode;
+  onMove: (item: T, columnId: string) => void;
+  onAdd?: ((columnId: string) => void) | undefined;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
+  const [active, setActive] = useState<T | null>(null);
+
+  function onDragEnd(e: DragEndEvent) {
+    setActive(null);
+    const item = items.find((i) => i.id === e.active.id);
+    const col = e.over?.id as string | undefined;
+    if (item && col && getColumn(item) !== col) onMove(item, col);
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={(e) => setActive(items.find((i) => i.id === e.active.id) ?? null)}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setActive(null)}
+    >
+      <div className="scrollbar-subtle -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:px-0">
+        {columns.map((c) => {
+          const list = items.filter((i) => getColumn(i) === c.id);
+          return (
+            <KanbanColumn key={c.id} column={c} count={list.length} onAdd={onAdd ? () => onAdd(c.id) : undefined}>
+              {list.map((i) => (
+                <DraggableCard key={i.id} id={i.id}>
+                  {renderCard(i)}
+                </DraggableCard>
+              ))}
+            </KanbanColumn>
+          );
+        })}
+      </div>
+      <DragOverlay dropAnimation={null}>{active ? <div className="rotate-1 shadow-lg">{renderCard(active)}</div> : null}</DragOverlay>
+    </DndContext>
+  );
+}
+
+function KanbanColumn({ column, count, onAdd, children }: { column: Column; count: number; onAdd?: (() => void) | undefined; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  return (
+    <section
+      ref={setNodeRef}
+      className={cn(
+        "flex w-[78vw] max-w-[300px] shrink-0 snap-start flex-col rounded-2xl border bg-secondary/40 p-2 transition-colors sm:w-72",
+        isOver && "border-primary/40 bg-accent/60",
+      )}
+    >
+      <header className="flex items-center justify-between px-2 py-1.5">
+        <h3 className="text-sm font-semibold">
+          {column.label} <span className="ml-1 font-normal text-muted-foreground">{count}</span>
+        </h3>
+        {onAdd && (
+          <button onClick={onAdd} className="rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground" aria-label={`Tambah di ${column.label}`}>
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
+      </header>
+      <div className="flex min-h-24 flex-1 flex-col gap-2 p-1">{children}</div>
+    </section>
+  );
+}
+
+function DraggableCard({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({ id });
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners} className={cn("touch-manipulation", isDragging && "opacity-30")}>
+      {children}
+    </div>
+  );
+}

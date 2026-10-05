@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791174229057,
+      "tag": "0000_initial_second_brain_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791174613186,
+      "tag": "0001_app_config_cron_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791176209040,
+      "tag": "0002_workspace_features",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791181276730,
+      "tag": "0003_deps_automations_blocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791184188264,
+      "tag": "0004_productivity_platform_extensions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791184780294,
+      "tag": "0005_throttle_note_version_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791184851578,
+      "tag": "0006_complete_activity_audit_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791186502856,
+      "tag": "0007_archive_trash_templates",
+      "breakpoints": true
+    }
+  ]
+}
