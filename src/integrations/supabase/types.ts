@@ -419,6 +419,30 @@ export type Database = {
           },
         ];
       };
+      n8n_events: {
+        Row: {
+          created_at: string;
+          external_id: string;
+          response: Json | null;
+          source: string;
+          user_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          external_id: string;
+          response?: Json | null;
+          source: string;
+          user_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          external_id?: string;
+          response?: Json | null;
+          source?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
       note_versions: {
         Row: {
           blocks: Json;
@@ -1022,6 +1046,10 @@ export type Database = {
         Args: { _bucket: string; _max: number; _window_seconds: number };
         Returns: boolean;
       };
+      consume_rate_limit_for: {
+        Args: { _bucket: string; _max: number; _user_id: string; _window_seconds: number };
+        Returns: boolean;
+      };
       is_project_member: {
         Args: { _project_id: string; _user_id: string };
         Returns: boolean;
@@ -1049,6 +1077,7 @@ export type Database = {
         };
         Returns: string;
       };
+      n8n_user_id_by_email: { Args: { _email: string }; Returns: string };
       search_semantic_documents: {
         Args: { _limit?: number; _query_embedding: string };
         Returns: {

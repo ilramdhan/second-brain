@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        const { parseLinkCommand, parseStartPayload, normalizeLinkCode, hashLinkCode } =
+        const { parseLinkCommand, parseStartPayload } =
           await import("@/server/telegramLinkCode.server");
 
         // /start tanpa kode: kirim instruksi tautan akun. `/start <kode>` (deep link dari
@@ -69,46 +69,17 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           return new Response(JSON.stringify({ ok: true }));
         }
 
-        // /link <kode> — tautkan chat ini ke akun lewat kode sekali pakai dari Settings
+        // /link <kode> — tautkan chat ini ke akun lewat kode sekali pakai dari Settings.
+        // Pesan seragam untuk kode salah, kedaluwarsa, atau sudah dipakai (tanpa enumerasi).
         const linkArg = startPayload ?? parseLinkCommand(text);
         if (linkArg !== null) {
-          const code = normalizeLinkCode(linkArg);
-          // Tandai kode terpakai secara atomik: hanya berhasil jika belum dipakai dan belum kedaluwarsa.
-          const { data: redeemed } = code
-            ? await supabaseAdmin
-                .from("telegram_link_codes")
-                .update({ used_at: new Date().toISOString() })
-                .eq("code_hash", hashLinkCode(code))
-                .is("used_at", null)
-                .gt("expires_at", new Date().toISOString())
-                .select("user_id")
-                .maybeSingle()
-            : { data: null };
-
-          if (!redeemed) {
-            // Pesan seragam untuk kode salah, kedaluwarsa, atau sudah dipakai (tanpa enumerasi).
-            await sendTelegramMessage(chatId, LINK_FAILED_TEXT);
-            return new Response(JSON.stringify({ ok: true }));
-          }
-
-          // Satu chat hanya tertaut ke satu akun.
-          await supabaseAdmin
-            .from("profiles")
-            .update({ telegram_chat_id: null, telegram_username: null })
-            .eq("telegram_chat_id", String(chatId))
-            .neq("id", redeemed.user_id);
-          const { error: linkError } = await supabaseAdmin
-            .from("profiles")
-            .update({ telegram_chat_id: String(chatId), telegram_username: username })
-            .eq("id", redeemed.user_id);
-          if (linkError) {
-            console.error("[telegram/webhook] failed to link chat", linkError.message);
-            await sendTelegramMessage(chatId, LINK_FAILED_TEXT);
-            return new Response(JSON.stringify({ ok: true }));
-          }
+          const { redeemTelegramLinkCode } = await import("@/server/telegramLink.server");
+          const result = await redeemTelegramLinkCode(linkArg, String(chatId), username);
           await sendTelegramMessage(
             chatId,
-            "Akun terhubung! Semua pesan Anda sekarang masuk ke Inbox Second Brain.",
+            result.ok
+              ? "Akun terhubung! Semua pesan Anda sekarang masuk ke Inbox Second Brain."
+              : LINK_FAILED_TEXT,
           );
           return new Response(JSON.stringify({ ok: true }));
         }
