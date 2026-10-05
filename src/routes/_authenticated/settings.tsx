@@ -457,9 +457,15 @@ function BackupPanel() {
       if (!userId) throw new BackupError("Sesi berakhir, silakan masuk lagi");
       let parsed: unknown;
       try {
-        parsed = JSON.parse(await file.text());
+        // Automatic backups from n8n are gzipped (.json.gz); decompress in the browser.
+        const gz = /\.gz$/i.test(file.name) || file.type === "application/gzip";
+        const text = gz
+          ? await new Response(file.stream().pipeThrough(new DecompressionStream("gzip"))).text()
+          : await file.text();
+        if (text.length > MAX_BACKUP_BYTES * 4) throw new Error("too large");
+        parsed = JSON.parse(text);
       } catch {
-        throw new BackupError("File bukan JSON yang valid");
+        throw new BackupError("File bukan JSON (atau .json.gz) yang valid");
       }
       const prepared = prepareBackup(parsed, userId);
       let restored = 0;
@@ -514,7 +520,12 @@ function BackupPanel() {
         <Button asChild variant="outline">
           <label>
             <Upload /> Pulihkan JSON
-            <input type="file" accept="application/json" className="sr-only" onChange={restore} />
+            <input
+              type="file"
+              accept="application/json,application/gzip,.json,.gz"
+              className="sr-only"
+              onChange={restore}
+            />
           </label>
         </Button>
       </div>

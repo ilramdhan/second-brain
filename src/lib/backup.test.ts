@@ -109,3 +109,32 @@ describe("chunk", () => {
     expect(chunk([], 3)).toEqual([]);
   });
 });
+
+describe("n8n backup envelope", () => {
+  const task = { id: T1, title: "x" };
+  it("restores the entry of the current user", () => {
+    const file = {
+      version: 1,
+      format: "second-brain-backup",
+      users: [
+        { version: 1, user_id: OTHER, tables: { tasks: [{ id: T2, title: "other" }] } },
+        { version: 1, user_id: ME, tables: { tasks: [task] } },
+      ],
+    };
+    expect(prepareBackup(file, ME).tasks.map((t) => t.id)).toEqual([T1]);
+  });
+  it("uses a single-user backup for any account", () => {
+    const file = { version: 1, users: [{ version: 1, user_id: OTHER, tables: { tasks: [task] } }] };
+    expect(prepareBackup(file, ME).tasks[0]).toMatchObject({ id: T1, user_id: ME });
+  });
+  it("rejects multi-user backups without the current user", () => {
+    const file = {
+      version: 1,
+      users: [
+        { version: 1, user_id: OTHER, tables: {} },
+        { version: 1, user_id: T2, tables: {} },
+      ],
+    };
+    expect(() => prepareBackup(file, ME)).toThrow("tidak berisi data akun Anda");
+  });
+});

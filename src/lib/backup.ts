@@ -131,13 +131,31 @@ export class BackupError extends Error {
 }
 
 /**
+ * Picks the restorable envelope from either format:
+ * - Settings export `{version: 1, exported_at, tables}`
+ * - n8n / server backup `{version: 1, format: "second-brain-backup", users: [{user_id, tables}]}`
+ *   (only the entry of `userId` is used; with a single entry it is used regardless of id so a
+ *   backup can be restored into a new account)
+ */
+export function selectBackupEnvelope(input: unknown, userId: string): unknown {
+  if (!input || typeof input !== "object" || !("users" in input)) return input;
+  const users = (input as { users: unknown }).users;
+  if (!Array.isArray(users)) throw new BackupError("Format backup tidak dikenali");
+  const mine = users.find((u) => (u as { user_id?: unknown })?.user_id === userId);
+  const entry = mine ?? (users.length === 1 ? users[0] : undefined);
+  if (!entry)
+    throw new BackupError("Backup ini tidak berisi data akun Anda (pilih file backup per akun)");
+  return entry;
+}
+
+/**
  * Validates a parsed backup file and returns sanitized rows per table with
  * `user_id = userId`. Throws `BackupError` (Indonesian message) on the first invalid row.
  */
 export function prepareBackup(input: unknown, userId: string): PreparedBackup {
   const envelope = z
     .object({ version: z.literal(1), tables: z.record(z.unknown()) })
-    .safeParse(input);
+    .safeParse(selectBackupEnvelope(input, userId));
   if (!envelope.success) throw new BackupError("Format backup tidak dikenali");
 
   const out = {} as PreparedBackup;
