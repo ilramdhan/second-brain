@@ -1,30 +1,73 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
-//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
+import tsConfigPaths from "vite-tsconfig-paths";
 
-// Deploy target. Lovable (and any build without these env vars) keeps the wrapper's default
-// `cloudflare-module` target; inside the Lovable sandbox the wrapper forces its own preset anyway.
-// - `NITRO_PRESET=<preset>` is read by Nitro directly and wins for any target.
-// - On Vercel (`VERCEL` is set by the build environment) we pin the `vercel` preset so the build
-//   emits `.vercel/output` (Build Output API) instead of a Cloudflare worker.
-const nitro =
-  process.env["VERCEL"] && !process.env["NITRO_PRESET"] ? { preset: "vercel" as const } : undefined;
+const srcDir = fileURLToPath(new URL("./src", import.meta.url));
 
-export default defineConfig({
-  ...(nitro ? { nitro } : {}),
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
-  },
-  vite: {
+// Deploy target for production builds. Defaults to Vercel (emits `.vercel/output`, Build Output
+// API). Override with `NITRO_PRESET=<preset>` (e.g. `node-server`, `cloudflare-module`).
+const nitroPreset = process.env["NITRO_PRESET"] || "vercel";
+
+export default defineConfig(({ command, mode }) => {
+  const isDevBuild = command === "build" && mode === "development";
+
+  // Inline VITE_* variables (from .env files and the process env) as import.meta.env.* constants.
+  const envDefine: Record<string, string> = {};
+  for (const [key, value] of Object.entries(loadEnv(mode, process.cwd(), "VITE_"))) {
+    envDefine[`import.meta.env.${key}`] = JSON.stringify(value);
+  }
+
+  const plugins: PluginOption[] = [
+    tailwindcss(),
+    tsConfigPaths({ projects: ["./tsconfig.json"] }),
+    tanstackStart({
+      // Server-only modules must never be pulled into the client bundle.
+      importProtection: {
+        behavior: "error",
+        client: { files: ["**/server/**"], specifiers: ["server-only"] },
+      },
+      // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
+      server: { entry: "server" },
+    }),
+    // Nitro only packages the production server; `vite dev` uses TanStack Start's dev server.
+    command === "build" ? nitro({ preset: nitroPreset }) : null,
+    viteReact(),
+  ];
+
+  return {
+    plugins,
+    define: envDefine,
+    ...(isDevBuild
+      ? {
+          environments: {
+            client: { define: { "process.env.NODE_ENV": JSON.stringify("development") } },
+          },
+        }
+      : {}),
+    css: { transformer: "lightningcss" },
+    resolve: {
+      alias: { "@": srcDir },
+      dedupe: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@tanstack/react-query",
+        "@tanstack/query-core",
+      ],
+    },
     // Pre-bundle lazily discovered deps so mid-session re-optimization doesn't load two React copies.
     optimizeDeps: {
       include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
         "@dnd-kit/core",
         "cmdk",
         "@radix-ui/react-dialog",
@@ -39,6 +82,12 @@ export default defineConfig({
         "@radix-ui/react-dropdown-menu",
         "@radix-ui/react-switch",
       ],
+      ignoreOutdatedRequests: true,
     },
-  },
+    server: {
+      host: "::",
+      port: 8080,
+      watch: { awaitWriteFinish: { stabilityThreshold: 1000, pollInterval: 100 } },
+    },
+  };
 });
