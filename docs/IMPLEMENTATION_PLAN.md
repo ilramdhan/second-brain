@@ -5,18 +5,19 @@
 
 ## Ringkasan Phase
 
-| Phase | Tema                                          | Tujuan utama                                        | Estimasi      | Bergantung pada   |
-| ----- | --------------------------------------------- | --------------------------------------------------- | ------------- | ----------------- |
-| 0     | Fondasi & deploy                              | CI hijau, deploy Vercel jalan, baseline metrik      | 1–2 hari      | –                 |
-| 1     | Security hotfix                               | Tutup celah Critical/High                           | 2–3 hari      | 0                 |
-| 2     | Database hardening                            | Policy, index, trigger duplikat, constraint         | 2–3 hari      | 1                 |
-| 3     | Performance quick wins                        | Web terasa cepat di semua halaman                   | 3–4 hari      | 0 (paralel dgn 2) |
-| 4     | Performance deep fix                          | Editor catatan, list, Yjs, auth/SSR                 | 4–6 hari      | 3                 |
-| 5     | Refactor & kualitas kode                      | Struktur feature-based, test, hapus dependency mati | 4–5 hari      | 3                 |
-| 6 ✅  | Backend n8n                                   | Endpoint `/api/public/n8n/*` + aktifkan template    | 4–5 hari      | 1, 2              |
-| 7 ✅  | Lepas dari lock-in Lovable gateway (opsional) | AI/Telegram/Calendar langsung ke provider           | 3–4 hari      | 6                 |
-| 8     | Observability, PWA, a11y, SEO                 | Sentry, web-vitals, Workbox, WCAG 2.2 AA            | 3–4 hari      | 4                 |
-| 9     | Fitur baru                                    | Roadmap fitur dari ANALYSIS §13                     | berkelanjutan | 5                 |
+| Phase | Tema                                          | Tujuan utama                                         | Estimasi      | Bergantung pada   |
+| ----- | --------------------------------------------- | ---------------------------------------------------- | ------------- | ----------------- |
+| 0     | Fondasi & deploy                              | CI hijau, deploy Vercel jalan, baseline metrik       | 1–2 hari      | –                 |
+| 1     | Security hotfix                               | Tutup celah Critical/High                            | 2–3 hari      | 0                 |
+| 2     | Database hardening                            | Policy, index, trigger duplikat, constraint          | 2–3 hari      | 1                 |
+| 3     | Performance quick wins                        | Web terasa cepat di semua halaman                    | 3–4 hari      | 0 (paralel dgn 2) |
+| 4     | Performance deep fix                          | Editor catatan, list, Yjs, auth/SSR                  | 4–6 hari      | 3                 |
+| 5     | Refactor & kualitas kode                      | Struktur feature-based, test, hapus dependency mati  | 4–5 hari      | 3                 |
+| 6 ✅  | Backend n8n                                   | Endpoint `/api/public/n8n/*` + aktifkan template     | 4–5 hari      | 1, 2              |
+| 7 ✅  | Lepas dari lock-in Lovable gateway (opsional) | AI/Telegram/Calendar langsung ke provider            | 3–4 hari      | 6                 |
+| 8     | Observability, PWA, a11y, SEO                 | Sentry, web-vitals, Workbox, WCAG 2.2 AA             | 3–4 hari      | 4                 |
+| 9     | Fitur baru                                    | Roadmap fitur dari ANALYSIS §13                      | berkelanjutan | 5                 |
+| 10    | Domain produksi & demo                        | `second-brain.ilramdhan.dev` + demo terbatas & reset | 2–3 hari      | 6, 7              |
 
 Definition of Done untuk setiap task: lint + typecheck + test + build lulus di CI, perubahan migration bisa dijalankan dari nol, dokumentasi (README/CLAUDE.md/CHANGELOG) diperbarui bila perilaku berubah.
 
@@ -175,6 +176,25 @@ Diambil dari ANALYSIS §13, dikerjakan setelah Phase 1–5 stabil:
 7. UX keyboard-first (j/k, aksi cepat di command palette, cheat-sheet).
 8. i18n (ID/EN) — string saat ini campuran.
 9. Mode offline penuh (antrian mutasi) setelah Workbox.
+
+---
+
+## Phase 10 — Domain produksi & deployment demo
+
+**Domain:** produksi `second-brain.ilramdhan.dev` (sama dengan nama repo/app, mudah dibaca dan diucapkan; `2ndbrain` ambigu saat diucapkan/diketik). Demo `second-brain-demo.ilramdhan.dev` (satu level subdomain seperti produksi, berurutan di daftar DNS/Vercel, sertifikat & CNAME sama sederhananya). Alternatif setara: `demo.second-brain.ilramdhan.dev`.
+
+**Prinsip demo:** deployment kedua dari branch yang sama (Vercel project terpisah) dengan **Supabase project terpisah** (Free tier kedua) — demo tidak pernah menyentuh data produksi; perilaku dibatasi lewat env, bukan fork kode.
+
+| #    | Status  | Task                                                                                                                                                                                                                                |
+| ---- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 10.1 | ⏳ todo | Domain produksi: Vercel → Domains `second-brain.ilramdhan.dev` (CNAME `cname.vercel-dns.com`), `APP_URL`, Supabase Auth Site URL/redirect, Google OAuth redirect URI, `SECOND_BRAIN_URL` di n8n.                                    |
+| 10.2 | ⏳ todo | Project demo: Vercel project kedua + Supabase project kedua, domain `second-brain-demo.ilramdhan.dev`, env sendiri (Supabase keys, `N8N_API_KEY` berbeda, tanpa `GOOGLE_*`/`TELEGRAM_*`/`TOKEN_ENCRYPTION_KEY`).                    |
+| 10.3 | ⏳ todo | `APP_MODE=demo` (server) + `VITE_APP_MODE=demo` (UI): matikan OCR, voice, AI capture/ringkasan (tanpa `AI_API_KEY` atau provider gratis dengan kuota sangat kecil), Telegram, Google Calendar, webhook automations, restore backup. |
+| 10.4 | ⏳ todo | Batas CRUD demo: kuota per user via `consume_rate_limit` (bucket `demo_write`), batas jumlah baris per tabel/user, ukuran teks lebih kecil; ditegakkan di server/DB (trigger), bukan hanya di UI.                                   |
+| 10.5 | ⏳ todo | Akun demo: akun bersama read-mostly atau Supabase anonymous sign-in + CAPTCHA (Cloudflare Turnstile, didukung Supabase Auth) agar sign-up tidak di-abuse; nonaktifkan email sign-up biasa di project demo.                          |
+| 10.6 | ⏳ todo | Reset DB terjadwal dari n8n: `POST /api/public/n8n/demo/reset` (hanya aktif bila `APP_MODE=demo`, `x-api-key`) → hapus data user demo + seed contoh (proyek, tugas, catatan berblok, dependensi); mis. tiap 6 jam / harian.         |
+| 10.7 | ⏳ todo | UI demo: banner "Demo — data direset tiap N jam, fitur X dimatikan", tombol fitur nonaktif dengan tooltip, `robots` `noindex`, link ke produksi/repo.                                                                               |
+| 10.8 | ⏳ todo | Test: unit untuk guard `APP_MODE`, SQL test untuk batas baris/trigger, smoke E2E demo (Phase 8.5) di preview.                                                                                                                       |
 
 ---
 
