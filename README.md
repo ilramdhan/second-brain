@@ -772,4 +772,4 @@ Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for set
 
 ## License
 
-[MIT](LICENSE) © 2026 Ilhom
+[MIT](LICENSE) © 2026 [Ilham Ramadhan](https://github.com/ilramdhan)

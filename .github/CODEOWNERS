@@ -1,20 +1,19 @@
 # Code owners are requested for review automatically on pull requests.
 # Docs: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 #
-# TODO: replace @OWNER with the maintainer's GitHub handle (or a team such as
-# @org/second-brain-maintainers). Later rules take precedence.
+# Maintainer: Ilham Ramadhan (@ilramdhan). Later rules take precedence.
 
-*                               @OWNER
+*                               @ilramdhan
 
 # Database schema and RLS policies: security-sensitive
-/drizzle/                       @OWNER
-/src/integrations/supabase/     @OWNER
+/drizzle/                       @ilramdhan
+/src/integrations/supabase/     @ilramdhan
 
 # Server-only code, secrets handling and public API routes
-/src/server/                    @OWNER
-/src/routes/api/                @OWNER
-/src/lib/*.server.ts            @OWNER
-/src/lib/*.functions.ts         @OWNER
+/src/server/                    @ilramdhan
+/src/routes/api/                @ilramdhan
+/src/lib/*.server.ts            @ilramdhan
+/src/lib/*.functions.ts         @ilramdhan
 
 # CI/CD and repository settings
-/.github/                       @OWNER
+/.github/                       @ilramdhan
