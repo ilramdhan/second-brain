@@ -20,6 +20,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { BlockEditor, InlineText } from "@/components/notes/BlockEditor";
+import { NoteLinksContext, useNoteLinksValue } from "@/components/notes/note-links";
 import { TagInput } from "@/components/common/TagInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,6 +180,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
     return { linked, unlinked };
   }, [notes, note.id, note.title, blocks]);
   const index = useMemo(() => indexBlocks(notes), [notes]);
+  const noteLinks = useNoteLinksValue();
   const outgoing = useMemo(() => {
     const { titles } = linksOf(blocks);
     return notes.filter((n) => titles.has(n.title.trim().toLowerCase()));
@@ -310,58 +312,60 @@ function NoteEditor({ note }: { note: NoteDetail }) {
           <BlockEditor noteId={note.id} blocks={blocks} onChange={changeBlocks} />
         </div>
 
-        <section className="mt-6 border-t pt-5">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Link2 className="h-4 w-4" /> Disebut di{" "}
-            {linked.length > 0 && (
-              <span className="font-normal text-muted-foreground">{linked.length}</span>
+        <NoteLinksContext.Provider value={noteLinks}>
+          <section className="mt-6 border-t pt-5">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <Link2 className="h-4 w-4" /> Disebut di{" "}
+              {linked.length > 0 && (
+                <span className="font-normal text-muted-foreground">{linked.length}</span>
+              )}
+            </h2>
+            {linked.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Belum ada catatan lain yang menautkan ke sini. Ketik <code>[[{note.title}]]</code>{" "}
+                di catatan lain.
+              </p>
             )}
-          </h2>
-          {linked.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              Belum ada catatan lain yang menautkan ke sini. Ketik <code>[[{note.title}]]</code> di
-              catatan lain.
-            </p>
-          )}
-          <ul className="space-y-3">
-            {linked.map(({ note: n, snippets }) => (
-              <li key={n.id} className="rounded-xl border bg-card p-3">
-                <Link
-                  to="/notes/$noteId"
-                  params={{ noteId: n.id }}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  {n.title}
-                </Link>
-                {snippets.slice(0, 3).map((s, i) => (
-                  <p key={i} className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    <InlineText text={s} index={index} />
-                  </p>
-                ))}
-              </li>
-            ))}
-          </ul>
-          {unlinked.length > 0 && (
-            <details className="mt-4">
-              <summary className="cursor-pointer text-xs text-muted-foreground">
-                Disebut tanpa tautan ({unlinked.length})
-              </summary>
-              <ul className="mt-2 space-y-1">
-                {unlinked.map((n) => (
-                  <li key={n.id}>
-                    <Link
-                      to="/notes/$noteId"
-                      params={{ noteId: n.id }}
-                      className="text-xs hover:underline"
-                    >
-                      {n.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </section>
+            <ul className="space-y-3">
+              {linked.map(({ note: n, snippets }) => (
+                <li key={n.id} className="rounded-xl border bg-card p-3">
+                  <Link
+                    to="/notes/$noteId"
+                    params={{ noteId: n.id }}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    {n.title}
+                  </Link>
+                  {snippets.slice(0, 3).map((s, i) => (
+                    <p key={i} className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      <InlineText text={s} index={index} />
+                    </p>
+                  ))}
+                </li>
+              ))}
+            </ul>
+            {unlinked.length > 0 && (
+              <details className="mt-4">
+                <summary className="cursor-pointer text-xs text-muted-foreground">
+                  Disebut tanpa tautan ({unlinked.length})
+                </summary>
+                <ul className="mt-2 space-y-1">
+                  {unlinked.map((n) => (
+                    <li key={n.id}>
+                      <Link
+                        to="/notes/$noteId"
+                        params={{ noteId: n.id }}
+                        className="text-xs hover:underline"
+                      >
+                        {n.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </section>
+        </NoteLinksContext.Provider>
       </article>
 
       <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
