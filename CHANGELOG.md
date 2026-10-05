@@ -10,6 +10,30 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.2.0](https://github.com/ilramdhan/second-brain/compare/v0.1.0...v0.2.0) (2026-10-05)
+
+
+### Features
+
+* **db:** Phase 2 database hardening — indexes, single audit trigger, RLS initplan, constraints ([47c0112](https://github.com/ilramdhan/second-brain/commit/47c0112d73e42baf392462e79caf087f79ac2fe1))
+
+
+### Bug Fixes
+
+* **db:** keep a single audit trigger per table ([e046401](https://github.com/ilramdhan/second-brain/commit/e0464012d02af90441d2b96df26c869b7e650348))
+* **db:** reference auth.users from user_id and check enum columns ([38a916f](https://github.com/ilramdhan/second-brain/commit/38a916f635c2c77c99978402f498a4f582292856))
+
+
+### Performance
+
+* **db:** evaluate auth.uid() and project membership once per query ([b5a9123](https://github.com/ilramdhan/second-brain/commit/b5a91232b9cf28b1be457576119feedbd6391812))
+* **db:** index the main access paths and every FK column ([7d1aac1](https://github.com/ilramdhan/second-brain/commit/7d1aac1f3193e7c49c4a001ca7d180db1023f21e))
+
+
+### Documentation
+
+* record Phase 2 explain results and mark Phase 2 rows done ([6060fc7](https://github.com/ilramdhan/second-brain/commit/6060fc76283cd877731d534497724ac40d369b4f))
+
 ## [0.1.0](https://github.com/ilramdhan/second-brain/releases/tag/v0.1.0) (2026-10-05)
 
 Open-source readiness, security hardening, Lovable-free Vercel deployment and the n8n integration.
