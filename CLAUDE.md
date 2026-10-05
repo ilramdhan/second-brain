@@ -71,7 +71,10 @@ public/                          manifest.webmanifest, sw.js, icons
 - Server-only code: put it in `*.server.ts` and load it with `await import(...)` inside handlers so it never reaches the client bundle. Never import `client.server.ts` (`supabaseAdmin`, which bypasses RLS) from client code.
 - `src/start.ts` defines global middleware. Keep `attachSupabaseAuth` and the CSRF middleware.
 - `VITE_*` env vars are inlined at build time. Server secrets come from `process.env[...]`.
-- The reminder endpoint authenticates against `app_config.cron_token`, not `LOVABLE_CRON_SECRET`.
+- The reminder endpoint (GET/POST) authenticates with `src/server/cronAuth.server.ts`: `LOVABLE_CRON_SECRET`, `LOVABLE_CRON_SECRET_PREVIOUS`, `CRON_SECRET` (Vercel Cron), falling back to the legacy `app_config.cron_token`.
+- Outgoing requests to user-supplied URLs must go through `safeWebhookPost` / `assertSafeUrl` (`src/server/ssrf.server.ts`).
+- New AI server functions must call the per-user limiter (`enforceRateLimit` with `AI_RATE_LIMIT`, `src/server/rateLimit.server.ts`) and put `.max()` on every text input.
+- Security headers live in `src/server/securityHeaders.ts` (applied by `src/server.ts` in production) and are mirrored in `vercel.json`; a test fails if they drift. The resource CSP is report-only, so add new browser-side origins there before enforcing it.
 - Bun's `minimumReleaseAge` (24 h) guard is in `bunfig.toml`. Ask the user before adding exclusions.
 - `docs/n8n/` is unrelated reference material (git-ignored). This app's n8n templates go in `integrations/n8n/`.
 

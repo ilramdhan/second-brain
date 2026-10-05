@@ -28,6 +28,9 @@ minor releases may contain breaking changes; they are called out under **Changed
   10-minute TTL, single use) and shows the linked status once the bot confirms. New table
   `telegram_link_codes` (migration `0008_telegram_link_codes`).
 
+- `vercel.json` with security headers for Vercel deployments.
+- Migration `0011_rate_limits`: `rate_limits` table and `consume_rate_limit` function, with
+  `supabase/tests/rate_limit.sql`.
 - `supabase/tests/rls_phase1.sql`: RLS regression checks for shared projects and note
   collaboration channels (with `realtime_stub.sql` for databases without the Realtime service).
 
@@ -39,6 +42,12 @@ minor releases may contain breaking changes; they are called out under **Changed
   (migration `0010_member_ownership_guards`).
 - **Breaking:** the Telegram bot links accounts with `/link <code>` instead of `/link <email>`.
   Users who are already linked stay linked.
+- **Breaking:** automation webhooks send a minimal `task` object (`id`, `title`, `status`,
+  `priority`, `due_date`, `project_id`, `tags`, `url`) instead of the full task row, and fail on
+  redirects, non-default ports and hosts that resolve to private addresses.
+- The reminder endpoint accepts `GET` (for Vercel Cron) as well as `POST`, skips trashed and
+  archived tasks, and loads Telegram chat IDs in one query instead of one per task.
+- Backup restore skips rows owned by other users and reports how many rows were restored.
 
 ### Security
 
@@ -51,6 +60,20 @@ minor releases may contain breaking changes; they are called out under **Changed
 - Members of a shared project can no longer take it over by changing `projects.user_id`, create
   rows as another user, or change a row's `user_id`. Member `FOR ALL` policies on tasks, notes,
   milestones and canvas tables were split into per-operation policies.
+- Automation webhooks are protected against SSRF: https only, no credentials, port 443/8443,
+  internal hostnames and private/loopback/link-local/CGNAT/metadata addresses (after DNS
+  resolution, IPv4 and IPv6) are rejected, redirects are not followed, 5-second timeout and at
+  most 64 KB of the response is read.
+- The reminder cron authenticates with `LOVABLE_CRON_SECRET` / `LOVABLE_CRON_SECRET_PREVIOUS` /
+  `CRON_SECRET` in constant time; the legacy `app_config.cron_token` still works.
+- AI server functions validate input sizes (base64 checked before decoding) and are limited to 30
+  calls per user per 10 minutes.
+- Signing out (button, idle logout, or any `SIGNED_OUT` event) clears the query cache.
+- Backup restore validates every row with a per-table schema, drops unknown columns, forces
+  `user_id` to the current user and caps file size (20 MB) and rows (10,000 per table).
+- Security headers on every response: HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, an enforced CSP for framing/base/object/form targets and
+  a report-only resource CSP.
 - Telegram account linking no longer trusts an email address, which let anyone link their chat to
   another user's account and revealed whether an email was registered. The `auth.admin.listUsers()`
   lookup was removed.

@@ -304,7 +304,7 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   ├── oauth/google-calendar/return.tsx   # OAuth popup return → postMessage to opener
     │   └── api/public/
     │       ├── telegram/webhook.ts            # Telegram bot webhook (POST)
-    │       └── hooks/reminders.ts             # Deadline reminder cron endpoint (POST)
+    │       └── hooks/reminders.ts             # Deadline reminder cron endpoint (GET/POST)
     ├── server/
     │   └── connectionKeyCrypto.server.ts      # AES-GCM encrypt/decrypt of connector handles
     ├── lib/
@@ -585,20 +585,22 @@ erDiagram
 
 Copy `.env.example` to `.env` locally (it is git-ignored) and set the same variables in your hosting provider.
 
-| Variable                                               | Side                | Required                   | Purpose                                                                                                                                           |
-| ------------------------------------------------------ | ------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_SUPABASE_URL`                                    | Client (build-time) | Yes                        | Supabase project URL for the browser client                                                                                                       |
-| `VITE_SUPABASE_PUBLISHABLE_KEY`                        | Client (build-time) | Yes                        | Supabase anon/publishable key for the browser client                                                                                              |
-| `SUPABASE_URL`                                         | Server              | Yes                        | Supabase URL for SSR, auth middleware and the admin client                                                                                        |
-| `SUPABASE_PUBLISHABLE_KEY`                             | Server              | Yes                        | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                                          |
-| `SUPABASE_SERVICE_ROLE_KEY`                            | Server (secret)     | Yes                        | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store               |
-| `LOVABLE_API_KEY`                                      | Server (secret)     | For AI / Telegram / Google | Bearer key for the Lovable AI Gateway (`ai.gateway.lovable.dev`) and the connector gateway (`connector-gateway.lovable.dev`)                      |
-| `TELEGRAM_API_KEY`                                     | Server (secret)     | For Telegram               | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token                                             |
-| `TELEGRAM_WEBHOOK_SECRET`                              | Server (secret)     | Required for the bot       | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches                               |
-| `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`    | Server (secret)     | For Google Calendar        | Client API key of the Lovable Google Calendar App User Connector                                                                                  |
-| `APP_USER_CONNECTION_KEY_SECRET`                       | Server (secret)     | For Google Calendar        | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`)                                  |
-| `LOVABLE_DB_MIGRATION_URL`                             | Tooling             | For migrations             | Postgres connection string used by `drizzle-kit`                                                                                                  |
-| `LOVABLE_CRON_SECRET` / `LOVABLE_CRON_SECRET_PREVIOUS` | Server              | No (currently unused)      | Read by the generated `cron-auth.ts` helper, which no route uses yet. The reminder endpoint authenticates against `app_config.cron_token` instead |
+| Variable                                               | Side                | Required                   | Purpose                                                                                                                             |
+| ------------------------------------------------------ | ------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                                    | Client (build-time) | Yes                        | Supabase project URL for the browser client                                                                                         |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`                        | Client (build-time) | Yes                        | Supabase anon/publishable key for the browser client                                                                                |
+| `SUPABASE_URL`                                         | Server              | Yes                        | Supabase URL for SSR, auth middleware and the admin client                                                                          |
+| `SUPABASE_PUBLISHABLE_KEY`                             | Server              | Yes                        | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                            |
+| `SUPABASE_SERVICE_ROLE_KEY`                            | Server (secret)     | Yes                        | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store |
+| `LOVABLE_API_KEY`                                      | Server (secret)     | For AI / Telegram / Google | Bearer key for the Lovable AI Gateway (`ai.gateway.lovable.dev`) and the connector gateway (`connector-gateway.lovable.dev`)        |
+| `TELEGRAM_API_KEY`                                     | Server (secret)     | For Telegram               | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token                               |
+| `TELEGRAM_WEBHOOK_SECRET`                              | Server (secret)     | Required for the bot       | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches                 |
+| `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`    | Server (secret)     | For Google Calendar        | Client API key of the Lovable Google Calendar App User Connector                                                                    |
+| `APP_USER_CONNECTION_KEY_SECRET`                       | Server (secret)     | For Google Calendar        | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`)                    |
+| `LOVABLE_DB_MIGRATION_URL`                             | Tooling             | For migrations             | Postgres connection string used by `drizzle-kit`                                                                                    |
+| `LOVABLE_CRON_SECRET` / `LOVABLE_CRON_SECRET_PREVIOUS` | Server (secret)     | For the reminder cron      | Bearer secret for `/api/public/hooks/reminders` (constant-time compare); keep the old value in `_PREVIOUS` while rotating           |
+| `CRON_SECRET`                                          | Server (secret)     | For Vercel Cron / n8n      | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`                  |
+| `SECURITY_HEADERS`                                     | Server              | No                         | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                        |
 
 `VITE_*` variables are inlined at build time. Rebuild after you change them.
 
@@ -666,6 +668,7 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0008 | `telegram_link_codes`              | One-time Telegram link codes (hash only, 10-minute TTL)                                                                                                                          |
 | 0009 | `private_note_collab_channels`     | `can_access_note`, Realtime Authorization policies for `note-collab:<noteId>`                                                                                                    |
 | 0010 | `member_ownership_guards`          | Immutable `user_id`, per-operation member policies, trash/delete limited to row or project owner                                                                                 |
+| 0011 | `rate_limits`                      | `rate_limits` table and `consume_rate_limit` (per-user fixed-window limiter for AI calls)                                                                                        |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `LOVABLE_DB_MIGRATION_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
@@ -687,8 +690,13 @@ The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. Wi
    https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://<your-app>/api/public/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>
    ```
    Outgoing messages go through the Lovable connector gateway (`LOVABLE_API_KEY` + `TELEGRAM_API_KEY`).
-7. **Reminder cron:** schedule a `POST` to `https://<your-app>/api/public/hooks/reminders` with the header `Authorization: Bearer <app_config.cron_token>`. Read the token with `select value from app_config where key = 'cron_token'`. Vercel Cron only sends `GET` with `CRON_SECRET`, so use Supabase `pg_cron` + `pg_net`, n8n, or another scheduler (hourly is a sensible default).
-8. **Google Calendar OAuth:** the flow runs through the Lovable App User Connector. The return URL is computed from the request origin: `https://<your-app>/oauth/google-calendar/return`. Make sure that URL is allowed for the connector, and set `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`, `APP_USER_CONNECTION_KEY_SECRET` and `LOVABLE_API_KEY`.
+7. **Reminder cron:** set `CRON_SECRET` (`openssl rand -hex 32`) and add a Vercel Cron job, which calls `GET /api/public/hooks/reminders` with `Authorization: Bearer $CRON_SECRET`:
+   ```json
+   { "crons": [{ "path": "/api/public/hooks/reminders", "schedule": "0 * * * *" }] }
+   ```
+   (merge into `vercel.json`; Hobby plans only allow daily crons). Any other scheduler (Supabase `pg_cron` + `pg_net`, n8n) can `GET` or `POST` with `Authorization: Bearer <secret>` using `CRON_SECRET` or `LOVABLE_CRON_SECRET`. The legacy `app_config.cron_token` still works.
+8. **Security headers:** `vercel.json` sets HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and the CSP (enforced framing rules plus a report-only resource policy) on every path, and the server adds the same headers to SSR responses. Check the browser console for CSP reports before enforcing the full policy (see `SECURITY.md`).
+9. **Google Calendar OAuth:** the flow runs through the Lovable App User Connector. The return URL is computed from the request origin: `https://<your-app>/oauth/google-calendar/return`. Make sure that URL is allowed for the connector, and set `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`, `APP_USER_CONNECTION_KEY_SECRET` and `LOVABLE_API_KEY`.
 
 **Caveats**
 

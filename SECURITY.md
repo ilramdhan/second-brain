@@ -90,7 +90,7 @@ code doesn't match.
 
 ### Authorization: Row Level Security
 
-- **Every table in `public` has RLS enabled** (all 23 tables created by the migrations).
+- **Every table in `public` has RLS enabled** (every table created by the migrations, including `rate_limits` from `0011`).
 - Personal data uses owner policies (`user_id = auth.uid()`).
 - Shared projects are handled by `SECURITY DEFINER` helpers defined in
   `0002_workspace_features.sql`: `is_project_owner`, `is_project_member` and `can_access_task`.
@@ -128,10 +128,16 @@ code doesn't match.
 
 ### Server functions
 
-- All 12 server functions (`ai.functions.ts`, `automations.functions.ts`,
-  `googleCalendar.functions.ts`) use the `requireSupabaseAuth` middleware, which builds a
-  **per-user Supabase client** so queries run under the caller's RLS. Inputs are validated with
-  zod.
+- All server functions (`ai.functions.ts`, `automations.functions.ts`,
+  `googleCalendar.functions.ts`, `telegram.functions.ts`) use the `requireSupabaseAuth`
+  middleware, which builds a **per-user Supabase client** so queries run under the caller's RLS.
+  Inputs are validated with zod.
+- AI server functions cap their inputs (brain dump 20k characters, paraphrase 5k, meeting notes
+  50k, audio 10 MB, images 8 MB; base64 sizes are checked before decoding) and share a per-user
+  budget of **30 calls per 10 minutes**. The budget is enforced by the `SECURITY DEFINER`
+  function `consume_rate_limit(bucket, max, window_seconds)` (migration `0011_rate_limits`),
+  which always uses `auth.uid()`; the `rate_limits` table has RLS on and no client privileges.
+  The limiter fails closed if the database call errors.
 - The service-role client (`supabaseAdmin`, `src/integrations/supabase/client.server.ts`) bypasses
   RLS. It is only imported dynamically inside server handlers and must always be scoped to the
   authenticated user or to an authenticated public-endpoint caller.
@@ -158,10 +164,10 @@ code doesn't match.
 
 These routes have no user session and authenticate the caller themselves:
 
-| Route                               | Authentication                                                                                                                                                        |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/public/telegram/webhook` | Fails closed: requires `TELEGRAM_WEBHOOK_SECRET` to be set and a matching `X-Telegram-Bot-Api-Secret-Token` header (constant-time comparison); otherwise 401.         |
-| `POST /api/public/hooks/reminders`  | Requires `Authorization: Bearer <token>` where the token equals `app_config.cron_token` (a random UUID created by migration `0001`, readable only by `service_role`). |
+| Route                                    | Authentication                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /api/public/telegram/webhook`      | Fails closed: requires `TELEGRAM_WEBHOOK_SECRET` to be set and a matching `X-Telegram-Bot-Api-Secret-Token` header (constant-time comparison); otherwise 401.                                                                                                                                                |
+| `GET`/`POST /api/public/hooks/reminders` | Requires `Authorization: Bearer <token>` matching `LOVABLE_CRON_SECRET`, `LOVABLE_CRON_SECRET_PREVIOUS` (rotation) or `CRON_SECRET` (Vercel Cron), compared in constant time. The legacy `app_config.cron_token` still works and is only looked up when a bearer token is present and no env secret matched. |
 
 ### Telegram account linking
 
@@ -177,7 +183,18 @@ These routes have no user session and authenticate the caller themselves:
 
 ### Outgoing requests
 
-- Automation webhooks only allow `https:` URLs.
+- Automation webhooks go through an SSRF guard (`src/server/ssrf.server.ts`): `https:` only, no
+  credentials in the URL, port 443 or 8443 only, internal hostnames (`localhost`, `*.local`,
+  `*.internal`, `metadata.google.internal`, single-label names) and literal private IPs are
+  rejected, and every A/AAAA record of the host must be a public address (private, loopback,
+  link-local incl. `169.254.169.254`, CGNAT, multicast, unspecified, documentation, NAT64/6to4
+  and IPv4-mapped IPv6 are blocked). Redirects are not followed (3xx is a failure), requests time
+  out after 5 seconds and at most 64 KB of the response is read. The payload contains only the
+  task's id, title, status, priority, due date, project id, tags and a link.
+- Residual risk: on runtimes without `node:dns` (Cloudflare Workers) the DNS step is skipped and
+  only the static checks apply; Workers cannot reach private networks, so this mainly matters
+  on Node hosts. DNS rebinding between the check and the request is mitigated, not eliminated,
+  by the redirect, timeout and size limits.
 - AI, Telegram and Google Calendar calls go to Lovable gateways (`ai.gateway.lovable.dev`,
   `connector-gateway.lovable.dev`) with server-side keys.
 
@@ -187,19 +204,29 @@ These are known weaknesses or missing defenses. They are tracked here so self-ho
 risk; contributions are welcome (please coordinate via an issue or a private advisory for the
 first one).
 
-1. **Reminder cron token.** The token is static (no rotation or expiry), compared with a plain
-   string comparison rather than a constant-time one, and the generated `cron-auth.ts` helper
-   (`LOVABLE_CRON_SECRET`) is unused. Rotate it with
-   `update app_config set value = gen_random_uuid()::text where key = 'cron_token'` if leaked.
-2. **Outgoing webhook SSRF surface.** Automation webhooks accept any `https:` URL, including hosts
-   that resolve to private or link-local addresses. Consider blocking private ranges and adding a
-   timeout.
-3. **No application-level rate limiting** on AI server functions or public endpoints; AI usage is
-   billed to the deployment's `LOVABLE_API_KEY`.
-4. **No Content-Security-Policy or other security headers** are set by the app. Configure them at
-   the hosting layer (for example `vercel.json` headers) for production deployments.
+1. **CSP resources are report-only.** Only framing, `<base>`, plugin and form-target directives
+   are enforced; the full resource policy is sent as `Content-Security-Policy-Report-Only` (see
+   "Content Security Policy").
+2. **Public endpoints are not rate limited** at the application level (the AI functions are).
+   Use the hosting provider's firewall or rate limiting for `/api/public/*`.
 
 ### Fixed
+
+- **Outgoing automation webhooks allowed SSRF** (any `https:` URL, including internal hosts,
+  followed redirects, no timeout) and sent the full task row. Fixed with the SSRF guard and a
+  minimal payload. See "Outgoing requests".
+- **Reminder cron token** was compared with a plain string comparison and queried the database
+  on every unauthenticated request. Fixed with constant-time env secrets (with rotation) and a
+  legacy fallback that is only consulted for requests carrying a token.
+- **AI server functions had no input limits or rate limit.** Fixed with zod limits and a
+  per-user budget. See "Server functions".
+- **Sign-out kept the query cache**, so the next user of a shared device could briefly see the
+  previous user's data. The cache is cleared on every sign-out path.
+- **Backup restore upserted raw rows**, letting a crafted file set any column (including
+  `user_id`) on rows that RLS allowed, including shared-project rows. Restores now validate each
+  table with a zod schema, drop unknown columns, force `user_id` to the current user, cap the file
+  (20 MB, 10,000 rows per table) and never update rows owned by someone else.
+- **No security headers were sent.** See "Security headers".
 
 - **Note collaboration channels were public** (anyone with the anon key and a note UUID could
   read live edits and inject Yjs updates that the victim's editor autosaved). The channel is now
@@ -217,6 +244,46 @@ first one).
   `TELEGRAM_WEBHOOK_SECRET` was unset). The webhook now fails closed and compares the header in
   constant time.
 
+### Security headers
+
+`src/server/securityHeaders.ts` defines one header set. `src/server.ts` adds it to every SSR and
+API response in production builds on any host (routes may set their own values, which win;
+`SECURITY_HEADERS=off` disables it), and `vercel.json` applies the same set to static assets on
+Vercel (a unit test keeps both in sync). Dev servers do not send them, because the Lovable editor
+preview embeds the app in an iframe.
+
+| Header                                | Value                                                                                          |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `Strict-Transport-Security`           | `max-age=63072000; includeSubDomains`                                                          |
+| `X-Content-Type-Options`              | `nosniff`                                                                                      |
+| `X-Frame-Options`                     | `DENY`                                                                                         |
+| `Referrer-Policy`                     | `strict-origin-when-cross-origin`                                                              |
+| `Permissions-Policy`                  | only `microphone=(self)` (voice capture); camera, geolocation etc. off                         |
+| `Content-Security-Policy`             | **enforced:** `frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'` |
+| `Content-Security-Policy-Report-Only` | full resource policy, see below                                                                |
+
+#### Content Security Policy
+
+The resource policy is **report-only** for now:
+
+```
+default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob: https:; font-src 'self' data:;
+connect-src 'self' https://*.supabase.co wss://*.supabase.co; media-src 'self' blob:;
+worker-src 'self'; manifest-src 'self'; frame-src 'self'; frame-ancestors 'none';
+base-uri 'self'; object-src 'none'; form-action 'self'
+```
+
+Why report-only: TanStack Start emits inline hydration scripts without a nonce (so
+`script-src` needs `'unsafe-inline'`), the browser talks to Supabase directly (a custom Supabase
+domain needs its own `connect-src` entry), and the Lovable editor injects its own scripts in
+previews. AI, Telegram and Google calls run on the server, so the browser needs no Lovable or
+Google origins. To enforce: open the deployed app, use every feature (login, realtime notes,
+voice capture, Google Calendar connect, PWA install) with the console open, add any reported
+origin, then move the policy from `CSP_REPORT_ONLY` to `CSP_ENFORCED` in
+`src/server/securityHeaders.ts` and regenerate the `vercel.json` entry (the unit test fails until
+both match).
+
 ## Hardening checklist for self-hosters
 
 - Set `TELEGRAM_WEBHOOK_SECRET` and register it with Telegram's `setWebhook` (`secret_token`).
@@ -225,8 +292,11 @@ first one).
   environment variables; never in `VITE_*`.
 - Restrict Supabase Auth redirect URLs to your own domains.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
-- Add security headers (CSP, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`)
-  at the hosting layer.
+- Set `LOVABLE_CRON_SECRET` or `CRON_SECRET` (`openssl rand -hex 32`) for the reminder cron and
+  stop relying on `app_config.cron_token`. To rotate, move the old value to
+  `LOVABLE_CRON_SECRET_PREVIOUS` until every scheduler uses the new one.
+- Check the browser console for `Content-Security-Policy-Report-Only` violations on your domain
+  before enforcing the full CSP (see "Content Security Policy").
 - In Supabase _Realtime → Settings_, consider disabling "Allow public access" so every channel
   must be private.
 - Keep dependencies updated (Dependabot is configured) and review CodeQL alerts.
