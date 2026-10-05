@@ -83,7 +83,7 @@ Semua credential di JSON bertanda `"id": "REPLACE_ME"`; setelah impor, buka node
 
    Pindah mode: jalankan `deleteWebhook` (04) dulu.
 
-4. Di Telegram kirim `/link email@anda.com` untuk menautkan chat ke akun (mengisi `profiles.telegram_chat_id`). Semua endpoint n8n mengidentifikasi user lewat `chat_id` ini.
+4. Di web app buka **Pengaturan → Bot Telegram → Hubungkan Telegram**, lalu kirim `/link <kode>` ke bot (kode 8 karakter, berlaku 10 menit, sekali pakai) untuk menautkan chat ke akun (mengisi `profiles.telegram_chat_id`). Semua endpoint n8n mengidentifikasi user lewat `chat_id` ini.
 5. Jalankan 04 untuk mendaftarkan menu `/`.
 
 ### Perintah bot (diproses server di `/n8n/bot`)
@@ -121,7 +121,7 @@ Sudah ada di app:
 
 | Method & path                       | Auth                                                                 | Catatan                                                                           |
 | ----------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `POST /api/public/telegram/webhook` | header `x-telegram-bot-api-secret-token` = `TELEGRAM_WEBHOOK_SECRET` | Mode native: `/start`, `/link email`, teks → `inbox_items`                        |
+| `POST /api/public/telegram/webhook` | header `x-telegram-bot-api-secret-token` = `TELEGRAM_WEBHOOK_SECRET` | Mode native: `/start`, `/link <kode>`, teks → `inbox_items`                       |
 | `POST /api/public/hooks/reminders`  | `Authorization: Bearer <app_config.cron_token>`                      | Pengingat ≤ 24 jam, kirim via gateway Telegram Lovable, set `tasks.reminded=true` |
 
 Belum ada — rancang di `src/routes/api/public/n8n/*`. Aturan umum:
@@ -284,8 +284,8 @@ Body `{ "type": "n8n_error", "workflow": "…", "node": "…", "message": "…",
 ## Keamanan
 
 - **Allow-list chat ID** dicek di n8n (fail-closed) **dan** server tetap memetakan `chat_id → user` lewat `profiles.telegram_chat_id`; chat yang tidak tertaut tidak bisa membaca data apa pun.
-- `/link email` saat ini menautkan chat ke akun hanya dengan email — sebaiknya ganti dengan kode sekali pakai yang dibuat di halaman Settings (mis. `/link 483920`) agar orang lain tidak bisa menautkan email Anda.
-- **Webhook secret:** mode native wajib `TELEGRAM_WEBHOOK_SECRET` (app menolak tanpa header yang cocok — jika env kosong, cek dilewati, jadi pastikan diisi). Telegram Trigger n8n memakai path acak (`webhookId`); jangan bagikan URL-nya.
+- `/link` hanya menerima kode sekali pakai dari halaman Settings (mis. `/link K7QM-4XPA`; disimpan sebagai hash SHA-256 di `telegram_link_codes`, TTL 10 menit). Mode n8n harus memakai alur yang sama — jangan menautkan chat berdasarkan email.
+- **Webhook secret:** mode native wajib `TELEGRAM_WEBHOOK_SECRET` (app menolak dengan 401 jika env kosong atau header tidak cocok; perbandingan constant-time). Telegram Trigger n8n memakai path acak (`webhookId`); jangan bagikan URL-nya.
 - Webhook automation (06) memakai `?token=`; gunakan string acak panjang, rotasi bila bocor. Aksi webhook di app hanya menerima `https`.
 - `N8N_API_KEY` hanya di server app & credential n8n — jangan di env klien (`VITE_*`). Rotasi berkala; pertimbangkan dukungan dua key (current/previous) seperti `cron-auth.ts`.
 - Eksekusi sukses tidak disimpan (`saveDataSuccessExecution: none`) karena berisi isi pesan/catatan pribadi; backup juga tidak menyimpan eksekusi error (berisi seluruh data).
@@ -301,7 +301,7 @@ Body `{ "type": "n8n_error", "workflow": "…", "node": "…", "message": "…",
 | Telegram Trigger gagal aktif                         | n8n harus HTTPS publik (`WEBHOOK_URL=https://n8n.domain.com/`)                                                                              |
 | `401 unauthorized` dari app                          | Credential Header Auth: Name harus `x-api-key`, Value sama dengan `N8N_API_KEY` di app                                                      |
 | `404` dari `/api/public/n8n/*`                       | Endpoint belum dibangun — lihat bagian kontrak; sementara aktifkan node legacy di 02                                                        |
-| "Akun belum terhubung"                               | Kirim `/link email@anda.com` di bot                                                                                                         |
+| "Akun belum terhubung"                               | Buat kode di Pengaturan → Bot Telegram, lalu kirim `/link <kode>` di bot                                                                    |
 | OCR kosong / `400` dari OpenAI                       | Model tidak mendukung vision/PDF → ganti `OPENAI_VISION_MODEL`; file > 15 MB; PDF terenkripsi                                               |
 | Voice gagal                                          | Node _Fix audio filename_ mengganti `.oga` → `.ogg`; bila masih ditolak, ganti `OPENAI_TRANSCRIBE_MODEL` ke `whisper-1`                     |
 | Pesan dobel                                          | Retry n8n tanpa idempotensi → server harus menyimpan `update_id`/`external_id`                                                              |

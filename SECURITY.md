@@ -65,8 +65,8 @@ to stay anonymous.
 
 - Vulnerabilities in Supabase, Vercel, Lovable or other third-party services themselves (report
   those to the vendor), unless our configuration or usage causes the issue.
-- Misconfiguration of a specific self-hosted deployment (for example leaving
-  `TELEGRAM_WEBHOOK_SECRET` unset), except where the documentation is wrong or misleading.
+- Misconfiguration of a specific self-hosted deployment (for example exposing
+  `SUPABASE_SERVICE_ROLE_KEY`), except where the documentation is wrong or misleading.
 - Denial of service by volume, missing rate limiting without a demonstrated impact, social
   engineering, physical attacks.
 - Findings from automated tools without a demonstrated exploit path.
@@ -138,8 +138,20 @@ These routes have no user session and authenticate the caller themselves:
 
 | Route                               | Authentication                                                                                                                                                        |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/public/telegram/webhook` | If `TELEGRAM_WEBHOOK_SECRET` is set, requires a matching `X-Telegram-Bot-Api-Secret-Token` header.                                                                    |
+| `POST /api/public/telegram/webhook` | Fails closed: requires `TELEGRAM_WEBHOOK_SECRET` to be set and a matching `X-Telegram-Bot-Api-Secret-Token` header (constant-time comparison); otherwise 401.         |
 | `POST /api/public/hooks/reminders`  | Requires `Authorization: Bearer <token>` where the token equals `app_config.cron_token` (a random UUID created by migration `0001`, readable only by `service_role`). |
+
+### Telegram account linking
+
+- A chat is linked to an account only with a one-time code issued to the signed-in user in
+  Settings (`createTelegramLinkCode`). Codes have 8 characters from a 32-symbol alphabet
+  (40 bits), expire after 10 minutes, work once, and a new code invalidates the previous unused
+  ones.
+- Only the SHA-256 hash is stored in `telegram_link_codes`. RLS lets users read and insert their
+  own rows; clients cannot set `expires_at` or `used_at`. The bot redeems a code with one
+  conditional update (unused and unexpired), so concurrent attempts cannot reuse it.
+- The bot gives the same reply for wrong, expired and used codes and never looks up users by
+  email.
 
 ### Outgoing requests
 
@@ -151,38 +163,39 @@ These routes have no user session and authenticate the caller themselves:
 
 These are known weaknesses or missing defenses. They are tracked here so self-hosters can assess
 risk; contributions are welcome (please coordinate via an issue or a private advisory for the
-first three).
+first one).
 
-1. **Telegram `/link <email>` has no verification.** The webhook links the sending Telegram chat
-   to whichever account has that email address. Anyone who knows a user's email can link their
-   own chat, then add items to that user's Inbox and receive that user's deadline reminders and
-   automation messages. Fix: issue a one-time code from the signed-in app (Settings) and require
-   `/link <code>` instead. The lookup also uses a single unpaginated
-   `auth.admin.listUsers()` call, so it won't find users beyond the first page on larger
-   instances.
-2. **Telegram webhook secret is optional.** If `TELEGRAM_WEBHOOK_SECRET` is unset, anyone can POST
-   forged updates to the webhook. Self-hosters should always set it; the code should probably fail
-   closed in production.
-3. **Note collaboration channels are not private.** `use-note-collaboration.ts` joins the Supabase
+1. **Note collaboration channels are not private.** `use-note-collaboration.ts` joins the Supabase
    Realtime channel `note-collab:<noteId>` without `private: true` or Realtime Authorization
    policies, so a client with the public anon key that knows a note's UUID could subscribe to its
    broadcast updates and inject changes into open editors (persistence still goes through RLS).
    Fix: private channels plus `realtime.messages` policies based on note access.
-4. **Reminder cron token.** The token is static (no rotation or expiry), compared with a plain
+2. **Reminder cron token.** The token is static (no rotation or expiry), compared with a plain
    string comparison rather than a constant-time one, and the generated `cron-auth.ts` helper
    (`LOVABLE_CRON_SECRET`) is unused. Rotate it with
    `update app_config set value = gen_random_uuid()::text where key = 'cron_token'` if leaked.
-5. **Outgoing webhook SSRF surface.** Automation webhooks accept any `https:` URL, including hosts
+3. **Outgoing webhook SSRF surface.** Automation webhooks accept any `https:` URL, including hosts
    that resolve to private or link-local addresses. Consider blocking private ranges and adding a
    timeout.
-6. **No application-level rate limiting** on AI server functions or public endpoints; AI usage is
+4. **No application-level rate limiting** on AI server functions or public endpoints; AI usage is
    billed to the deployment's `LOVABLE_API_KEY`.
-7. **No Content-Security-Policy or other security headers** are set by the app. Configure them at
+5. **No Content-Security-Policy or other security headers** are set by the app. Configure them at
    the hosting layer (for example `vercel.json` headers) for production deployments.
+
+### Fixed
+
+- **Telegram `/link <email>` had no verification** (anyone who knew a user's email could link
+  their own chat, receive that user's reminders and write to their Inbox; replies also revealed
+  whether an email was registered). Replaced by one-time codes from Settings; the email lookup
+  and `auth.admin.listUsers()` call were removed. See "Telegram account linking".
+- **Telegram webhook secret was optional** (forged updates were accepted when
+  `TELEGRAM_WEBHOOK_SECRET` was unset). The webhook now fails closed and compares the header in
+  constant time.
 
 ## Hardening checklist for self-hosters
 
-- Set `TELEGRAM_WEBHOOK_SECRET` and register it with Telegram's `setWebhook`.
+- Set `TELEGRAM_WEBHOOK_SECRET` and register it with Telegram's `setWebhook` (`secret_token`).
+  Without it the bot webhook rejects every update.
 - Keep `SUPABASE_SERVICE_ROLE_KEY` and `APP_USER_CONNECTION_KEY_SECRET` only in server
   environment variables; never in `VITE_*`.
 - Restrict Supabase Auth redirect URLs to your own domains.

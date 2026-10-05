@@ -154,7 +154,7 @@ In **Settings**, each user connects their own Google Calendar through a popup OA
 
 ### Telegram bot
 
-- Users link their account by sending `/link <email>` to the bot. After that, any message they send goes to their Inbox.
+- Users link their account in **Settings → Bot Telegram → Hubungkan Telegram**, which shows a one-time code (valid for 10 minutes, single use), and send `/link <code>` to the bot. After that, any message they send goes to their Inbox.
 - The bot sends deadline reminders: a cron call to `/api/public/hooks/reminders` sends Telegram reminders for tasks due within 24 hours or overdue.
 - Automations and unblock notifications can also send Telegram messages.
 
@@ -588,7 +588,7 @@ Copy `.env.example` to `.env` locally (it is git-ignored) and set the same varia
 | `SUPABASE_SERVICE_ROLE_KEY`                            | Server (secret)     | Yes                        | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store               |
 | `LOVABLE_API_KEY`                                      | Server (secret)     | For AI / Telegram / Google | Bearer key for the Lovable AI Gateway (`ai.gateway.lovable.dev`) and the connector gateway (`connector-gateway.lovable.dev`)                      |
 | `TELEGRAM_API_KEY`                                     | Server (secret)     | For Telegram               | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token                                             |
-| `TELEGRAM_WEBHOOK_SECRET`                              | Server (secret)     | Recommended                | When set, the webhook rejects requests unless the `X-Telegram-Bot-Api-Secret-Token` header matches                                                |
+| `TELEGRAM_WEBHOOK_SECRET`                              | Server (secret)     | Required for the bot       | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches                               |
 | `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`    | Server (secret)     | For Google Calendar        | Client API key of the Lovable Google Calendar App User Connector                                                                                  |
 | `APP_USER_CONNECTION_KEY_SECRET`                       | Server (secret)     | For Google Calendar        | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`)                                  |
 | `LOVABLE_DB_MIGRATION_URL`                             | Tooling             | For migrations             | Postgres connection string used by `drizzle-kit`                                                                                                  |
@@ -694,9 +694,9 @@ The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. Wi
 ### Telegram
 
 - Endpoint: `POST /api/public/telegram/webhook`
-- Commands: `/start` (instructions) and `/link <email>`, which binds the chat to the account with that email. Any other text is saved as an inbox item with `source = "telegram"`.
+- Commands: `/start` (instructions) and `/link <code>`, which binds the chat to the account that generated the one-time code in Settings. Codes are 8 characters, expire after 10 minutes, work once and are stored only as SHA-256 hashes in `telegram_link_codes`. Wrong, expired and used codes get the same reply. Any other text is saved as an inbox item with `source = "telegram"`.
 - Outbound messages: deadline reminders, the automation `telegram` action, and unblock notifications.
-- Note: `/link` trusts the email the user sends. Set `TELEGRAM_WEBHOOK_SECRET`, and consider adding a verification code before you use this in production.
+- `TELEGRAM_WEBHOOK_SECRET` is required: the webhook fails closed and returns 401 when it is unset or the `X-Telegram-Bot-Api-Secret-Token` header does not match. Register it with `setWebhook` (`secret_token`).
 
 ### Outgoing webhooks (automations)
 

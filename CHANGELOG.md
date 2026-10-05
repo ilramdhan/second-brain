@@ -24,6 +24,23 @@ minor releases may contain breaking changes; they are called out under **Changed
   `scripts/check-migrations.mjs`.
 - n8n workflow templates in `integrations/n8n/`.
 - `README.md` and `CLAUDE.md` project documentation.
+- "Hubungkan Telegram" in Settings: generates a one-time Telegram link code (8 characters,
+  10-minute TTL, single use) and shows the linked status once the bot confirms. New table
+  `telegram_link_codes` (migration `0008_telegram_link_codes`).
+
+### Changed
+
+- **Breaking:** the Telegram bot links accounts with `/link <code>` instead of `/link <email>`.
+  Users who are already linked stay linked.
+
+### Security
+
+- Telegram webhook fails closed: requests are rejected with 401 when `TELEGRAM_WEBHOOK_SECRET`
+  is unset or the `X-Telegram-Bot-Api-Secret-Token` header does not match (constant-time
+  comparison). Deployments must set the secret and re-register it with `setWebhook`.
+- Telegram account linking no longer trusts an email address, which let anyone link their chat to
+  another user's account and revealed whether an email was registered. The `auth.admin.listUsers()`
+  lookup was removed.
 
 ## [0.1.0] - 2026-10-05
 
