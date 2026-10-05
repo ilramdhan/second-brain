@@ -37,7 +37,8 @@ Before finishing a change, run `bun run lint` and `bun run test`, and run `bun r
 - **Layout**: every authenticated page wraps its content in `PageContainer` (and usually `PageHeader`).
 - **Drag & drop**: `@dnd-kit/core` for kanban and calendar. Timeline bars use raw pointer events.
 - **Team access**: enforced in RLS with the security-definer `is_project_member`, `is_project_owner` and `can_access_task`. Never write policies that query `projects` or `project_members` directly (recursion).
-- **Google Calendar**: per-user App User Connector. Connection handles are AES-GCM-encrypted in `app_user_connections` (service role only). They never reach the browser.
+- **Google Calendar**: the deployment's own Google OAuth 2.0 client (code + PKCE, encrypted `state`, offline access, scope `calendar.events`; `src/server/googleOAuth.server.ts`). Refresh tokens are AES-GCM-encrypted with `TOKEN_ENCRYPTION_KEY` in `app_user_connections` (service role only), refreshed server-side (`src/server/googleCalendar.server.ts`). They never reach the browser or n8n.
+- **n8n endpoints**: `/api/public/n8n/*` (bot, capture, digest, reminders, maintenance, backup, calendar/sync, events) go through `handleN8n` (`src/server/n8n/http.server.ts`: `x-api-key` = `N8N_API_KEY`, zod, error mapping). They use `supabaseAdmin` and must scope every query to the resolved user (`src/server/n8n/service.server.ts`); task writes reuse the server-side rules (blocked check, auto-shift, recurrence, `runAutomationRules`). Idempotency via `n8n_events`. Schedules live in n8n; Vercel Cron / pg_cron are fallbacks only.
 - **Collaboration**: Yjs over the **private** Supabase Realtime channel `note-collab:<id>` (`src/hooks/use-note-collaboration.ts`), authorized by `realtime.messages` policies via `can_access_note` (migration 0009). Durable state is still `notes.blocks`.
 - **Ownership**: `user_id` is immutable on update (trigger, migration 0010). Members edit shared rows, but only the row creator or project owner may trash/restore/delete, and only the project owner edits a project. New member policies must be per-operation and use `(select auth.uid())`.
 
@@ -48,15 +49,18 @@ src/routes/__root.tsx            HTML shell, SW registration
 src/routes/_authenticated.tsx    auth guard + app shell (nav, Cmd+K, Q quick task, capture, idle logout)
 src/routes/_authenticated/*      pages: index(Today) inbox tasks calendar timeline projects.* notes.* graph
                                  canvas automations reports templates archive activity settings
-src/routes/api/public/*          public HTTP endpoints: telegram/webhook, hooks/reminders (cron)
+src/routes/api/public/*          public HTTP endpoints: telegram/webhook (app mode), hooks/reminders (cron
+                                 fallback), n8n/* (x-api-key)
 src/routes/oauth/google-calendar/return.tsx   OAuth popup return
 src/lib/data.ts                  query hooks + mutations (central)
 src/lib/*.functions.ts           createServerFn (ai, automations, googleCalendar)
-src/lib/*.server.ts, src/server/ server-only helpers (AI provider, Telegram, crypto)
+src/lib/*.server.ts, src/server/ server-only helpers (AI provider, Telegram Bot API, Google OAuth, token
+                                 crypto, automation engine, n8n/ services)
 src/lib/blocks.ts, nlp.ts        note block engine; NL task parser
 src/components/{tasks,notes,projects,common,ui}
 src/integrations/supabase/       client.ts (browser/SSR), client.server.ts (service role), auth middleware
-src/integrations/lovable/        App User Connector gateway calls (Google Calendar; to be replaced)
+integrations/n8n/                n8n workflow templates + endpoint contracts (README)
+supabase/tests/                  SQL regression checks (run in a throwaway Postgres)
 drizzle/migrations/              SQL migrations (schema.ts is intentionally blank)
 public/                          manifest.webmanifest, sw.js, icons
 ```
@@ -70,6 +74,8 @@ public/                          manifest.webmanifest, sw.js, icons
 - Nitro defaults to the `vercel` preset (`.vercel/output`). Override with `NITRO_PRESET` (e.g. `node-server`).
 - AI goes through `src/lib/ai.server.ts` (`AI_PROVIDER`, `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_VISION_MODEL`, `AI_TRANSCRIBE_MODEL`). With no key, AI functions throw "AI belum dikonfigurasi" before the rate limiter.
 - Client error boundaries report through `src/lib/error-reporting.ts` (`reportError`; plug a monitoring SDK in with `setErrorReporter`).
+- Telegram: `src/lib/telegram.server.ts` calls the Bot API with `TELEGRAM_BOT_TOKEN` (never log the URL). Account linking always goes through one-time codes (`src/server/telegramLink.server.ts`), in app mode and n8n mode.
+- `APP_TIMEZONE` (default `Asia/Jakarta`) defines "today" on the server; use `src/server/n8n/time.server.ts` instead of local `Date` math in server code.
 - Server-only code: put it in `*.server.ts` and load it with `await import(...)` inside handlers so it never reaches the client bundle. Never import `client.server.ts` (`supabaseAdmin`, which bypasses RLS) from client code.
 - `src/start.ts` defines global middleware. Keep `attachSupabaseAuth` and the CSRF middleware.
 - `VITE_*` env vars are inlined at build time. Server secrets come from `process.env[...]`.

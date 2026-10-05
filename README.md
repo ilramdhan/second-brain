@@ -150,12 +150,14 @@ If-this-then-that rules for tasks, evaluated server-side in `runAutomations`:
 
 ### Google Calendar (per user)
 
-In **Settings**, each user connects their own Google Calendar through a popup OAuth flow (the Lovable App User Connector). The connection handle is encrypted with AES-GCM and stored server-side in `app_user_connections`, so it never reaches the browser. From the task dialog, you can push a scheduled task to Google Calendar as an event. The event is created the first time and updated after that (`tasks.google_event_id`).
+In **Settings**, each user connects their own Google Calendar through a popup Google OAuth 2.0 flow owned by the deployment (authorization code + PKCE, `access_type=offline`, scope `calendar.events` only). The refresh token is encrypted with AES-GCM (`TOKEN_ENCRYPTION_KEY`) and stored server-side in `app_user_connections`, so it never reaches the browser; access tokens are refreshed on the server and the token is revoked on disconnect. From the task dialog, you can push a scheduled task to Google Calendar as an event. The event is created the first time and updated after that (`tasks.google_event_id`).
 
 ### Telegram bot
 
 - Users link their account in **Settings → Bot Telegram → Hubungkan Telegram**, which shows a one-time code (valid for 10 minutes, single use), and send `/link <code>` to the bot. After that, any message they send goes to their Inbox.
-- The bot sends deadline reminders: a cron call to `/api/public/hooks/reminders` sends Telegram reminders for tasks due within 24 hours or overdue.
+- The app talks to the Telegram Bot API directly with `TELEGRAM_BOT_TOKEN`. With `TELEGRAM_BOT_USERNAME` set, Settings also shows a one-tap `t.me/<bot>?start=<code>` link.
+- Two modes (a bot has one webhook): **app mode** (webhook → `/api/public/telegram/webhook`: `/start`, `/link`, text → Inbox) or **n8n mode** (webhook → n8n workflow 01 → `/api/public/n8n/bot`: all commands, inline buttons, OCR, voice).
+- Deadline reminders and digests are sent on a schedule (n8n `POST /api/public/n8n/reminders` every 15 minutes, or the `/api/public/hooks/reminders` fallback).
 - Automations and unblock notifications can also send Telegram messages.
 
 ### Templates, archive & trash
@@ -225,11 +227,12 @@ TanStack Start server (Nitro)
  ├─ src/server.ts        SSR entry wrapper (normalizes swallowed h3 errors into an HTML 500 page)
  ├─ *.functions.ts       createServerFn + requireSupabaseAuth → per-request Supabase client as the user
  │     ai.functions.ts, automations.functions.ts, googleCalendar.functions.ts
- ├─ *.server.ts          server-only helpers (AI provider, Telegram send, AES-GCM crypto)
- └─ src/routes/api/public/*   unauthenticated HTTP endpoints (Telegram webhook, reminder cron)
+ ├─ *.server.ts          server-only helpers (AI provider, Telegram Bot API, Google OAuth, AES-GCM)
+ └─ src/routes/api/public/*   HTTP endpoints with their own auth (Telegram webhook, reminder cron,
+                              n8n/* behind x-api-key)
         └─ supabaseAdmin (service role) — bypasses RLS, used only on the server
  ▼
-External: AI provider (OpenAI-compatible) · Lovable connector gateway (Telegram, Google Calendar; to be replaced) · user webhooks
+External: AI provider (OpenAI-compatible) · Telegram Bot API · Google OAuth + Calendar API · n8n (schedules, bot relay, backups) · user webhooks
 ```
 
 ### Data flow
@@ -283,8 +286,10 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
 ├── drizzle.config.ts          # drizzle-kit config (DATABASE_URL)
 ├── drizzle/
 │   ├── schema.ts              # Intentionally blank (auto-generated placeholder)
-│   └── migrations/            # 0000–0007 SQL migrations + meta journal/snapshots
+│   └── migrations/            # 0000–0012 SQL migrations + meta journal/snapshots
 ├── supabase/config.toml       # Supabase project id
+├── supabase/tests/            # SQL regression checks (RLS, rate limits, n8n helpers)
+├── integrations/n8n/          # n8n workflow templates (bot, schedules, backup, calendar, email)
 ├── public/
 │   ├── manifest.webmanifest   # PWA manifest
 │   ├── sw.js                  # Service worker (shell + static asset cache)
@@ -303,10 +308,18 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   │                      # graph, canvas, automations, reports, templates, archive, activity, settings
     │   ├── oauth/google-calendar/return.tsx   # OAuth popup return → postMessage to opener
     │   └── api/public/
-    │       ├── telegram/webhook.ts            # Telegram bot webhook (POST)
-    │       └── hooks/reminders.ts             # Deadline reminder cron endpoint (GET/POST)
+    │       ├── telegram/webhook.ts            # Telegram bot webhook, app mode (POST)
+    │       ├── hooks/reminders.ts             # Deadline reminder cron endpoint (GET/POST)
+    │       └── n8n/*                          # bot, capture, digest, reminders, maintenance, backup,
+    │                                          # calendar/sync, events (x-api-key = N8N_API_KEY)
     ├── server/
-    │   └── connectionKeyCrypto.server.ts      # AES-GCM encrypt/decrypt of connector handles
+    │   ├── tokenCrypto.server.ts              # AES-GCM encryption of stored tokens (TOKEN_ENCRYPTION_KEY)
+    │   ├── googleOAuth.server.ts              # Google OAuth 2.0 + PKCE, encrypted state, refresh/revoke
+    │   ├── googleCalendar.server.ts           # Per-user token store + Calendar event upsert/delete
+    │   ├── automationEngine.server.ts         # Automation rule engine (browser + n8n paths)
+    │   ├── reminders.server.ts, telegramLink.server.ts
+    │   ├── n8n/                               # n8n endpoint auth, zod schemas, services, digests
+    │   └── cronAuth, rateLimit, ssrf, securityHeaders, telegram* helpers
     ├── lib/
     │   ├── data.ts                # Query hooks, CRUD/soft-delete, task actions, dependencies, date helpers
     │   ├── automations.functions.ts # runAutomations / notifyUnblocked server fns
@@ -314,7 +327,7 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   ├── ai.functions.ts        # AI server fns (brain dump, paraphrase, minutes, transcribe, OCR)
     │   ├── ai.server.ts           # AI provider client (AI SDK, AI_* env)
     │   ├── googleCalendar.functions.ts # Google Calendar connect/disconnect/status/sync server fns
-    │   ├── telegram.server.ts     # sendTelegram via connector gateway
+    │   ├── telegram.server.ts     # Telegram Bot API client (TELEGRAM_BOT_TOKEN)
     │   ├── blocks.ts              # Block model, markdown, links/refs, graph, query engine
     │   ├── nlp.ts                 # Natural-language task parser (ID/EN)
     │   ├── preferences.tsx        # Theme + locale provider and i18n strings
@@ -330,9 +343,8 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   └── CommandMenu, Kanban, Timeline, QuickCapture
     ├── hooks/                     # use-note-collaboration (Yjs), use-idle-logout, use-mobile
     ├── integrations/
-    │   ├── supabase/              # client (browser/SSR), client.server (service role), auth middleware,
-    │   │                          # auth attacher, cron-auth, generated DB types
-    │   └── lovable/appUserConnector.ts  # Lovable App User Connector (Google OAuth) gateway calls
+    │   └── supabase/              # client (browser/SSR), client.server (service role), auth middleware,
+    │                              # auth attacher, generated DB types
     └── test/                      # Vitest setup + routing smoke test
 ```
 
@@ -585,29 +597,33 @@ erDiagram
 
 Copy `.env.example` to `.env` locally (it is git-ignored) and set the same variables in your hosting provider.
 
-| Variable                                            | Side                | Required              | Purpose                                                                                                                             |
-| --------------------------------------------------- | ------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_SUPABASE_URL`                                 | Client (build-time) | Yes                   | Supabase project URL for the browser client                                                                                         |
-| `VITE_SUPABASE_PUBLISHABLE_KEY`                     | Client (build-time) | Yes                   | Supabase anon/publishable key for the browser client                                                                                |
-| `SUPABASE_URL`                                      | Server              | Yes                   | Supabase URL for SSR, auth middleware and the admin client                                                                          |
-| `SUPABASE_PUBLISHABLE_KEY`                          | Server              | Yes                   | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                            |
-| `SUPABASE_SERVICE_ROLE_KEY`                         | Server (secret)     | Yes                   | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store |
-| `AI_PROVIDER`                                       | Server              | No                    | `openai` (default, Responses API) or `openai-compatible` (Chat Completions at `AI_BASE_URL`)                                        |
-| `AI_API_KEY`                                        | Server (secret)     | For AI features       | Provider API key. Without it the AI buttons show "AI belum dikonfigurasi" and the rest of the app works                             |
-| `AI_BASE_URL`                                       | Server              | For openai-compatible | e.g. `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`, `https://generativelanguage.googleapis.com/v1beta/openai`    |
-| `AI_MODEL`                                          | Server              | No                    | Text model (default `gpt-4o-mini`)                                                                                                  |
-| `AI_VISION_MODEL`                                   | Server              | No                    | Model for photo OCR (defaults to `AI_MODEL`; must accept images)                                                                    |
-| `AI_TRANSCRIBE_MODEL`                               | Server              | No                    | Voice capture model for `/audio/transcriptions` (default `whisper-1`; Groq: `whisper-large-v3`)                                     |
-| `SECOND_BRAIN_CRON_SECRET` / `..._PREVIOUS`         | Server (secret)     | For the reminder cron | Bearer secret for `/api/public/hooks/reminders` from n8n or other schedulers; keep the old value in `_PREVIOUS` while rotating      |
-| `CRON_SECRET`                                       | Server (secret)     | For Vercel Cron       | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`                  |
-| `DATABASE_URL`                                      | Tooling             | For migrations        | Postgres connection string used by `drizzle-kit`                                                                                    |
-| `NITRO_PRESET`                                      | Build               | No                    | Nitro deploy preset (default `vercel`; e.g. `node-server` to self-host)                                                             |
-| `SECURITY_HEADERS`                                  | Server              | No                    | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                        |
-| `LOVABLE_API_KEY`                                   | Server (secret)     | For Telegram / Google | Legacy: still used by the Telegram and Google Calendar connector gateway until they move to direct APIs                             |
-| `TELEGRAM_API_KEY`                                  | Server (secret)     | For Telegram          | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token                               |
-| `TELEGRAM_WEBHOOK_SECRET`                           | Server (secret)     | Required for the bot  | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches                 |
-| `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY` | Server (secret)     | For Google Calendar   | Client API key of the Lovable Google Calendar App User Connector                                                                    |
-| `APP_USER_CONNECTION_KEY_SECRET`                    | Server (secret)     | For Google Calendar   | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`)                    |
+| Variable                                    | Side                | Required              | Purpose                                                                                                                          |
+| ------------------------------------------- | ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                         | Client (build-time) | Yes                   | Supabase project URL for the browser client                                                                                      |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`             | Client (build-time) | Yes                   | Supabase anon/publishable key for the browser client                                                                             |
+| `SUPABASE_URL`                              | Server              | Yes                   | Supabase URL for SSR, auth middleware and the admin client                                                                       |
+| `SUPABASE_PUBLISHABLE_KEY`                  | Server              | Yes                   | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                         |
+| `SUPABASE_SERVICE_ROLE_KEY`                 | Server (secret)     | Yes                   | Service-role client (`supabaseAdmin`) for the Telegram webhook, n8n endpoints, reminders and the encrypted token store           |
+| `AI_PROVIDER`                               | Server              | No                    | `openai` (default, Responses API) or `openai-compatible` (Chat Completions at `AI_BASE_URL`)                                     |
+| `AI_API_KEY`                                | Server (secret)     | For AI features       | Provider API key. Without it the AI buttons show "AI belum dikonfigurasi" and the rest of the app works                          |
+| `AI_BASE_URL`                               | Server              | For openai-compatible | e.g. `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`, `https://generativelanguage.googleapis.com/v1beta/openai` |
+| `AI_MODEL`                                  | Server              | No                    | Text model (default `gpt-4o-mini`)                                                                                               |
+| `AI_VISION_MODEL`                           | Server              | No                    | Model for photo OCR (defaults to `AI_MODEL`; must accept images)                                                                 |
+| `AI_TRANSCRIBE_MODEL`                       | Server              | No                    | Voice capture model for `/audio/transcriptions` (default `whisper-1`; Groq: `whisper-large-v3`)                                  |
+| `SECOND_BRAIN_CRON_SECRET` / `..._PREVIOUS` | Server (secret)     | For the reminder cron | Bearer secret for `/api/public/hooks/reminders` from n8n or other schedulers; keep the old value in `_PREVIOUS` while rotating   |
+| `CRON_SECRET`                               | Server (secret)     | For Vercel Cron       | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`               |
+| `DATABASE_URL`                              | Tooling             | For migrations        | Postgres connection string used by `drizzle-kit`                                                                                 |
+| `NITRO_PRESET`                              | Build               | No                    | Nitro deploy preset (default `vercel`; e.g. `node-server` to self-host)                                                          |
+| `SECURITY_HEADERS`                          | Server              | No                    | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                     |
+| `APP_URL`                                   | Server              | Recommended           | Public base URL (`https://<app>.vercel.app`); used for the Google redirect URI                                                   |
+| `APP_TIMEZONE`                              | Server              | No                    | IANA zone for "today" in digests, reminders and bot dates (default `Asia/Jakarta`; Vercel runs in UTC)                           |
+| `TELEGRAM_BOT_TOKEN`                        | Server (secret)     | For Telegram          | BotFather token; the app calls `https://api.telegram.org/bot<token>/…` directly                                                  |
+| `TELEGRAM_BOT_USERNAME`                     | Server              | No                    | Bot username (without `@`) for the one-tap `t.me/<bot>?start=<code>` link in Settings                                            |
+| `TELEGRAM_WEBHOOK_SECRET`                   | Server (secret)     | For app-mode bot      | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches              |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Server (secret)     | For Google Calendar   | OAuth 2.0 "Web application" client from Google Cloud console                                                                     |
+| `GOOGLE_OAUTH_REDIRECT_URL`                 | Server              | No                    | Overrides the redirect URI (default `$APP_URL/oauth/google-calendar/return`, else the request origin)                            |
+| `TOKEN_ENCRYPTION_KEY`                      | Server (secret)     | For Google Calendar   | **Base64-encoded 32-byte key** for AES-GCM encryption of stored OAuth tokens (`openssl rand -base64 32`)                         |
+| `N8N_API_KEY` / `N8N_API_KEY_PREVIOUS`      | Server (secret)     | For n8n               | `x-api-key` for `/api/public/n8n/*` (≥ 32 random chars); keep the old value in `_PREVIOUS` while rotating                        |
 
 `VITE_*` variables are inlined at build time. Rebuild after you change them.
 
@@ -641,7 +657,7 @@ bunx drizzle-kit migrate
 bun run dev
 ```
 
-In Supabase **Auth → URL Configuration**, add `http://localhost:<port>` (the dev server prints the port) to the redirect URLs. AI, Telegram and Google Calendar features also need the matching secrets above.
+In Supabase **Auth → URL Configuration**, add `http://localhost:<port>` (the dev server prints the port) to the redirect URLs. AI, Telegram, Google Calendar and n8n features also need the matching secrets above.
 
 ---
 
@@ -678,6 +694,7 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0009 | `private_note_collab_channels`     | `can_access_note`, Realtime Authorization policies for `note-collab:<noteId>`                                                                                                    |
 | 0010 | `member_ownership_guards`          | Immutable `user_id`, per-operation member policies, trash/delete limited to row or project owner                                                                                 |
 | 0011 | `rate_limits`                      | `rate_limits` table and `consume_rate_limit` (per-user fixed-window limiter for AI calls)                                                                                        |
+| 0012 | `n8n_integration`                  | `n8n_events` idempotency ledger, inbox sources `email`/`google_calendar`/`webhook`, service-role helpers `n8n_user_id_by_email` and `consume_rate_limit_for`                     |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
@@ -695,18 +712,18 @@ Target: **Vercel Hobby (free) + Supabase Free**. `vite build` uses Nitro with th
 4. **Environment variables** (Production and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, plus the optional groups below. `VITE_*` values are inlined at build time, so redeploy after changing them.
 5. **AI (optional).** Set `AI_API_KEY`. For a free tier, use an OpenAI-compatible provider: for example `AI_PROVIDER=openai-compatible`, `AI_BASE_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.3-70b-versatile`, `AI_TRANSCRIBE_MODEL=whisper-large-v3`, and an image-capable `AI_VISION_MODEL` for OCR. OpenRouter (`https://openrouter.ai/api/v1`, `:free` models) and Gemini (`https://generativelanguage.googleapis.com/v1beta/openai`, `gemini-2.0-flash`) work the same way. Without a key the AI buttons show "AI belum dikonfigurasi".
 6. **Supabase Auth URLs.** In _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your domain) and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list.
-7. **Reminder cron.** Pick one:
-   - **Vercel Cron**: set `CRON_SECRET` (`openssl rand -hex 32`) and add to `vercel.json` (Hobby allows daily schedules only):
-     ```json
-     { "crons": [{ "path": "/api/public/hooks/reminders", "schedule": "0 7 * * *" }] }
-     ```
-   - **n8n (self-hosted) or another scheduler** for hourly runs: set `SECOND_BRAIN_CRON_SECRET` and call `GET` or `POST /api/public/hooks/reminders` with `Authorization: Bearer <secret>` (templates in `integrations/n8n/`). Supabase `pg_cron` + `pg_net` also works. The legacy `app_config.cron_token` is still accepted.
+7. **Schedules (n8n first).** Vercel Hobby allows only one cron run per day and Supabase Free gives no scheduler guarantees, so reminders (every 15 min), digests, maintenance (trash purge, expired link codes, rate-limit rows) and backups run from n8n (see [Integrations → n8n](#n8n)). Fallbacks only:
+   - **Vercel Cron** (daily): set `CRON_SECRET` (`openssl rand -hex 32`) and add `{ "crons": [{ "path": "/api/public/hooks/reminders", "schedule": "0 0 * * *" }] }` to `vercel.json` (UTC; 07:00 WIB).
+   - **pg_cron + pg_net** in Supabase, or any scheduler: `GET`/`POST /api/public/hooks/reminders` with `Authorization: Bearer $SECOND_BRAIN_CRON_SECRET`. Do not run it together with the n8n reminders.
 8. **Security headers.** `vercel.json` sets HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` and the CSP (enforced framing rules plus a report-only resource policy), and the server adds the same headers to SSR responses. Check the browser console for CSP reports before enforcing the full policy (see `SECURITY.md`).
-9. **Telegram and Google Calendar (optional).** These still use the Lovable connector gateway (`LOVABLE_API_KEY`, `TELEGRAM_API_KEY`, `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`, `APP_USER_CONNECTION_KEY_SECRET`) and will move to the Telegram Bot API and Google OAuth directly. For the bot, register the webhook with a secret:
-   ```
-   https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://<your-app>/api/public/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>
-   ```
-   The Google return URL is `https://<your-app>/oauth/google-calendar/return`.
+9. **Telegram bot (optional).** In Telegram, talk to **@BotFather** → `/newbot` → copy the token to `TELEGRAM_BOT_TOKEN` and the username to `TELEGRAM_BOT_USERNAME`. Optional: `/setprivacy` → _Disable_ for groups. Then pick a mode:
+   - **n8n mode (recommended):** import and activate workflow 01; its Telegram Trigger registers the webhook. Needs `N8N_API_KEY` in the app.
+   - **app mode:** set `TELEGRAM_WEBHOOK_SECRET` (`openssl rand -hex 32`) and register the webhook:
+     ```
+     https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://<your-app>/api/public/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>
+     ```
+10. **Google Calendar (optional).** In [Google Cloud console](https://console.cloud.google.com/): create a project → _APIs & Services → Library_ → enable **Google Calendar API** → _OAuth consent screen_: External, add scope `.../auth/calendar.events`, add yourself as a test user (or publish the app) → _Credentials → Create credentials → OAuth client ID → Web application_ → authorized redirect URI `https://<your-app>/oauth/google-calendar/return` (plus `http://localhost:<port>/oauth/google-calendar/return` for dev). Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `APP_URL` and `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`). Each user then clicks **Settings → Hubungkan Google Calendar**.
+11. **n8n + backups (optional, recommended).** Set `N8N_API_KEY` (`openssl rand -hex 32`) in Vercel, then follow `integrations/n8n/README.md`: env vars, credentials (Header Auth, Telegram, Google Drive OAuth2, SMTP for [Resend](https://resend.com): host `smtp.resend.com`, port 465 SSL, user `resend`, password = Resend API key, sender on a verified domain) and import order 03 → 04 → 01 → 02 → 05 → 06 → 07 → 08.
 
 **Notes**
 
@@ -719,10 +736,10 @@ Target: **Vercel Hobby (free) + Supabase Free**. `vite build` uses Nitro with th
 
 ### Telegram
 
-- Endpoint: `POST /api/public/telegram/webhook`
-- Commands: `/start` (instructions) and `/link <code>`, which binds the chat to the account that generated the one-time code in Settings. Codes are 8 characters, expire after 10 minutes, work once and are stored only as SHA-256 hashes in `telegram_link_codes`. Wrong, expired and used codes get the same reply. Any other text is saved as an inbox item with `source = "telegram"`.
-- Outbound messages: deadline reminders, the automation `telegram` action, and unblock notifications.
-- `TELEGRAM_WEBHOOK_SECRET` is required: the webhook fails closed and returns 401 when it is unset or the `X-Telegram-Bot-Api-Secret-Token` header does not match. Register it with `setWebhook` (`secret_token`).
+- Bot API: `src/lib/telegram.server.ts` calls `https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/…` (the token is never logged).
+- **App mode** endpoint: `POST /api/public/telegram/webhook`. Commands: `/start` (instructions), `/start <code>` (deep link) and `/link <code>`, which binds the chat to the account that generated the one-time code in Settings. Codes are 8 characters, expire after 10 minutes, work once and are stored only as SHA-256 hashes in `telegram_link_codes`. Wrong, expired and used codes get the same reply. Any other text is saved as an inbox item with `source = "telegram"`. `TELEGRAM_WEBHOOK_SECRET` is required: the webhook fails closed and returns 401 when it is unset or the `X-Telegram-Bot-Api-Secret-Token` header does not match.
+- **n8n mode**: n8n owns the webhook and relays every update to `POST /api/public/n8n/bot`, which runs all commands (`/task`, `/note`, `/inbox`, `/today`, `/done`, `/search`, `/sum`, …), inline buttons and OCR/voice results, and returns the reply for n8n to send. Linking uses the same one-time codes.
+- Outbound messages: deadline reminders, digests, the automation `telegram` action, and unblock notifications.
 
 ### Outgoing webhooks (automations)
 
@@ -730,19 +747,32 @@ The `webhook` action sends `POST` with JSON `{ text, content, rule, event, proje
 
 ### n8n
 
-n8n workflow templates for this app will live in `integrations/n8n/`. Typical uses: receive automation webhooks, call the reminder endpoint on a schedule, or bridge other inputs into `inbox_items`. (`docs/n8n/` is reference material from another project and is not part of this app.)
+Templates and the full endpoint contracts are in [`integrations/n8n/`](integrations/n8n/README.md). All `/api/public/n8n/*` endpoints require `x-api-key: $N8N_API_KEY` (constant-time, fail-closed), validate input with zod, and act for one resolved user (Telegram chat or email) with the service-role client.
+
+| Endpoint                             | Workflow | Purpose                                                                            |
+| ------------------------------------ | -------- | ---------------------------------------------------------------------------------- |
+| `POST /api/public/n8n/bot`           | 01       | Telegram commands, buttons, OCR/voice text (idempotent per `update_id`)            |
+| `POST /api/public/n8n/capture`       | 07, 08   | Inbox / task / note from email, Google Calendar or webhooks (`external_id` dedupe) |
+| `GET /api/public/n8n/digest`         | 02       | `kind=morning\|evening\|overdue\|weekly` messages per linked user                  |
+| `POST /api/public/n8n/reminders`     | 02       | Due-soon/overdue reminders with ✅ / snooze buttons                                |
+| `POST /api/public/n8n/maintenance`   | 02       | Purge trash > N days, expired link codes, old rate-limit rows and n8n events       |
+| `GET /api/public/n8n/backup`         | 05       | Paged, gzipped JSON export per user (restorable in Settings)                       |
+| `POST /api/public/n8n/calendar/sync` | 07       | App → Google Calendar for connected users                                          |
+| `POST /api/public/n8n/events`        | 03       | n8n errors → `activity_logs`                                                       |
+
+Automatic backups (workflow 05): daily or weekly → `.json.gz` in a Google Drive folder → keep the newest `BACKUP_RETENTION` files → summary email via Resend SMTP (attachment up to `BACKUP_EMAIL_ATTACH_MAX_MB`) → Telegram/email alert on failure. `docs/n8n/` is reference material from another project and is not part of this app.
 
 ### Google Calendar
 
-See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalendarStatus`, `startGoogleCalendarConnect`, `completeGoogleCalendarConnect`, `disconnectGoogleCalendar`, `syncTaskToGoogle`.
+See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalendarStatus`, `startGoogleCalendarConnect`, `completeGoogleCalendarConnect`, `disconnectGoogleCalendar`, `syncTaskToGoogle`; scheduled sync via `POST /api/public/n8n/calendar/sync`. Events carry `extendedProperties.private.second_brain_task_id`.
 
 ---
 
 ## Testing
 
 - Vitest + jsdom + Testing Library (`vitest.config.ts`, setup in `src/test/setup.ts`). Test files match `src/**/*.{test,spec}.{ts,tsx}`.
-- The current suite is a routing smoke test (`src/test/app-routing.test.tsx`). It checks that `/` resolves to a real route.
-- Pure modules such as `src/lib/nlp.ts` and `src/lib/blocks.ts` (parser, query engine, graph) are good candidates for more unit tests.
+- Unit tests cover pure server helpers (cron/n8n auth, Telegram link codes and Bot API client, Google OAuth state/PKCE/token crypto, n8n zod schemas, digest/reminder builders, time zones, SSRF guard, rate limits, security headers, backup validation) plus a routing smoke test.
+- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
 
 ```bash
 bun run test

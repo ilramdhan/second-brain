@@ -13,8 +13,8 @@
 | 3     | Performance quick wins                        | Web terasa cepat di semua halaman                   | 3–4 hari      | 0 (paralel dgn 2) |
 | 4     | Performance deep fix                          | Editor catatan, list, Yjs, auth/SSR                 | 4–6 hari      | 3                 |
 | 5     | Refactor & kualitas kode                      | Struktur feature-based, test, hapus dependency mati | 4–5 hari      | 3                 |
-| 6     | Backend n8n                                   | Endpoint `/api/public/n8n/*` + aktifkan template    | 4–5 hari      | 1, 2              |
-| 7     | Lepas dari lock-in Lovable gateway (opsional) | AI/Telegram/Calendar langsung ke provider           | 3–4 hari      | 6                 |
+| 6 ✅  | Backend n8n                                   | Endpoint `/api/public/n8n/*` + aktifkan template    | 4–5 hari      | 1, 2              |
+| 7 ✅  | Lepas dari lock-in Lovable gateway (opsional) | AI/Telegram/Calendar langsung ke provider           | 3–4 hari      | 6                 |
 | 8     | Observability, PWA, a11y, SEO                 | Sentry, web-vitals, Workbox, WCAG 2.2 AA            | 3–4 hari      | 4                 |
 | 9     | Fitur baru                                    | Roadmap fitur dari ANALYSIS §13                     | berkelanjutan | 5                 |
 
@@ -114,30 +114,39 @@ Semua dalam migration baru (`0008_…`, `0009_…`), **jangan edit migration lam
 
 ## Phase 6 — Backend Integrasi n8n
 
-Kontrak lengkap ada di `integrations/n8n/README.md`. Semua endpoint di `src/routes/api/public/n8n/*`, auth header `x-api-key` = `N8N_API_KEY` (constant-time compare), body divalidasi zod, idempotensi via `update_id`/`message_id`.
+Kontrak lengkap ada di `integrations/n8n/README.md`. Semua endpoint di `src/routes/api/public/n8n/*`, auth header `x-api-key` = `N8N_API_KEY` (constant-time compare), body divalidasi zod, idempotensi via `update_id`/`external_id` (`n8n_events`).
 
-| #   | Endpoint                                                                                               | Dipakai workflow |
-| --- | ------------------------------------------------------------------------------------------------------ | ---------------- |
-| 6.1 | Helper auth + idempotency table `n8n_events`                                                           | semua            |
-| 6.2 | `POST /api/public/n8n/bot` (command, teks, hasil OCR/transkrip, callback button)                       | 01               |
-| 6.3 | `POST /api/public/n8n/capture` (inbox/task/note dari sumber apa pun)                                   | 01, 07, 08       |
-| 6.4 | `GET /api/public/n8n/digest?kind=morning                                                               | evening          | overdue | weekly` | 02  |
-| 6.5 | `POST /api/public/n8n/reminders`, `POST /api/public/n8n/maintenance` (purge trash lama, dll.)          | 02               |
-| 6.6 | `GET /api/public/n8n/backup` (export per user, streaming JSON)                                         | 05               |
-| 6.7 | `POST /api/public/n8n/calendar/sync` (refactor `syncTaskToGoogle` jadi helper server berbasis user id) | 07               |
-| 6.8 | `POST /api/public/n8n/events` (opsional, event otomasi)                                                | 06               |
-| 6.9 | Uji import semua template di n8n staging, dokumentasikan hasilnya.                                     | –                |
+| #    | Status         | Endpoint / task                                                                                        | Dipakai workflow | Catatan                                                                                                                                                                                 |
+| ---- | -------------- | ------------------------------------------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.1  | ✅ done        | Helper auth + idempotency table `n8n_events`                                                           | semua            | `src/server/n8n/{auth,http}.server.ts` (`N8N_API_KEY`/`_PREVIOUS`, fail-closed, zod → 400), migration `0012`; diuji di `auth.server.test.ts`, `supabase/tests/n8n_integration.sql`.     |
+| 6.2  | ✅ done        | `POST /api/public/n8n/bot` (command, teks, hasil OCR/transkrip, callback button)                       | 01               | `src/server/n8n/bot.server.ts`; `/link` memakai `telegramLink.server.ts` yang sama dengan mode app.                                                                                     |
+| 6.3  | ✅ done        | `POST /api/public/n8n/capture` (inbox/task/note dari sumber apa pun)                                   | 01, 07, 08       | Inbox source `email`/`google_calendar`/`webhook` (migration `0012`); user via email (`n8n_user_id_by_email`) atau chat.                                                                 |
+| 6.4  | ✅ done        | `GET /api/public/n8n/digest?kind=morning\|evening\|overdue\|weekly`                                    | 02               | Builder murni di `format.server.ts` (diuji); zona `APP_TIMEZONE`.                                                                                                                       |
+| 6.5  | ✅ done        | `POST /api/public/n8n/reminders`, `POST /api/public/n8n/maintenance` (purge trash lama, dll.)          | 02               | Logika pengingat dibagi dengan `/api/public/hooks/reminders` (`reminders.server.ts`); maintenance juga membersihkan link code, `rate_limits`, `n8n_events`.                             |
+| 6.6  | ✅ done        | `GET /api/public/n8n/backup` (export per user, berhalaman)                                             | 05               | Format = backup Settings; paging per user + 1000 baris/tabel; gzip.                                                                                                                     |
+| 6.7  | ✅ done        | `POST /api/public/n8n/calendar/sync` (refactor `syncTaskToGoogle` jadi helper server berbasis user id) | 07               | `src/server/googleCalendar.server.ts` (`mode=linked\|all`).                                                                                                                             |
+| 6.8  | ✅ done        | `POST /api/public/n8n/events` (opsional, event otomasi / error n8n)                                    | 03, 06           | → `activity_logs` (`source = 'n8n'`).                                                                                                                                                   |
+| 6.9  | ⏳ needs owner | Uji import semua template di n8n staging, dokumentasikan hasilnya.                                     | –                | JSON tervalidasi (parse, id/nama unik, koneksi & `$('Node')` valid); impor nyata butuh instance n8n owner.                                                                              |
+| 6.10 | ✅ done        | Auto backup ke Google Drive (Drive API) + email ringkasan via Resend SMTP, retensi, alert gagal        | 05               | Harian/mingguan (`BACKUP_FREQUENCY`), `.json.gz` ke `BACKUP_DRIVE_FOLDER_ID`, simpan `BACKUP_RETENTION` terbaru, email + lampiran ≤ `BACKUP_EMAIL_ATTACH_MAX_MB`, alert Telegram/email. |
+| 6.11 | ✅ done        | Restore backup otomatis dari Settings                                                                  | –                | "Pulihkan JSON" menerima file multi-user dan `.json.gz`, memulihkan entri milik akun yang masuk.                                                                                        |
+| 6.12 | ✅ done        | Template 01/02/03/06/07/08 diselaraskan dengan kontrak final + env app-named; jadwal di n8n            | semua            | Vercel Cron (Hobby 1×/hari) dan pg_cron hanya fallback.                                                                                                                                 |
 
-Catatan: satu bot Telegram hanya punya satu webhook — pilih mode n8n **atau** mode app-only (lihat README n8n).
+Catatan: satu bot Telegram hanya punya satu webhook — pilih mode n8n **atau** mode app (lihat README n8n).
 
 ---
 
-## Phase 7 — Mengurangi Lock-in Lovable Gateway (opsional, untuk open-source)
+## Phase 7 — Lepas dari Lovable ✅ selesai
 
-Saat ini AI, Telegram, dan Google Calendar lewat `ai.gateway.lovable.dev` / `connector-gateway.lovable.dev`. Untuk kontributor open-source yang tidak punya akun Lovable:
+AI, Telegram, Google Calendar, build dan env tidak lagi memakai Lovable (`ai.gateway.lovable.dev` / `connector-gateway.lovable.dev` / `@lovable.dev/*`). Repo ter-deploy di Vercel Hobby + Supabase Free.
 
-- 7.1 Abstraksi provider: `src/server/providers/{ai,telegram,calendar}.ts` dengan dua implementasi (Lovable gateway vs langsung: OpenAI-compatible/Anthropic, Bot API dengan `TELEGRAM_BOT_TOKEN`, Google OAuth sendiri). Dipilih via env.
-- 7.2 Dokumentasi self-host lengkap di README.
+| #   | Status  | Task                  | Hasil                                                                                                                                                                                                      |
+| --- | ------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 7.1 | ✅ done | Build config          | `vite.config.ts` eksplisit (TanStack Start, React, Tailwind, tsconfig paths, Nitro preset `vercel` → `.vercel/output`), tanpa `@lovable.dev/vite-tanstack-config`.                                         |
+| 7.2 | ✅ done | Env                   | Semua env bernama app/standar (`SECOND_BRAIN_CRON_SECRET`, `DATABASE_URL`, `AI_*`, `TELEGRAM_BOT_TOKEN`, `GOOGLE_CLIENT_*`, `TOKEN_ENCRYPTION_KEY`, `N8N_API_KEY`); tabel BREAKING di CHANGELOG.           |
+| 7.3 | ✅ done | AI                    | AI SDK langsung ke OpenAI atau provider OpenAI-compatible (`AI_PROVIDER`, `AI_BASE_URL`, `AI_MODEL`, …).                                                                                                   |
+| 7.4 | ✅ done | Telegram              | Bot API langsung (`TELEGRAM_BOT_TOKEN`), mode app & mode n8n, deep link `TELEGRAM_BOT_USERNAME`.                                                                                                           |
+| 7.5 | ✅ done | Google Calendar       | OAuth 2.0 sendiri (code + PKCE, state terenkripsi, offline, `calendar.events`), refresh token AES-GCM (`TOKEN_ENCRYPTION_KEY`), refresh di server, revoke saat putus; `src/integrations/lovable/` dihapus. |
+| 7.6 | ✅ done | Dokumentasi self-host | README (Vercel Hobby + Supabase Free langkah demi langkah, Google Cloud, BotFather, Resend, n8n), `.env.example`, SECURITY.md, n8n README.                                                                 |
 
 ---
 

@@ -33,18 +33,40 @@ minor releases may contain breaking changes; they are called out under **Changed
   `supabase/tests/rate_limit.sql`.
 - `supabase/tests/rls_phase1.sql`: RLS regression checks for shared projects and note
   collaboration channels (with `realtime_stub.sql` for databases without the Realtime service).
+- n8n backend endpoints `/api/public/n8n/*` (`bot`, `capture`, `digest`, `reminders`,
+  `maintenance`, `backup`, `calendar/sync`, `events`) behind `x-api-key` = `N8N_API_KEY`, with zod
+  validation and idempotency (migration `0012_n8n_integration`: `n8n_events`, inbox sources
+  `email`/`google_calendar`/`webhook`, `n8n_user_id_by_email`, `consume_rate_limit_for`; checks in
+  `supabase/tests/n8n_integration.sql`).
+- Telegram bot in n8n mode: `/task`, `/note`, `/inbox`, `/today`, `/upcoming`, `/overdue`,
+  `/week`, `/done`, `/search`, `/sum`, `/unlink`, inline ✅/snooze/inbox buttons, OCR and voice
+  results. `/start <code>` deep links and an optional `TELEGRAM_BOT_USERNAME` button in Settings.
+- Automatic backups (n8n workflow 05): daily or weekly gzipped JSON to Google Drive, retention
+  (`BACKUP_RETENTION`), summary email via Resend SMTP, Telegram/email alert on failure. Settings
+  → "Pulihkan JSON" restores these `.json.gz` files.
+- Digests (morning, evening, overdue, weekly), reminders with buttons and daily maintenance
+  (trash purge, expired link codes, rate-limit rows) scheduled from n8n. `APP_TIMEZONE` sets the
+  day boundary (default `Asia/Jakarta`).
 
 ### Changed
 
-- **BREAKING:** the app no longer depends on Lovable for building or AI and deploys on Vercel
-  (free) + Supabase (free). Rename these environment variables before deploying:
+- **BREAKING:** the app no longer depends on Lovable (build, AI, Telegram, Google Calendar) and
+  deploys on Vercel (free) + Supabase (free). Update these environment variables before deploying:
 
-  | Old                            | New                                                       | Notes                                    |
-  | ------------------------------ | --------------------------------------------------------- | ---------------------------------------- |
-  | `LOVABLE_CRON_SECRET`          | `SECOND_BRAIN_CRON_SECRET`                                | `CRON_SECRET` (Vercel Cron) is unchanged |
-  | `LOVABLE_CRON_SECRET_PREVIOUS` | `SECOND_BRAIN_CRON_SECRET_PREVIOUS`                       | rotation slot                            |
-  | `LOVABLE_DB_MIGRATION_URL`     | `DATABASE_URL`                                            | drizzle-kit only                         |
-  | `LOVABLE_API_KEY` (AI)         | `AI_API_KEY` (+ `AI_PROVIDER`, `AI_BASE_URL`, `AI_MODEL`) | still needed for Telegram/Google for now |
+  | Old                                                 | New                                                       | Notes                                             |
+  | --------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- |
+  | `LOVABLE_CRON_SECRET`                               | `SECOND_BRAIN_CRON_SECRET`                                | `CRON_SECRET` (Vercel Cron) is unchanged          |
+  | `LOVABLE_CRON_SECRET_PREVIOUS`                      | `SECOND_BRAIN_CRON_SECRET_PREVIOUS`                       | rotation slot                                     |
+  | `LOVABLE_DB_MIGRATION_URL`                          | `DATABASE_URL`                                            | drizzle-kit only                                  |
+  | `LOVABLE_API_KEY`                                   | `AI_API_KEY` (+ `AI_PROVIDER`, `AI_BASE_URL`, `AI_MODEL`) | no longer used for Telegram or Google — remove it |
+  | `TELEGRAM_API_KEY` (connector key)                  | `TELEGRAM_BOT_TOKEN`                                      | raw BotFather token; `TELEGRAM_BOT_USERNAME` new  |
+  | `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY` | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`               | your own Google OAuth web client                  |
+  | `APP_USER_CONNECTION_KEY_SECRET`                    | `TOKEN_ENCRYPTION_KEY`                                    | same format (base64, 32 bytes)                    |
+  | –                                                   | `APP_URL`, `GOOGLE_OAUTH_REDIRECT_URL`, `APP_TIMEZONE`    | optional                                          |
+  | –                                                   | `N8N_API_KEY`, `N8N_API_KEY_PREVIOUS`                     | for `/api/public/n8n/*`                           |
+
+  Existing Google Calendar connections were stored by the old connector and cannot be used: they
+  are dropped on first access and each user reconnects once in Settings.
 
 - `vite.config.ts` is now an explicit Vite config (TanStack Start, React, Tailwind, tsconfig
   paths, Nitro) instead of `@lovable.dev/vite-tanstack-config`. Nitro builds for the `vercel`
@@ -66,11 +88,21 @@ minor releases may contain breaking changes; they are called out under **Changed
 - The reminder endpoint accepts `GET` (for Vercel Cron) as well as `POST`, skips trashed and
   archived tasks, and loads Telegram chat IDs in one query instead of one per task.
 - Backup restore skips rows owned by other users and reports how many rows were restored.
+- Telegram messages go to the Bot API directly (`TELEGRAM_BOT_TOKEN`).
+- Google Calendar uses the deployment's own OAuth 2.0 client (authorization code + PKCE, offline
+  access, scope `calendar.events`). Refresh tokens are AES-GCM encrypted in
+  `app_user_connections`, refreshed server-side and revoked on disconnect. Events carry
+  `extendedProperties.private.second_brain_task_id` and are recreated if deleted in Google.
+- The automation engine moved to `src/server/automationEngine.server.ts` so the browser path and
+  the n8n endpoints share one implementation.
+- n8n templates use the final endpoint contracts and only app-named env vars; all schedules live
+  in n8n, Vercel Cron and pg_cron are documented as fallbacks.
 
 ### Removed
 
 - `@lovable.dev/vite-tanstack-config`, the Lovable preview auth-storage broker, Lovable editor
   error reporting and the unused generated `cron-auth.ts`.
+- `src/integrations/lovable/` (App User Connector gateway) and the Telegram connector gateway.
 
 ### Security
 
@@ -97,6 +129,12 @@ minor releases may contain breaking changes; they are called out under **Changed
 - Security headers on every response: HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy`, `Permissions-Policy`, an enforced CSP for framing/base/object/form targets and
   a report-only resource CSP.
+- Google OAuth `state` is AES-GCM encrypted, bound to the signed-in user and expires after 10
+  minutes; the PKCE verifier never reaches the browser, so a stolen callback code cannot be
+  redeemed for another account.
+- `/api/public/n8n/*` authenticate with `N8N_API_KEY` in constant time and fail closed; the
+  service-role client is scoped to the resolved user on every query, and backups never include
+  connections, link codes or app secrets.
 - Telegram account linking no longer trusts an email address, which let anyone link their chat to
   another user's account and revealed whether an email was registered. The `auth.admin.listUsers()`
   lookup was removed.

@@ -111,9 +111,10 @@ code doesn't match.
 - Other `SECURITY DEFINER` functions (`accept_project_invites`, `list_project_people`,
   `search_semantic_documents`, the sign-up trigger, audit and note-version triggers) all pin
   `SET search_path = public` and constrain results with `auth.uid()`.
-- Service-role-only tables: `app_config` (holds `cron_token`) and `app_user_connections` (encrypted
-  connector handles) have RLS enabled with no policies for `authenticated`, and grants only to
-  `service_role`.
+- Service-role-only tables: `app_config` (holds `cron_token`), `app_user_connections` (encrypted
+  OAuth tokens), `rate_limits` and `n8n_events` (idempotency ledger) have RLS enabled with no
+  policies for `authenticated`, and grants only to `service_role`. The helpers
+  `n8n_user_id_by_email` and `consume_rate_limit_for` are executable only by `service_role`.
 
 ### Realtime
 
@@ -145,30 +146,39 @@ code doesn't match.
 ### Secrets
 
 - Server secrets (`SUPABASE_SERVICE_ROLE_KEY`, `AI_API_KEY`, `SECOND_BRAIN_CRON_SECRET`,
-  `CRON_SECRET`, `LOVABLE_API_KEY` (legacy connector gateway), `TELEGRAM_API_KEY`,
-  `TELEGRAM_WEBHOOK_SECRET`, `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`,
-  `APP_USER_CONNECTION_KEY_SECRET`) are read only via `process.env[...]` in server-only modules
-  (`*.server.ts`, `src/server/`, server function handlers, API routes). They are never prefixed
-  with `VITE_` and never sent to the browser.
+  `CRON_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `GOOGLE_CLIENT_SECRET`,
+  `TOKEN_ENCRYPTION_KEY`, `N8N_API_KEY`) are read only via `process.env[...]` in server-only
+  modules (`*.server.ts`, `src/server/`, server function handlers, API routes). They are never
+  prefixed with `VITE_` and never sent to the browser. The Telegram token is part of the Bot API
+  URL, so `telegram.server.ts` never logs request URLs.
 - Automation actions that need secrets (Telegram messages, outgoing webhooks) run on the server
-  in `runAutomations`.
+  in the automation engine (`src/server/automationEngine.server.ts`).
 
-### Encrypted connector handles (Google Calendar)
+### Google Calendar OAuth tokens
 
-- Per-user Google Calendar access uses the Lovable App User Connector. The resulting connection
-  handle is encrypted with **AES-256-GCM** (random 96-bit IV per value) in
-  `src/server/connectionKeyCrypto.server.ts`, keyed by `APP_USER_CONNECTION_KEY_SECRET`, and stored
-  in `app_user_connections`, which only `service_role` can access. Handles never reach the browser
-  and are not shared between users.
+- Each deployment uses its own Google OAuth 2.0 web client (`GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`) with the authorization code flow, PKCE (S256), `access_type=offline` and
+  the single scope `calendar.events`.
+- The OAuth `state` is AES-256-GCM encrypted and contains the user id, a nonce, the PKCE verifier
+  and a 10-minute expiry. The callback page only forwards `code` and `state` to its opener
+  (same-origin `postMessage`) and clears them from the URL; the server completes the flow only
+  for the signed-in user the state was issued to, so a leaked or injected code cannot connect a
+  calendar to a different account, and the verifier never reaches the browser.
+- The code is exchanged server-side. The refresh token (and the cached access token) is encrypted
+  with **AES-256-GCM** (random 96-bit IV per value, `src/server/tokenCrypto.server.ts`, key
+  `TOKEN_ENCRYPTION_KEY`, base64 of 32 bytes) and stored in `app_user_connections`, which only
+  `service_role` can access. Tokens never reach the browser or n8n and are not shared between
+  users. `invalid_grant` on refresh deletes the connection; disconnect revokes the token at Google.
 
 ### Public API routes
 
 These routes have no user session and authenticate the caller themselves:
 
-| Route                                    | Authentication                                                                                                                                                                                                                                                                                                         |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/public/telegram/webhook`      | Fails closed: requires `TELEGRAM_WEBHOOK_SECRET` to be set and a matching `X-Telegram-Bot-Api-Secret-Token` header (constant-time comparison); otherwise 401.                                                                                                                                                          |
-| `GET`/`POST /api/public/hooks/reminders` | Requires `Authorization: Bearer <token>` matching `SECOND_BRAIN_CRON_SECRET`, `SECOND_BRAIN_CRON_SECRET_PREVIOUS` (rotation) or `CRON_SECRET` (Vercel Cron), compared in constant time. The legacy `app_config.cron_token` still works and is only looked up when a bearer token is present and no env secret matched. |
+| Route                                    | Authentication                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/public/telegram/webhook`      | Fails closed: requires `TELEGRAM_WEBHOOK_SECRET` to be set and a matching `X-Telegram-Bot-Api-Secret-Token` header (constant-time comparison); otherwise 401.                                                                                                                                                                                                                                                                     |
+| `/api/public/n8n/*`                      | Fails closed: header `x-api-key` must match `N8N_API_KEY` (or `N8N_API_KEY_PREVIOUS` during rotation) in constant time; 500 when no key is configured, 401 otherwise. Bodies and queries are validated with zod, bodies are capped at 1 MB. The service-role client is scoped to the user resolved from `profiles.telegram_chat_id` or the sender email; tasks/notes of shared projects are included only for owners and members. |
+| `GET`/`POST /api/public/hooks/reminders` | Requires `Authorization: Bearer <token>` matching `SECOND_BRAIN_CRON_SECRET`, `SECOND_BRAIN_CRON_SECRET_PREVIOUS` (rotation) or `CRON_SECRET` (Vercel Cron), compared in constant time. The legacy `app_config.cron_token` still works and is only looked up when a bearer token is present and no env secret matched.                                                                                                            |
 
 ### Telegram account linking
 
@@ -180,7 +190,21 @@ These routes have no user session and authenticate the caller themselves:
   own rows; clients cannot set `expires_at` or `used_at`. The bot redeems a code with one
   conditional update (unused and unexpired), so concurrent attempts cannot reuse it.
 - The bot gives the same reply for wrong, expired and used codes and never looks up users by
-  email.
+  email. App mode (`/api/public/telegram/webhook`) and n8n mode (`/api/public/n8n/bot`) share the
+  same redemption code (`src/server/telegramLink.server.ts`); n8n additionally enforces
+  `TELEGRAM_ALLOWED_CHAT_IDS` (empty = deny all).
+
+### n8n integration
+
+- n8n is a relay: it never receives Supabase keys, Google tokens or `TOKEN_ENCRYPTION_KEY`; it only
+  holds `N8N_API_KEY`, the Telegram bot token and its own credentials (Google Drive, SMTP, IMAP).
+- Retries are idempotent: `n8n_events (source, external_id)` stores the first response for a
+  Telegram `update_id` or capture `external_id`.
+- Backups (`GET /api/public/n8n/backup`) contain all user data but never `app_user_connections`,
+  `app_config`, link codes or idempotency rows. The backup workflow stores no execution data;
+  protect the Google Drive folder and the backup mailbox accordingly.
+- AI calls made for a user from n8n (`/sum`, long-email summaries) spend that user's AI budget via
+  `consume_rate_limit_for`.
 
 ### Outgoing requests
 
@@ -197,9 +221,9 @@ These routes have no user session and authenticate the caller themselves:
   on Node hosts. DNS rebinding between the check and the request is mitigated, not eliminated,
   by the redirect, timeout and size limits.
 - AI calls go directly to the configured provider (`AI_BASE_URL`, default `api.openai.com`) with
-  a server-side key; OpenAI requests set `store: false`. Telegram and Google Calendar still go
-  through the Lovable connector gateway (`connector-gateway.lovable.dev`) until they are moved to
-  the providers' own APIs.
+  a server-side key; OpenAI requests set `store: false`. Telegram goes to `api.telegram.org` and
+  Google to `oauth2.googleapis.com` / `www.googleapis.com` directly; these URLs are fixed, not
+  user-supplied.
 
 ## Known hardening items
 
@@ -290,8 +314,10 @@ both match).
 
 - Set `TELEGRAM_WEBHOOK_SECRET` and register it with Telegram's `setWebhook` (`secret_token`).
   Without it the bot webhook rejects every update.
-- Keep `SUPABASE_SERVICE_ROLE_KEY` and `APP_USER_CONNECTION_KEY_SECRET` only in server
-  environment variables; never in `VITE_*`.
+- Keep `SUPABASE_SERVICE_ROLE_KEY`, `TOKEN_ENCRYPTION_KEY`, `GOOGLE_CLIENT_SECRET`,
+  `TELEGRAM_BOT_TOKEN` and `N8N_API_KEY` only in server environment variables; never in `VITE_*`.
+- Use a long random `N8N_API_KEY` (`openssl rand -hex 32`), keep n8n behind HTTPS, set
+  `TELEGRAM_ALLOWED_CHAT_IDS` and `EMAIL_ALLOWED_SENDERS`, and rotate via `N8N_API_KEY_PREVIOUS`.
 - Restrict Supabase Auth redirect URLs to your own domains.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
 - Set `SECOND_BRAIN_CRON_SECRET` or `CRON_SECRET` (`openssl rand -hex 32`) for the reminder cron and
