@@ -97,10 +97,7 @@ https://github.com/ilramdhan/second-brain/pull/17. CI hijau, Vercel preview ter-
    - Set 03 sebagai error workflow.
    - Tes 04 dan 05.
 7. **GitHub:**
-   - **Release Please gagal** dengan error "GitHub Actions is not permitted to create or approve pull requests". Perbaiki dengan salah satu cara:
-     - aktifkan Settings → Actions → General → _Allow GitHub Actions to create and approve pull requests_, atau
-     - (disarankan) tambahkan secret `RELEASE_PLEASE_TOKEN`, berupa fine-grained PAT dengan izin Contents, PR dan Issues read/write.
-     - Lalu re-run workflow Release Please.
+   - Release Please sudah bisa membuat release PR (PR #18 `chore(main): release 0.2.0`). Opsional: tambahkan secret `RELEASE_PLEASE_TOKEN` (fine-grained PAT; Contents, PR, Issues read/write) agar CI juga jalan di release PR. Merge release PR untuk menerbitkan tag dan GitHub Release.
    - Aktifkan branch protection `main`, Private vulnerability reporting dan Discussions.
 8. **Tes dengan layanan sungguhan:**
    - Kolaborasi note dengan 2 anggota dan 1 orang luar (harus diblokir).
