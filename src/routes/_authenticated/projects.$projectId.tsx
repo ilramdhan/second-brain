@@ -38,6 +38,7 @@ import {
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
+import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
@@ -51,6 +52,8 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
       { property: "og:description", content: "Semua hal tentang satu proyek di satu tempat." },
     ],
   }),
+  loader: ({ context }) =>
+    preloadQueries(context.queryClient, projectsQuery, tasksQuery, milestonesQuery, meQuery),
   component: ProjectDetail,
 });
 

@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/sheet";
 import { useNoteCollaboration } from "@/hooks/use-note-collaboration";
 import { PageContainer } from "@/components/common/PageContainer";
+import { noteBlocksQuery, noteQuery, preloadQueries, projectsQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/notes/$noteId")({
   head: () => ({
@@ -66,6 +67,8 @@ export const Route = createFileRoute("/_authenticated/notes/$noteId")({
       { property: "og:description", content: "Tulis, tautkan, dan susun ulang ide Anda." },
     ],
   }),
+  loader: ({ context, params }) =>
+    preloadQueries(context.queryClient, noteQuery(params.noteId), noteBlocksQuery, projectsQuery),
   component: NotePage,
 });
 
@@ -146,7 +149,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
       }
     },
     [],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const collaboration = useNoteCollaboration(note.id, blocks, (remote) => {
     setBlocks(remote);

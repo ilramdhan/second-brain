@@ -26,6 +26,7 @@ import { noteGraph } from "@/lib/blocks";
 import { useNoteBlocks, useProjects } from "@/lib/data";
 import { color } from "@/lib/constants";
 import { PageContainer } from "@/components/common/PageContainer";
+import { noteBlocksQuery, preloadQueries, projectsQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/graph")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/_authenticated/graph")({
       { property: "og:description", content: "Temukan koneksi tersembunyi antar ide Anda." },
     ],
   }),
+  loader: ({ context }) => preloadQueries(context.queryClient, noteBlocksQuery, projectsQuery),
   component: GraphPage,
 });
 

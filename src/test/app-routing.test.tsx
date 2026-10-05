@@ -14,4 +14,12 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("client-renders the authenticated subtree and guards it in beforeLoad", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+    const route = router.routesById["/_authenticated"];
+
+    expect(route.options.ssr).toBe(false);
+    expect(route.options.beforeLoad).toBeTypeOf("function");
+  });
 });

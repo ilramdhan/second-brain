@@ -13,6 +13,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { PageContainer } from "@/components/common/PageContainer";
 import { qk, useProjects } from "@/lib/data";
+import { preloadQueries, projectsQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/inbox")({
       },
     ],
   }),
+  loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery),
   component: InboxPage,
 });
 

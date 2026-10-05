@@ -38,6 +38,7 @@ import { labelOf, PRIORITY, TASK_STATUS } from "@/lib/constants";
 import { useAutomationActions, useAutomations, useProjects, type Automation } from "@/lib/data";
 import type { Json } from "@/integrations/supabase/types";
 import { PageContainer } from "@/components/common/PageContainer";
+import { automationsQuery, preloadQueries, projectsQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/automations")({
   head: () => ({
@@ -52,6 +53,7 @@ export const Route = createFileRoute("/_authenticated/automations")({
       { property: "og:description", content: "Mesin aturan otomatis untuk tugas Anda." },
     ],
   }),
+  loader: ({ context }) => preloadQueries(context.queryClient, automationsQuery, projectsQuery),
   component: AutomationsPage,
 });
 
