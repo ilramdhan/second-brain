@@ -63,7 +63,8 @@ export function parseTaskText(input: string, now = new Date()): ParsedTask {
 
   let due: Date | null = null;
   const today = startOfDay(now);
-  take(/\s(hari ini|today|nanti malam|tonight)\b/i, (m) => { due = today; if (/malam|tonight/i.test(m[1]!)) text += " jam 19 "; }) ||
+  // Try date patterns in priority order; `||` stops at the first match.
+  void (take(/\s(hari ini|today|nanti malam|tonight)\b/i, (m) => { due = today; if (/malam|tonight/i.test(m[1]!)) text += " jam 19 "; }) ||
     take(/\s(besok lusa|lusa)\b/i, () => (due = addDays(today, 2))) ||
     take(/\s(besok|tomorrow|bsk)\b/i, () => (due = addDays(today, 1))) ||
     take(/\s(minggu depan|next week)\b/i, () => (due = addWeeks(today, 1))) ||
@@ -94,12 +95,13 @@ export function parseTaskText(input: string, now = new Date()): ParsedTask {
       let d = new Date(now.getFullYear(), now.getMonth(), Number(m[1]));
       if (d < today) d = addMonths(d, 1);
       due = d;
-    });
+    }));
 
   let hasTime = false;
-  take(/\s(?:jam|pukul|pkl|at)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(pagi|siang|sore|malam|am|pm)?\b/i, (m) => setTime(m)) ||
+  // Try time patterns in priority order; `||` stops at the first match.
+  void (take(/\s(?:jam|pukul|pkl|at)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(pagi|siang|sore|malam|am|pm)?\b/i, (m) => setTime(m)) ||
     take(/\s(\d{1,2})[:.](\d{2})\s*(pagi|siang|sore|malam|am|pm)?\b/i, (m) => setTime(m)) ||
-    take(/\s(\d{1,2})\s*(pagi|siang|sore|malam|am|pm)\b/i, (m) => setTime([m[0], m[1], undefined, m[2]] as unknown as RegExpExecArray));
+    take(/\s(\d{1,2})\s*(pagi|siang|sore|malam|am|pm)\b/i, (m) => setTime([m[0], m[1], undefined, m[2]] as unknown as RegExpExecArray)));
 
   function setTime(m: RegExpExecArray) {
     let h = Number(m[1]);

@@ -174,7 +174,7 @@ export function BlockEditor({ noteId, blocks, onChange }: { noteId: string; bloc
         const open = menu.kind === "wiki" ? "[[" : "((";
         const close = menu.kind === "wiki" ? "]]" : "))";
         const start = before.lastIndexOf(open);
-        const after = el.value.slice(caret).replace(/^[^\s\]\)]*(\]\]|\)\))?/, "");
+        const after = el.value.slice(caret).replace(/^[^\s\])]*(\]\]|\)\))?/, "");
         const text = before.slice(0, start) + open + key + close + after;
         set(b.id, { text });
         setFocus({ id: b.id, caret: start + open.length + key.length + 2 });
