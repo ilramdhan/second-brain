@@ -1,0 +1,394 @@
+{
+  "name": "Second Brain – Automation Webhook Receiver",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ⚡ Automation webhook receiver\nTujuan aksi **Kirim webhook** di halaman *Automations* app. App mengirim `POST` JSON `{ text, content, rule, event, project, task }` (lihat `runAutomations`, wajib https).\n\nURL yang ditempel di app:\n`https://<n8n>/webhook/second-brain-automation?token=<AUTOMATION_WEBHOOK_TOKEN>&channel=telegram`\n`channel` = `telegram` | `sheets` | `discord` | `all`\n\nFan-out bawaan: Telegram admin, Google Sheets (log, disabled), Discord/Slack (disabled). Tambahkan cabang sendiri (Notion, email, dsb.).\nBalasan 200 dikirim segera agar `automation_runs` tercatat `ok`; token salah → 401 (tercatat gagal).\n\n**Env:** `AUTOMATION_WEBHOOK_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, `DISCORD_WEBHOOK_URL` (opsional), `SECOND_BRAIN_URL` (untuk link).",
+        "height": 380,
+        "width": 720,
+        "color": "6"
+      },
+      "id": "94090b20-dd95-41ac-b799-ccc471ff651b",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -440
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "second-brain-automation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "fdd2c143-e9cb-4cef-ba0d-1920be1b681a",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        100
+      ],
+      "webhookId": "8b02034a-6911-4364-b7b1-ca8757d41bfe"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validasi token rahasia (query ?token=...) — aksi \"Kirim webhook\" di app tidak mengirim header auth,\n// jadi token disematkan di URL yang Anda tempel di halaman Automations.\nconst expected = String($env.AUTOMATION_WEBHOOK_TOKEN || '');\nconst q = $json.query || {};\nconst b = $json.body || {};\nif (!expected || q.token !== expected) return [{ json: { ok: false, reason: 'unauthorized' } }];\nconst t = b.task || {};\nconst due = t.due_date ? new Date(t.due_date).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }) : '-';\nconst link = $env.SECOND_BRAIN_URL ? `${$env.SECOND_BRAIN_URL}/tasks?task=${t.id || ''}` : '';\nreturn [{ json: {\n  ok: true,\n  channel: String(q.channel || 'telegram'),\n  rule: b.rule || '-', event: b.event || '-', project: b.project || '-',\n  task: { id: t.id, title: t.title, status: t.status, priority: t.priority, assignee: t.assignee_name, due, tags: t.tags || [] },\n  text: `⚡ ${b.rule || 'Automation'} (${b.event || '-'})\\n📌 ${t.title || '-'}\\nStatus: ${t.status || '-'} · Prioritas: ${t.priority || '-'}\\nProyek: ${b.project || '-'} · Tenggat: ${due}${link ? `\\n${link}` : ''}`,\n} }];"
+      },
+      "id": "223cfbb3-e007-44a9-9c5d-f52f563f7cdb",
+      "name": "Validasi & format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1a14205c-970c-46d2-83b6-f064114a6292",
+              "leftValue": "={{ $json.ok }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8e9a6282-d25d-4a71-a490-079a662230fa",
+      "name": "Token valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {}
+      },
+      "id": "e3f0cb9e-1a62-4850-ae7a-9281470f7f57",
+      "name": "Balas 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'unauthorized' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "50010b82-15be-4ae7-a910-7cb800363df4",
+      "name": "Balas 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1f7a66e3-18a5-47fa-9a43-fb6b46336967",
+                    "leftValue": "={{ ['telegram','all'].includes($('Validasi & format').item.json.channel) }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "telegram"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "81841b23-e168-413d-9e62-294b1abf4ab2",
+                    "leftValue": "={{ ['sheets','all'].includes($('Validasi & format').item.json.channel) }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sheets"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "36170803-80ea-4ab9-8d31-45eed22ef1f6",
+                    "leftValue": "={{ ['discord','all'].includes($('Validasi & format').item.json.channel) }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "discord"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": true
+        }
+      },
+      "id": "ff3fcac4-ba72-4b87-8a88-41cc68c11b6d",
+      "name": "Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_ADMIN_CHAT_ID, text: $('Validasi & format').item.json.text.slice(0, 4000), disable_web_page_preview: true }) }}"
+      },
+      "id": "830a35d3-7d6c-4ee1-9d49-af0b08833021",
+      "name": "Telegram admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        -140
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "automation_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "waktu": "={{ $now.setZone('Asia/Jakarta').toISO() }}",
+            "rule": "={{ $('Validasi & format').item.json.rule }}",
+            "event": "={{ $('Validasi & format').item.json.event }}",
+            "proyek": "={{ $('Validasi & format').item.json.project }}",
+            "task_id": "={{ $('Validasi & format').item.json.task.id }}",
+            "judul": "={{ $('Validasi & format').item.json.task.title }}",
+            "status": "={{ $('Validasi & format').item.json.task.status }}",
+            "prioritas": "={{ $('Validasi & format').item.json.task.priority }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "0afae5ae-427d-405d-80fa-66a1d3fb6ff6",
+      "name": "Log ke Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        20
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets Second Brain"
+        }
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $('Validasi & format').item.json.text.slice(0, 1900), text: $('Validasi & format').item.json.text }) }}"
+      },
+      "id": "cb1c4fdd-029d-40eb-b84b-73ce796b912a",
+      "name": "Discord / Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        180
+      ],
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validasi & format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validasi & format": {
+      "main": [
+        [
+          {
+            "node": "Token valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token valid?": {
+      "main": [
+        [
+          {
+            "node": "Balas 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Balas 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Balas 200": {
+      "main": [
+        [
+          {
+            "node": "Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel": {
+      "main": [
+        [
+          {
+            "node": "Telegram admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log ke Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord / Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

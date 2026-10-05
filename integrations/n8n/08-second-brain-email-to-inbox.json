@@ -1,0 +1,128 @@
+{
+  "name": "Second Brain – Email to Inbox",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ✉️ Email → Inbox\nKirim/forward email ke kotak masuk khusus (mis. `brain@domain.com`). IMAP trigger membaca email belum dibaca → hanya pengirim di `EMAIL_ALLOWED_SENDERS` → `POST /api/public/n8n/capture`.\n\nSubjek `task: ...` → tugas (NLP tanggal/prioritas di server), `note: ...` → catatan, lainnya → Inbox. Email panjang diringkas AI di server (`summarize: true`). `external_id` mencegah duplikat.\n\n⚠️ Server mencocokkan `user_email` ke akun Second Brain. Kolom `inbox_items.source` perlu nilai `email` (lihat README → migrasi).\n**Env:** `SECOND_BRAIN_URL`, `EMAIL_ALLOWED_SENDERS`. **Credentials:** IMAP, Header Auth.",
+        "height": 340,
+        "width": 680,
+        "color": "6"
+      },
+      "id": "edc66791-20ff-44b9-864c-51ae758d66b0",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "mailbox": "INBOX",
+        "postProcessAction": "read",
+        "format": "simple",
+        "options": {
+          "customEmailConfig": "[\"UNSEEN\"]"
+        }
+      },
+      "id": "b56f386d-1408-4922-9ffc-29032b0cddf9",
+      "name": "Email masuk (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "imap": {
+          "id": "REPLACE_ME",
+          "name": "IMAP Second Brain Inbox"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Allow-list pengirim + bersihkan isi email → payload capture.\nconst allowed = String($env.EMAIL_ALLOWED_SENDERS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);\nconst out = [];\nfor (const i of $input.all()) {\n  const e = i.json;\n  const fromRaw = String(e.from?.value?.[0]?.address ?? e.from ?? '').toLowerCase();\n  const from = (fromRaw.match(/[^\\s<>]+@[^\\s<>]+/) || [''])[0];\n  if (!from || !allowed.includes(from)) continue; // fail-closed\n  const subject = String(e.subject || '(tanpa subjek)').trim();\n  // Subjek \"task: ...\" → tugas, \"note: ...\" → catatan, selain itu → inbox\n  const m = subject.match(/^\\s*(task|tugas|note|catatan)\\s*:\\s*(.*)$/i);\n  const target = m ? (/^(task|tugas)$/i.test(m[1]) ? 'task' : 'note') : 'inbox';\n  const body = String(e.text || e.textPlain || '').replace(/\\r/g, '').split(/\\n-- \\n|\\nOn .+wrote:\\n/)[0].trim();\n  out.push({ json: { payload: {\n    user_email: from,\n    source: 'email',\n    target,\n    title: (m ? m[2] : subject).slice(0, 300),\n    text: body.slice(0, 20000),\n    summarize: body.length > 1500,  // minta server membuat ai_summary untuk email panjang\n    external_id: `email:${e.messageId || e.headers?.['message-id'] || ''}`,\n  } } });\n}\nreturn out;"
+      },
+      "id": "2814df33-8148-4115-a887-becb602e838f",
+      "name": "Allow-list & normalisasi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/capture",
+        "options": {
+          "timeout": 60000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "3a1ccfc4-2f60-4a79-84e0-578dea85dd64",
+      "name": "Capture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Email masuk (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Allow-list & normalisasi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allow-list & normalisasi": {
+      "main": [
+        [
+          {
+            "node": "Capture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

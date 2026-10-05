@@ -1,0 +1,290 @@
+{
+  "name": "Second Brain – Weekly Backup",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 💾 Backup mingguan\nMinggu 02:00 WIB → `GET /api/public/n8n/backup` (JSON lengkap: projects, tasks, notes+blocks, milestones, dependencies, automations, inbox, templates, canvas; termasuk item archived/trash) → Google Drive. Node **Kirim via email** (disabled) sebagai alternatif.\n\nRetensi: node *Hapus backup lama* menghapus file `second-brain-backup-*` > `BACKUP_RETENTION_DAYS` (default 56) di folder yang sama.\n\n**Env:** `SECOND_BRAIN_URL`, `BACKUP_RETENTION_DAYS` (+ `BACKUP_EMAIL_FROM`, `BACKUP_EMAIL_TO`). **Credentials:** Header Auth, Google Drive OAuth2 (atau SMTP). Ganti `REPLACE_ME_FOLDER_ID`.",
+        "height": 320,
+        "width": 640,
+        "color": "6"
+      },
+      "id": "b2833e68-957e-4365-833a-4dfb4990f700",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -380
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                0
+              ],
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "id": "ff4ba74d-e7a2-4e46-a604-ae74efc969c5",
+      "name": "Tiap Minggu 02:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/backup?include=all",
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "47f8a116-9073-4667-89ad-4e66d90e539d",
+      "name": "Ambil backup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 10000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "={{ String(($binary.data && $binary.data.fileName) || \"\").startsWith(\"second-brain-\") ? $binary.data.fileName : \"second-brain-backup-\" + $now.setZone(\"Asia/Jakarta\").toFormat(\"yyyy-MM-dd\") + \".json\" }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_ME_FOLDER_ID"
+        },
+        "options": {}
+      },
+      "id": "b4ebfee9-ade4-456d-93d8-e1b7eb812b89",
+      "name": "Upload ke Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        460,
+        -80
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive Second Brain"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "name",
+        "queryString": "second-brain-backup-",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "REPLACE_ME_FOLDER_ID"
+          }
+        },
+        "options": {
+          "fields": [
+            "id",
+            "name",
+            "createdTime"
+          ]
+        }
+      },
+      "id": "21e9774b-9b45-4886-8d25-6c552c3048d0",
+      "name": "Daftar backup",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        700,
+        -80
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive Second Brain"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pilih file backup yang lebih tua dari retensi.\nconst days = Number($env.BACKUP_RETENTION_DAYS || 56);\nconst cutoff = Date.now() - days * 86400000;\nreturn $input.all()\n  .filter(i => /^second-brain-backup-/.test(i.json.name || ''))\n  .filter(i => new Date(i.json.createdTime || i.json.modifiedTime || Date.now()).getTime() < cutoff)\n  .map(i => ({ json: { id: i.json.id, name: i.json.name } }));"
+      },
+      "id": "c77915d5-04d5-4af1-b565-d980cbac4bab",
+      "name": "Pilih yang kedaluwarsa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "id": "83b4ab39-415f-4298-a1a6-e41cf9cf0183",
+      "name": "Hapus backup lama",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1140,
+        -80
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive Second Brain"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.BACKUP_EMAIL_FROM }}",
+        "toEmail": "={{ $env.BACKUP_EMAIL_TO }}",
+        "subject": "=Backup Second Brain {{ $now.setZone('Asia/Jakarta').toFormat('yyyy-MM-dd') }}",
+        "emailFormat": "text",
+        "text": "Backup mingguan Second Brain terlampir (JSON). Simpan di tempat aman — berisi seluruh tugas & catatan Anda.",
+        "options": {
+          "attachments": "data"
+        }
+      },
+      "id": "331f9b28-8260-46eb-b72c-e24c366b1d69",
+      "name": "Kirim via email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        460,
+        120
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "SMTP Second Brain"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Tiap Minggu 02:00": {
+      "main": [
+        [
+          {
+            "node": "Ambil backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil backup": {
+      "main": [
+        [
+          {
+            "node": "Upload ke Google Drive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Kirim via email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload ke Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Daftar backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daftar backup": {
+      "main": [
+        [
+          {
+            "node": "Pilih yang kedaluwarsa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pilih yang kedaluwarsa": {
+      "main": [
+        [
+          {
+            "node": "Hapus backup lama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
