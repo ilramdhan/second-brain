@@ -33,10 +33,15 @@ const imageMime = z
   .string()
   .regex(/^image\/(png|jpe?g|webp|gif|heic|heif|avif|bmp)$/i, "Format gambar tidak didukung");
 
-/** Spends one unit of the per-user AI budget (30 calls / 10 min) or throws a friendly error. */
+/**
+ * Fails fast with "AI belum dikonfigurasi" when no provider is set up (so no budget is spent),
+ * then spends one unit of the per-user AI budget (30 calls / 10 min) or throws a friendly error.
+ */
 async function limitAi(
   supabase: Parameters<typeof import("@/server/rateLimit.server").enforceRateLimit>[0],
 ) {
+  const { aiConfigFromEnv } = await import("./ai.server");
+  aiConfigFromEnv();
   const { enforceRateLimit, AI_RATE_LIMIT } = await import("@/server/rateLimit.server");
   await enforceRateLimit(supabase, AI_RATE_LIMIT);
 }

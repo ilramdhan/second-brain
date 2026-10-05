@@ -2,62 +2,109 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, Output, NoObjectGeneratedError, type ModelMessage } from "ai";
 import { z } from "zod";
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1";
-const RUN_ID_HEADER = "X-Lovable-AIG-Run-ID";
+// Direct AI provider access through the Vercel AI SDK (no vendor gateway).
+//
+//   AI_PROVIDER           `openai` (default; Responses API) or `openai-compatible` (Chat
+//                         Completions API at AI_BASE_URL: OpenRouter, Groq, Gemini, Ollama, ...)
+//   AI_API_KEY            provider API key (required; AI features are disabled without it)
+//   AI_BASE_URL           API base URL, e.g. https://openrouter.ai/api/v1 (required for
+//                         `openai-compatible`, optional for `openai`)
+//   AI_MODEL              text model (default gpt-4o-mini)
+//   AI_VISION_MODEL       model for image input / OCR (default AI_MODEL)
+//   AI_TRANSCRIBE_MODEL   speech-to-text model for /audio/transcriptions (default whisper-1)
 
-function getApiKey(): string {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new Error("LOVABLE_API_KEY is not configured");
-  return key;
+export const AI_NOT_CONFIGURED_MESSAGE =
+  "AI belum dikonfigurasi. Admin perlu mengisi AI_API_KEY (lihat .env.example).";
+
+export class AiNotConfiguredError extends Error {
+  constructor(detail?: string) {
+    super(detail ? `${AI_NOT_CONFIGURED_MESSAGE} ${detail}` : AI_NOT_CONFIGURED_MESSAGE);
+    this.name = "AiNotConfiguredError";
+  }
 }
 
-function createRunIdFetch(request: Request) {
-  let runId = request.headers.get(RUN_ID_HEADER)?.trim() || undefined;
+export type AiProviderKind = "openai" | "openai-compatible";
+
+export type AiConfig = {
+  provider: AiProviderKind;
+  apiKey: string;
+  baseURL: string | undefined;
+  model: string;
+  visionModel: string;
+  transcribeModel: string;
+};
+
+const DEFAULT_MODEL = "gpt-4o-mini";
+const DEFAULT_TRANSCRIBE_MODEL = "whisper-1";
+const OPENAI_BASE_URL = "https://api.openai.com/v1";
+
+/** Reads and validates the AI settings. Throws AiNotConfiguredError when unusable. */
+export function aiConfigFromEnv(env: Record<string, string | undefined> = process.env): AiConfig {
+  const read = (key: string) => env[key]?.trim() || undefined;
+  const apiKey = read("AI_API_KEY");
+  if (!apiKey) throw new AiNotConfiguredError();
+
+  const rawProvider = (read("AI_PROVIDER") ?? "openai").toLowerCase();
+  if (rawProvider !== "openai" && rawProvider !== "openai-compatible") {
+    throw new AiNotConfiguredError(
+      `AI_PROVIDER "${rawProvider}" tidak dikenal (pakai openai atau openai-compatible).`,
+    );
+  }
+  const provider: AiProviderKind = rawProvider;
+  const baseURL = read("AI_BASE_URL")?.replace(/\/+$/, "");
+  if (provider === "openai-compatible" && !baseURL) {
+    throw new AiNotConfiguredError("AI_BASE_URL wajib diisi untuk AI_PROVIDER=openai-compatible.");
+  }
+
+  const model = read("AI_MODEL") ?? DEFAULT_MODEL;
   return {
-    getRunId: () => runId,
-    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-      const headers = new Headers(init?.headers);
-      if (runId && !headers.has(RUN_ID_HEADER)) headers.set(RUN_ID_HEADER, runId);
-      const response = await fetch(input, { ...init, headers });
-      runId ??= response.headers.get(RUN_ID_HEADER)?.trim() || undefined;
-      return response;
-    },
+    provider,
+    apiKey,
+    baseURL,
+    model,
+    visionModel: read("AI_VISION_MODEL") ?? model,
+    transcribeModel: read("AI_TRANSCRIBE_MODEL") ?? DEFAULT_TRANSCRIBE_MODEL,
   };
 }
 
-function createProvider(request: Request) {
-  const apiKey = getApiKey();
-  const runIdFetch = createRunIdFetch(request);
-  return createOpenAI({
-    baseURL: GATEWAY_URL,
-    apiKey,
-    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-    fetch: runIdFetch.fetch,
-  });
+/** True when any message carries an image or file part (routes the call to AI_VISION_MODEL). */
+export function hasImageContent(messages: ModelMessage[]): boolean {
+  return messages.some(
+    (m) =>
+      Array.isArray(m.content) &&
+      m.content.some((part) => part.type === "image" || part.type === "file"),
+  );
 }
 
-const MODEL = "openai/gpt-6-astra";
+function languageModel(config: AiConfig, modelId: string) {
+  const provider = createOpenAI({
+    apiKey: config.apiKey,
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+    ...(config.provider === "openai-compatible" ? { name: "openai-compatible" } : {}),
+  });
+  // OpenAI-compatible hosts implement Chat Completions, not OpenAI's Responses API.
+  return config.provider === "openai" ? provider.responses(modelId) : provider.chat(modelId);
+}
+
+/** Provider options: never let OpenAI store prompts (user notes) server-side. */
+function providerOptions(config: AiConfig) {
+  return config.provider === "openai" ? { openai: { store: false } } : undefined;
+}
 
 export async function aiText(
   request: Request,
   system: string,
   messages: ModelMessage[],
 ): Promise<string> {
-  const provider = createProvider(request);
+  const config = aiConfigFromEnv();
+  const modelId = hasImageContent(messages) ? config.visionModel : config.model;
+  const opts = providerOptions(config);
   const result = streamText({
-    model: provider.responses(MODEL),
+    model: languageModel(config, modelId),
     system,
     messages,
     abortSignal: request.signal,
-    providerOptions: {
-      openai: {
-        store: false,
-        forceReasoning: true,
-        reasoningEffort: "low",
-        reasoningSummary: "auto",
-        include: ["reasoning.encrypted_content"],
-      },
-    },
+    ...(opts ? { providerOptions: opts } : {}),
   });
   return await result.text;
 }
@@ -83,11 +130,12 @@ export async function aiParseBrainDump(
   dump: string,
   existingProjects: string[],
 ): Promise<ParsedTask[]> {
-  const provider = createProvider(request);
+  const config = aiConfigFromEnv();
+  const opts = providerOptions(config);
   const today = new Date().toISOString().slice(0, 10);
   try {
     const result = streamText({
-      model: provider.responses(MODEL),
+      model: languageModel(config, config.model),
       abortSignal: request.signal,
       output: Output.object({ schema: parsedTaskSchema }),
       system: `Anda adalah asisten yang mengubah brain dump acak (bahasa Indonesia, poin-poin singkat dari meeting/diskusi/belanja) menjadi daftar item terstruktur. Hari ini: ${today}.
@@ -101,15 +149,7 @@ Aturan:
 - description: parafrase singkat 1-2 kalimat yang memperjelas maksud poin, dalam bahasa Indonesia. null jika poin sudah jelas.
 Proyek yang sudah ada: ${existingProjects.length ? existingProjects.join(", ") : "(belum ada)"}. Gunakan nama persis sama jika cocok.`,
       messages: [{ role: "user", content: dump }],
-      providerOptions: {
-        openai: {
-          store: false,
-          forceReasoning: true,
-          reasoningEffort: "low",
-          reasoningSummary: "auto",
-          include: ["reasoning.encrypted_content"],
-        },
-      },
+      ...(opts ? { providerOptions: opts } : {}),
     });
     return (await result.output).tasks;
   } catch (error) {
@@ -125,17 +165,21 @@ Proyek yang sudah ada: ${existingProjects.length ? existingProjects.join(", ") :
 }
 
 export async function aiTranscribe(audio: Blob, mimeType: string): Promise<string> {
-  const apiKey = getApiKey();
+  const config = aiConfigFromEnv();
   const ext = mimeType.includes("mp4") ? "mp4" : mimeType.includes("ogg") ? "ogg" : "webm";
   const form = new FormData();
   form.append("file", new File([audio], `voice.${ext}`, { type: mimeType }));
-  form.append("model", "google/gemini-3.5-transcribe");
-  const res = await fetch(`${GATEWAY_URL}/audio/transcriptions`, {
+  form.append("model", config.transcribeModel);
+  // OpenAI-style endpoint, also offered by Groq and other OpenAI-compatible hosts.
+  const res = await fetch(`${config.baseURL ?? OPENAI_BASE_URL}/audio/transcriptions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Lovable-API-Key": apiKey },
+    headers: { Authorization: `Bearer ${config.apiKey}` },
     body: form,
   });
-  if (!res.ok) throw new Error(`Transkripsi gagal [${res.status}]: ${await res.text()}`);
+  if (!res.ok) {
+    const detail = (await res.text()).slice(0, 300);
+    throw new Error(`Transkripsi gagal [${res.status}]: ${detail}`);
+  }
   const data = (await res.json()) as { text?: string };
   return data.text ?? "";
 }
