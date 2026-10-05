@@ -10,6 +10,13 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.2.1](https://github.com/ilramdhan/second-brain/compare/v0.2.0...v0.2.1) (2026-10-05)
+
+
+### Performance
+
+* Phase 3 quick wins — query defaults, lazy layout, lean selects, optimistic cache ([#17](https://github.com/ilramdhan/second-brain/issues/17)) ([5303e01](https://github.com/ilramdhan/second-brain/commit/5303e01a1408b70f9710b8437cbedb2c961229b9))
+
 ## [0.2.0](https://github.com/ilramdhan/second-brain/compare/v0.1.0...v0.2.0) (2026-10-05)
 
 
