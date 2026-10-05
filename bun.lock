@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "tanstack_start_ts",
+      "name": "second-brain",
       "dependencies": {
         "@ai-sdk/openai": "^4.0.83",
         "@dnd-kit/core": "^6.3.1",

@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/ilramdhan/second-brain/actions/workflows/ci.yml/badge.svg)](https://github.com/ilramdhan/second-brain/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ilramdhan/second-brain/actions/workflows/codeql.yml/badge.svg)](https://github.com/ilramdhan/second-brain/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/ilramdhan/second-brain?sort=semver)](https://github.com/ilramdhan/second-brain/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A personal and team **task & notes management PWA**: capture thoughts quickly (text, voice, photo, Telegram), let AI turn raw brain dumps into structured tasks and notes, then plan the work across list, kanban, calendar and Gantt-style timeline views. A block-based notes editor provides bidirectional links, block references, a graph view and live collaboration.

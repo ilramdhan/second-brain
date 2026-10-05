@@ -19,8 +19,9 @@ must be reported privately as described in [SECURITY.md](SECURITY.md), never in 
 9. [Pull request flow](#pull-request-flow)
 10. [Review checklist](#review-checklist)
 11. [CI/CD](#cicd)
-12. [Git history](#git-history)
-13. [Documentation](#documentation)
+12. [Releases](#releases)
+13. [Git history](#git-history)
+14. [Documentation](#documentation)
 
 ---
 
@@ -349,18 +350,25 @@ Commit messages follow [Conventional Commits 1.0](https://www.conventionalcommit
 <optional footer: Closes #123, BREAKING CHANGE: …>
 ```
 
-| Type       | Use for                                                 |
-| ---------- | ------------------------------------------------------- |
-| `feat`     | A new user-facing feature                               |
-| `fix`      | A bug fix                                               |
-| `docs`     | Documentation only                                      |
-| `refactor` | Code change that neither fixes a bug nor adds a feature |
-| `perf`     | Performance improvement                                 |
-| `test`     | Adding or fixing tests                                  |
-| `build`    | Build system or dependencies                            |
-| `ci`       | GitHub Actions and other CI config                      |
-| `chore`    | Maintenance that doesn't fit elsewhere                  |
-| `revert`   | Reverts a previous commit                               |
+The type decides the version bump and the `CHANGELOG.md` section (see [Releases](#releases)):
+
+| Type       | Use for                                                 | Version bump (0.x) | Changelog section  |
+| ---------- | ------------------------------------------------------- | ------------------ | ------------------ |
+| `feat`     | A new user-facing feature                               | patch              | Features           |
+| `fix`      | A bug fix                                               | patch              | Bug Fixes          |
+| `perf`     | Performance improvement                                 | patch              | Performance        |
+| `revert`   | Reverts a previous commit                               | patch              | Reverts            |
+| `refactor` | Code change that neither fixes a bug nor adds a feature | none               | Refactoring        |
+| `docs`     | Documentation only                                      | none               | Documentation      |
+| `deps`     | Dependency updates                                      | none               | Dependencies       |
+| `build`    | Build system or dependencies                            | none               | Build System       |
+| `ci`       | GitHub Actions and other CI config                      | none               | hidden             |
+| `test`     | Adding or fixing tests                                  | none               | hidden             |
+| `chore`    | Maintenance that doesn't fit elsewhere                  | none               | hidden             |
+| any + `!`  | Breaking change (`feat!:` or `BREAKING CHANGE:` footer) | minor (major ≥1.0) | ⚠ BREAKING CHANGES |
+
+Commits without a bump still appear in the next release when their section is visible, but they
+don't open a release on their own.
 
 Suggested scopes: `tasks`, `kanban`, `calendar`, `timeline`, `notes`, `graph`, `inbox`, `ai`,
 `automations`, `projects`, `auth`, `db`, `telegram`, `gcal`, `pwa`, `a11y`, `i18n`, `deps`.
@@ -385,9 +393,12 @@ migration path.
 3. **Make focused changes.** One logical change per PR; avoid drive-by reformatting of unrelated
    files.
 4. **Run the checks** listed in [Testing](#testing).
-5. **Update docs and `CHANGELOG.md`** (under _Unreleased_) when behavior changes.
-6. **Open the PR** against `main` using the template. Use a Conventional Commit style title; PRs
-   are usually squash-merged, so the title becomes the commit message on `main`.
+5. **Update docs** when behavior changes. Don't edit `CHANGELOG.md`; Release Please generates it
+   from commit messages (see [Releases](#releases)).
+6. **Open the PR** against `main` using the template. Use a Conventional Commit style title. With
+   a squash merge the PR title becomes the commit message on `main` and is the only line Release
+   Please reads; with a merge commit every commit on the branch is read, so each one must follow
+   Conventional Commits.
 7. **CI must be green.** Respond to review comments by pushing new commits to your branch.
    Don't force-push once review has started, so reviewers can see what changed.
 8. A maintainer merges once approved. Code owners (see `.github/CODEOWNERS`) are requested
@@ -449,6 +460,7 @@ GitHub Actions workflows live in `.github/workflows/`:
 | `codeql.yml`            | push / PR to `main`, weekly | CodeQL `security-extended` analysis for JavaScript/TypeScript                                                                                                                                               |
 | `dependency-review.yml` | PR to `main`                | Fails on new dependencies with high or critical advisories                                                                                                                                                  |
 | `deploy.yml`            | push / PR to `main`         | Optional Vercel CLI deploy (preview for PRs, production for `main`)                                                                                                                                         |
+| `release-please.yml`    | push to `main`, manual      | Opens or updates the release PR; merging it tags `vX.Y.Z`, updates `CHANGELOG.md` and publishes a GitHub Release                                                                                            |
 
 Shared setup (Bun from `.bun-version`, install cache, `bun install --frozen-lockfile`) is in
 `.github/actions/setup`.
@@ -464,6 +476,47 @@ you enable it, turn off automatic Git deployments in Vercel to avoid deploying t
 **Prettier.** The code originally imported from Lovable is not Prettier-formatted yet, so the `format` job
 uses `continue-on-error: true`. After a one-off `bun run format` commit, remove that line to make
 formatting blocking.
+
+---
+
+## Releases
+
+Versioning, `CHANGELOG.md` and GitHub Releases are automated with
+[Release Please](https://github.com/googleapis/release-please) (`release-please.yml`,
+`release-please-config.json`, `.release-please-manifest.json`).
+
+1. **Merge Conventional Commits to `main`.** Release Please reads every commit since the last
+   release.
+2. **Release PR.** It opens (or updates) a pull request titled `chore(main): release X.Y.Z` that
+   bumps `package.json` and `.release-please-manifest.json` and prepends the new entry to
+   `CHANGELOG.md`. Later merges to `main` update the same PR.
+3. **Merge the release PR** when you want to ship. Release Please then creates the `vX.Y.Z` tag
+   and a GitHub Release with the same notes.
+
+While the version is `0.x`, `feat` and `fix` bump the patch version and breaking changes bump the
+minor version (`bump-minor-pre-major`).
+
+**Overriding the version.** Add a `Release-As:` footer to a commit on `main` (an empty commit
+works):
+
+```
+chore: release 1.0.0
+
+Release-As: 1.0.0
+```
+
+**Squash vs. merge.** Squash merging is preferred: the PR title becomes the single commit Release
+Please reads, so a clean title is enough. With a merge commit every commit on the branch must
+follow Conventional Commits; commits that don't are ignored.
+
+**Token.** The workflow uses the optional `RELEASE_PLEASE_TOKEN` secret and falls back to
+`GITHUB_TOKEN`. Pull requests opened with `GITHUB_TOKEN` don't trigger CI, so add a fine-grained
+PAT (this repository only; Contents, Pull requests and Issues: read and write) as
+`RELEASE_PLEASE_TOKEN` to get CI on release PRs. With the fallback, enable **Settings → Actions →
+General → Allow GitHub Actions to create and approve pull requests**.
+
+Never edit `CHANGELOG.md` or the `package.json` version by hand on feature branches. If release
+notes need rewording, edit them in the release PR before merging it.
 
 ---
 
@@ -488,7 +541,7 @@ history stays intact as good practice:
 | [CLAUDE.md](CLAUDE.md)               | Practical notes for AI coding agents                             |
 | [SECURITY.md](SECURITY.md)           | Vulnerability reporting and security architecture                |
 | [ACCESSIBILITY.md](ACCESSIBILITY.md) | Accessibility target, current state and known gaps               |
-| [CHANGELOG.md](CHANGELOG.md)         | Release notes (Keep a Changelog)                                 |
+| [CHANGELOG.md](CHANGELOG.md)         | Release notes (generated by Release Please)                      |
 
 When you change behavior, update the relevant document in the same PR. Architecture changes must
 update `AGENTS.md`.
