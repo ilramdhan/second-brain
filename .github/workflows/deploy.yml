@@ -69,7 +69,7 @@ jobs:
       NITRO_PRESET: vercel
       TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
       - name: Pull Vercel project settings and env
@@ -96,7 +96,7 @@ jobs:
 
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
         with:
