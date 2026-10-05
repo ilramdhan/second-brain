@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   forceCenter,
@@ -69,7 +69,9 @@ function GraphPage() {
   const [q, setQ] = useState("");
   const [orphans, setOrphans] = useState(true);
   const [hover, setHover] = useState<string | null>(focus ?? null);
-  const [, tick] = useState(0);
+  // Bumped when the simulation is rebuilt so the SVG elements for the new nodes render; the
+  // per-tick positions are written straight to the DOM (see paint), not through React state.
+  const [, setVersion] = useState(0);
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -77,7 +79,28 @@ function GraphPage() {
   const simRef = useRef<ReturnType<typeof forceSimulation<N>> | null>(null);
   const nodesRef = useRef<N[]>([]);
   const linksRef = useRef<L[]>([]);
+  const nodeEls = useRef(new Map<string, SVGGElement>());
+  const linkEls = useRef<(SVGLineElement | null)[]>([]);
+  const frame = useRef(0);
 
+  /** Writes the current simulation positions to the SVG (at most once per animation frame). */
+  const paint = useCallback(() => {
+    frame.current = 0;
+    for (const n of nodesRef.current)
+      nodeEls.current.get(n.id)?.setAttribute("transform", `translate(${n.x ?? 0},${n.y ?? 0})`);
+    linksRef.current.forEach((l, i) => {
+      const el = linkEls.current[i];
+      const a = l.source as N,
+        b = l.target as N;
+      if (!el || typeof a !== "object" || typeof b !== "object") return;
+      el.setAttribute("x1", String(a.x ?? 0));
+      el.setAttribute("y1", String(a.y ?? 0));
+      el.setAttribute("x2", String(b.x ?? 0));
+      el.setAttribute("y2", String(b.y ?? 0));
+    });
+  }, []);
+
+  const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const tags = useMemo(() => [...new Set(notes.flatMap((n) => n.tags))].sort(), [notes]);
   const graph = useMemo(() => {
     const edges = noteGraph(notes);
@@ -98,12 +121,8 @@ function GraphPage() {
         tags: n.tags,
         project: n.project_id,
       }));
-    return {
-      nodes,
-      edges: es.filter(
-        (e) => nodes.some((n) => n.id === e.source) && nodes.some((n) => n.id === e.target),
-      ),
-    };
+    const kept = new Set(nodes.map((n) => n.id));
+    return { nodes, edges: es.filter((e) => kept.has(e.source) && kept.has(e.target)) };
   }, [notes, tag, orphans]);
 
   useEffect(() => {
@@ -131,12 +150,20 @@ function GraphPage() {
         "collide",
         forceCollide<N>().radius((d) => radius(d) + 6),
       )
-      .on("tick", () => tick((t) => t + 1));
+      .on("tick", () => {
+        if (!frame.current) frame.current = requestAnimationFrame(paint);
+      });
     simRef.current = sim;
+    setVersion((v) => v + 1);
     return () => {
       sim.stop();
+      cancelAnimationFrame(frame.current);
+      frame.current = 0;
     };
-  }, [graph]);
+  }, [graph, paint]);
+  // After any React render (hover, zoom, new graph) put elements at the latest positions,
+  // since React itself only renders them at their initial coordinates.
+  useLayoutEffect(paint);
 
   // Non-passive wheel zoom anchored at cursor.
   useEffect(() => {
@@ -304,10 +331,9 @@ function GraphPage() {
               return (
                 <line
                   key={i}
-                  x1={s.x}
-                  y1={s.y}
-                  x2={t.x}
-                  y2={t.y}
+                  ref={(el) => {
+                    linkEls.current[i] = el;
+                  }}
                   className={lit ? "stroke-primary" : "stroke-border"}
                   strokeWidth={lit ? 1.8 : 1}
                 />
@@ -317,11 +343,14 @@ function GraphPage() {
               const dim =
                 (hover && n.id !== hover && !neighbors.has(n.id)) ||
                 (match && !n.title.toLowerCase().includes(match));
-              const proj = projects.find((p) => p.id === n.project);
+              const proj = n.project ? projectById.get(n.project) : undefined;
               return (
                 <g
                   key={n.id}
-                  transform={`translate(${n.x ?? 0},${n.y ?? 0})`}
+                  ref={(el) => {
+                    if (el) nodeEls.current.set(n.id, el);
+                    else nodeEls.current.delete(n.id);
+                  }}
                   className="cursor-pointer"
                   opacity={dim ? 0.2 : 1}
                   onPointerDown={(e) => onDown(e, n.id)}
