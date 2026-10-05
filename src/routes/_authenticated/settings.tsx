@@ -332,12 +332,16 @@ function GoogleCalendarPanel() {
       return;
     }
     setBusy(true);
-    const wait = new Promise<string>((resolve, reject) => {
+    const wait = new Promise<{ code: string; state: string }>((resolve, reject) => {
       const onMessage = (event: MessageEvent) => {
         if (event.origin !== window.location.origin || event.source !== popup) return;
-        if (event.data?.type === "googleCalendarComplete" && typeof event.data.code === "string") {
+        if (
+          event.data?.type === "googleCalendarComplete" &&
+          typeof event.data.code === "string" &&
+          typeof event.data.state === "string"
+        ) {
           cleanup();
-          resolve(event.data.code);
+          resolve({ code: event.data.code, state: event.data.state });
         } else if (event.data?.type === "googleCalendarFailed") {
           cleanup();
           reject(new Error("Izin Google tidak selesai."));
@@ -358,8 +362,8 @@ function GoogleCalendarPanel() {
     try {
       const { authorizationUrl } = await startGoogleCalendarConnect();
       popup.location.href = authorizationUrl;
-      const code = await wait;
-      await completeGoogleCalendarConnect({ data: { code } });
+      const result = await wait;
+      await completeGoogleCalendarConnect({ data: result });
       toast.success("Google Calendar terhubung");
       await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
     } catch (error) {
@@ -394,7 +398,7 @@ function GoogleCalendarPanel() {
         <Button
           variant={data?.connected ? "outline" : "default"}
           onClick={data?.connected ? disconnect : connect}
-          disabled={busy || isLoading}
+          disabled={busy || isLoading || (!data?.connected && data?.configured === false)}
         >
           {busy || isLoading ? (
             <Loader2 className="animate-spin" />
@@ -405,6 +409,11 @@ function GoogleCalendarPanel() {
           )}
           {data?.connected ? "Putuskan" : "Hubungkan Google Calendar"}
         </Button>
+        {data?.configured === false ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Belum dikonfigurasi oleh admin (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
+          </p>
+        ) : null}
       </div>
     </section>
   );
