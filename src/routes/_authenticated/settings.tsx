@@ -220,7 +220,11 @@ function SettingsPage() {
 
 function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void }) {
   const [busy, setBusy] = useState(false);
-  const [link, setLink] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [link, setLink] = useState<{
+    code: string;
+    expiresAt: string;
+    deepLink: string | null;
+  } | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const remainingMs = link ? new Date(link.expiresAt).getTime() - now : 0;
@@ -294,6 +298,13 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
             Berlaku {minutes}:{String(seconds).padStart(2, "0")} lagi · sekali pakai. Halaman ini
             otomatis diperbarui setelah akun terhubung.
           </p>
+          {link.deepLink ? (
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <a href={link.deepLink} target="_blank" rel="noopener noreferrer">
+                <Send className="h-3.5 w-3.5" /> Buka bot &amp; tautkan otomatis
+              </a>
+            </Button>
+          ) : null}
         </div>
       ) : expired ? (
         <p className="mt-4 text-xs text-destructive">Kode kedaluwarsa. Buat kode baru.</p>

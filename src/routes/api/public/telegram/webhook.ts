@@ -1,7 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
-
 interface TelegramUpdate {
   update_id: number;
   message?: {
@@ -24,18 +22,8 @@ const LINK_FAILED_TEXT =
   "lalu kirim /link KODE.";
 
 async function sendTelegramMessage(chatId: number, text: string) {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  const connectionKey = process.env["TELEGRAM_API_KEY"];
-  if (!apiKey || !connectionKey) return;
-  await fetch(`${GATEWAY_URL}/sendMessage`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "X-Connection-Api-Key": connectionKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
+  const { sendTelegram } = await import("@/lib/telegram.server");
+  await sendTelegram(chatId, text);
 }
 
 export const Route = createFileRoute("/api/public/telegram/webhook")({
@@ -70,16 +58,19 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Perintah /start: kirim instruksi tautan akun
-        if (text === "/start" || text.startsWith("/start ") || text.startsWith("/start@")) {
+        const { parseLinkCommand, parseStartPayload, normalizeLinkCode, hashLinkCode } =
+          await import("@/server/telegramLinkCode.server");
+
+        // /start tanpa kode: kirim instruksi tautan akun. `/start <kode>` (deep link dari
+        // Settings, t.me/<bot>?start=<kode>) diperlakukan sama dengan `/link <kode>`.
+        const startPayload = parseStartPayload(text);
+        if (startPayload === "") {
           await sendTelegramMessage(chatId, START_TEXT);
           return new Response(JSON.stringify({ ok: true }));
         }
 
         // /link <kode> — tautkan chat ini ke akun lewat kode sekali pakai dari Settings
-        const { parseLinkCommand, normalizeLinkCode, hashLinkCode } =
-          await import("@/server/telegramLinkCode.server");
-        const linkArg = parseLinkCommand(text);
+        const linkArg = startPayload ?? parseLinkCommand(text);
         if (linkArg !== null) {
           const code = normalizeLinkCode(linkArg);
           // Tandai kode terpakai secara atomik: hanya berhasil jika belum dipakai dan belum kedaluwarsa.

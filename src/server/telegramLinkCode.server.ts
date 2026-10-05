@@ -51,3 +51,13 @@ export function parseLinkCommand(text: string): string | null {
   if (!match) return null;
   return (match[1] ?? "").trim();
 }
+
+/**
+ * Parses a `/start` command (optionally `/start@BotName`). Returns null when the text is not
+ * `/start`, "" for a bare `/start`, otherwise the deep-link payload (`t.me/<bot>?start=<code>`).
+ */
+export function parseStartPayload(text: string): string | null {
+  const match = /^\/start(?:@\w+)?(?:\s+(\S*))?\s*$/i.exec(text.trim());
+  if (!match) return null;
+  return (match[1] ?? "").trim();
+}

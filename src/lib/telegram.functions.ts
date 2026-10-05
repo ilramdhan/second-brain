@@ -29,8 +29,12 @@ export const createTelegramLinkCode = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error("Gagal membuat kode tautan Telegram.");
 
+    const { telegramBotUsername, telegramDeepLink } = await import("@/lib/telegram.server");
+    const botUsername = telegramBotUsername();
     return {
       code: formatLinkCode(code),
       expiresAt: data?.expires_at ?? linkCodeExpiry().toISOString(),
+      // `t.me/<bot>?start=<code>` links the chat in one tap (handled like `/link <code>`).
+      deepLink: botUsername ? telegramDeepLink(botUsername, code) : null,
     };
   });

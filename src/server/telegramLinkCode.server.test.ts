@@ -10,6 +10,7 @@ import {
   linkCodeExpiry,
   normalizeLinkCode,
   parseLinkCommand,
+  parseStartPayload,
 } from "./telegramLinkCode.server";
 
 describe("generateLinkCode", () => {
@@ -77,5 +78,23 @@ describe("parseLinkCommand", () => {
     expect(parseLinkCommand("/linkage")).toBeNull();
     expect(parseLinkCommand("beli susu /link")).toBeNull();
     expect(parseLinkCommand("/start")).toBeNull();
+  });
+});
+
+describe("parseStartPayload", () => {
+  it("returns null for other commands and plain text", () => {
+    expect(parseStartPayload("/link ABCD")).toBeNull();
+    expect(parseStartPayload("hello /start")).toBeNull();
+    expect(parseStartPayload("/starter")).toBeNull();
+  });
+
+  it("returns an empty payload for a bare /start", () => {
+    expect(parseStartPayload("/start")).toBe("");
+    expect(parseStartPayload("/start@SecondBrainBot")).toBe("");
+  });
+
+  it("returns the deep-link payload", () => {
+    expect(parseStartPayload("/start K7QM4XPA")).toBe("K7QM4XPA");
+    expect(parseStartPayload("/start@SecondBrainBot k7qm4xpa ")).toBe("k7qm4xpa");
   });
 });
