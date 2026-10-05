@@ -86,11 +86,22 @@ _Placeholder: needs a note with about 100 blocks._
 
 ## 4. Database (`explain analyze`)
 
-_Placeholder: run against the production or staging database before Phase 2 (indexes and policies)._
+**Synthetic run, Phase 2 (2026-10-05).** Throwaway `public.ecr.aws/supabase/postgres:15.19.0.002` container on an Apple Silicon laptop (Docker). "Before" = migrations 0000–0012; "after" = plus 0013–0016 (indexes, `(select auth.uid())`, `my_project_ids()` policies, constraints). Script: [`supabase/perf/explain_lists.sql`](../supabase/perf/explain_lists.sql). It seeds 200 users, 400 projects, 600 memberships, 40 000 tasks and 10 000 notes (10 % trashed, 10 % archived), runs `ANALYZE`, then runs `EXPLAIN (ANALYZE, BUFFERS)` as role `authenticated` with `request.jwt.claims` set to one user. That user owns 200 tasks and sees 400 more through three shared projects. Everything is rolled back.
 
-| Query                                              | Planning (ms) | Execution (ms) | Plan notes |
-| -------------------------------------------------- | ------------: | -------------: | ---------- |
-| Task list (`authenticated`, own + shared projects) |           TBD |            TBD |            |
+```bash
+psql "$DATABASE_URL" -f supabase/perf/explain_lists.sql   # superuser, throwaway DB only
+```
+
+| Query                                                                   | Rows | Before: plan                                                  | Before: exec (ms) / buffers | After: plan                                                                                | After: exec (ms) / buffers |
+| ----------------------------------------------------------------------- | ---: | ------------------------------------------------------------- | --------------------------: | ------------------------------------------------------------------------------------------ | -------------------------: |
+| Q1 task list, `useTasks` (own + shared, active, order position/created) |  600 | Seq Scan, `is_project_member()` per row, 39 400 rows filtered |              86.7 / 100 293 | BitmapOr `tasks_user_active_idx` + `tasks_project_idx`; `my_project_ids()` once (InitPlan) |                 0.69 / 758 |
+| Q2 tasks of one project (project page)                                  |  200 | Seq Scan, 39 800 rows filtered                                |                  1.97 / 797 | Bitmap Index Scan `tasks_project_idx`                                                      |                 0.12 / 202 |
+| Q3 notes list, `useNotes` (active, order pinned desc, updated_at desc)  |   83 | Seq Scan, `is_project_member()` per row, 9 917 rows filtered  |               20.0 / 13 778 | BitmapOr `notes_user_active_idx` + `notes_project_idx`                                     |                 0.17 / 121 |
+| Q4 tasks by user (service role, n8n / reminders; no RLS)                |  200 | Seq Scan, 39 800 rows filtered                                |                  2.03 / 797 | Bitmap Index Scan `tasks_user_active_idx`                                                  |                 0.11 / 204 |
+
+Planning time stayed at 0.02–0.17 ms in both runs. Most of the old cost came from the per-row security-definer membership call (about 2.5 buffer hits per row), not from the sequential scan itself. Results come back in the same rows and order.
+
+_Still to do:_ repeat Q1 and Q3 against staging or production data (same script queries, real `request.jwt.claims`) and add a dated row here.
 
 ## 5. Lighthouse (mobile, `/` after login)
 
