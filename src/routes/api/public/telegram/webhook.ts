@@ -31,9 +31,19 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Verifikasi header rahasia dari Telegram
-        const secret = process.env["TELEGRAM_WEBHOOK_SECRET"];
-        if (secret && request.headers.get("x-telegram-bot-api-secret-token") !== secret) {
+        // Verifikasi header rahasia dari Telegram (fail-closed, constant-time)
+        const { checkWebhookSecret } = await import("@/server/telegramSecurity.server");
+        const check = checkWebhookSecret(
+          request.headers.get("x-telegram-bot-api-secret-token"),
+          process.env["TELEGRAM_WEBHOOK_SECRET"],
+        );
+        if (check !== "ok") {
+          if (check === "missing-secret") {
+            console.error(
+              "[telegram/webhook] TELEGRAM_WEBHOOK_SECRET is not set; rejecting all updates. " +
+                "Set it and register it with Telegram via setWebhook(secret_token=...).",
+            );
+          }
           return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
         }
 
