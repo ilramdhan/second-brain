@@ -15,6 +15,7 @@ import { VirtualList } from "@/components/common/VirtualList";
 import { PageContainer } from "@/components/common/PageContainer";
 import { withNoteIndex } from "@/lib/blocks";
 import { qk, useProjects } from "@/lib/data";
+import { preloadQueries, projectsQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/_authenticated/inbox")({
       },
     ],
   }),
+  loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery),
   component: InboxPage,
 });
 

@@ -20,6 +20,7 @@ import { color } from "@/lib/constants";
 import { taskRange, useMe, useMilestones, useProjects, useTasks, type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
+import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -36,6 +37,8 @@ export const Route = createFileRoute("/_authenticated/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: ({ context }) =>
+    preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery, meQuery),
   component: Dashboard,
 });
 

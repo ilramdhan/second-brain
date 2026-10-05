@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Timeline } from "@/components/Timeline";
 import { useMilestones, useProjects, useTasks } from "@/lib/data";
 import { PageContainer } from "@/components/common/PageContainer";
+import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/timeline")({
   head: () => ({
@@ -17,6 +18,8 @@ export const Route = createFileRoute("/_authenticated/timeline")({
       { property: "og:description", content: "Geser dan perpanjang tugas langsung di timeline." },
     ],
   }),
+  loader: ({ context }) =>
+    preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery),
   component: TimelinePage,
 });
 

@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { color } from "@/lib/constants";
 import { useProjects, useTasks } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/reports")({
   head: () => ({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/reports")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery, tasksQuery),
   component: ReportsPage,
 });
 

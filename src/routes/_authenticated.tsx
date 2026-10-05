@@ -27,8 +27,6 @@ import {
   Archive,
   Loader2,
 } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
-
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { TaskDialogProvider, useTaskDialog } from "@/components/tasks/TaskDialogProvider";
@@ -43,6 +41,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/lib/preferences";
 import { logActivity } from "@/lib/activity";
+import { LOGIN_PATH, requireSession } from "@/lib/auth";
 
 // Dialog bodies are loaded the first time they open, not with the app shell.
 const CommandMenu = lazy(() => import("@/components/CommandMenu"));
@@ -61,7 +60,24 @@ function DialogFallback() {
   );
 }
 
+function AuthPending() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Brain className="h-8 w-8 animate-pulse text-primary" />
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/_authenticated")({
+  // The Supabase session lives in browser storage, so the server cannot know who is signed in.
+  // Rendering this subtree on the client only lets `beforeLoad` check the session before any
+  // page renders: signed-out visitors are redirected to /login, never shown an error page.
+  ssr: false,
+  // Not exposed as route context: it would go stale after a token refresh. Read it via useMe().
+  beforeLoad: async ({ context, location }) => {
+    await requireSession(context.queryClient, location.href);
+  },
+  pendingComponent: AuthPending,
   component: AuthenticatedLayout,
 });
 
@@ -86,37 +102,17 @@ const MOBILE = ["/", "/tasks", "/calendar", "/projects"];
 
 function AuthenticatedLayout() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
-
+  // A session can also end while a page is open (token revoked, sign-out in another tab). The
+  // global listener in src/lib/auth.ts clears the cache; this sends the visitor to /login.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, s) => {
-      setSession(s);
-      // Drop every cached query (tasks, notes, `me`, ...) so the next person on a shared device
-      // never sees the previous user's data, whichever path ended the session (sign-out button,
-      // idle logout, token revocation, sign-out in another tab).
-      if (event === "SIGNED_OUT") queryClient.clear();
-      if (["SIGNED_IN", "PASSWORD_RECOVERY", "USER_UPDATED"].includes(event))
-        void logActivity(event.toLowerCase(), "auth", s?.user.id, {}, "auth");
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") void navigate({ to: LOGIN_PATH, replace: true });
     });
     return () => subscription.unsubscribe();
-  }, [queryClient]);
+  }, [navigate]);
 
-  useEffect(() => {
-    if (session === null) navigate({ to: "/login", replace: true });
-    if (session) supabase.rpc("accept_project_invites").then(() => {});
-  }, [session, navigate]);
-
-  if (!session) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Brain className="h-8 w-8 animate-pulse text-primary" />
-      </div>
-    );
-  }
   return (
     <TaskDialogProvider>
       <Shell />
@@ -168,14 +164,14 @@ function Shell() {
     await logActivity("signed_out", "auth", undefined, {}, "auth");
     await supabase.auth.signOut();
     queryClient.clear();
-    navigate({ to: "/login" });
+    navigate({ to: LOGIN_PATH });
   }
   const onIdle = useCallback(async () => {
     await logActivity("idle_timeout", "auth", undefined, {}, "auth");
     await supabase.auth.signOut();
     queryClient.clear();
     toast.message("Anda otomatis keluar karena tidak aktif");
-    navigate({ to: "/login" });
+    navigate({ to: LOGIN_PATH });
   }, [navigate, queryClient]);
   useIdleLogout(onIdle);
 

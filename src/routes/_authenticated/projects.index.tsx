@@ -21,6 +21,7 @@ import { color, labelOf, PARA, PROJECT_STATUS } from "@/lib/constants";
 import { useProjectActions, useProjects, useTasks, type Project, type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
+import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/projects/")({
       },
     ],
   }),
+  loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery, tasksQuery),
   component: ProjectsPage,
 });
 

@@ -4,8 +4,14 @@ import { Brain } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activity";
+import { APP_HOME, safeRedirect } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
+  // `redirect` is the page the auth guard bounced the visitor from; only same-origin paths.
+  validateSearch: (s: Record<string, unknown>): { redirect?: string | undefined } => ({
+    redirect: safeRedirect(s["redirect"]),
+  }),
   head: () => ({
     meta: [
       { title: "Masuk — Second Brain" },
@@ -20,6 +26,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,9 +37,11 @@ function LoginPage() {
     setLoading(true);
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/" });
+        void logActivity("signed_in", "auth", data.user.id, {}, "auth");
+        if (redirect) await navigate({ href: redirect, replace: true });
+        else await navigate({ to: APP_HOME, replace: true });
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;

@@ -1,4 +1,10 @@
-import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { addDays, format, startOfDay } from "date-fns";
 import { toast } from "sonner";
@@ -96,64 +102,68 @@ export async function getUid() {
   return id;
 }
 
+export const meQuery = queryOptions({
+  queryKey: ["me"],
+  queryFn: async () => (await supabase.auth.getSession()).data.session?.user ?? null,
+  staleTime: Infinity,
+});
 export function useMe() {
-  return useQuery({
-    queryKey: ["me"],
-    queryFn: async () => (await supabase.auth.getSession()).data.session?.user ?? null,
-    staleTime: Infinity,
-  });
+  return useQuery(meQuery);
 }
 
+export const tasksQuery = queryOptions({
+  queryKey: qk.tasks,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select(TASK_COLS)
+      .is("deleted_at", null)
+      .is("archived_at", null)
+      .order("position")
+      .order("created_at");
+    if (error) throw error;
+    return data;
+  },
+});
 export function useTasks() {
-  return useQuery({
-    queryKey: qk.tasks,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select(TASK_COLS)
-        .is("deleted_at", null)
-        .is("archived_at", null)
-        .order("position")
-        .order("created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(tasksQuery);
 }
+export const projectsQuery = queryOptions({
+  queryKey: qk.projects,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("projects")
+      .select(PROJECT_COLS)
+      .is("deleted_at", null)
+      .order("position")
+      .order("name");
+    if (error) throw error;
+    return data;
+  },
+});
 export function useProjects() {
-  return useQuery({
-    queryKey: qk.projects,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select(PROJECT_COLS)
-        .is("deleted_at", null)
-        .order("position")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(projectsQuery);
 }
+export const notesQuery = queryOptions({
+  queryKey: qk.notes,
+  queryFn: async (): Promise<NoteSummary[]> => {
+    const { data, error } = await supabase
+      .from("notes")
+      .select(NOTE_LIST_COLS)
+      .is("deleted_at", null)
+      .is("archived_at", null)
+      .order("pinned", { ascending: false })
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+});
 export function useNotes() {
-  return useQuery({
-    queryKey: qk.notes,
-    queryFn: async (): Promise<NoteSummary[]> => {
-      const { data, error } = await supabase
-        .from("notes")
-        .select(NOTE_LIST_COLS)
-        .is("deleted_at", null)
-        .is("archived_at", null)
-        .order("pinned", { ascending: false })
-        .order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(notesQuery);
 }
 /** One note with its blocks, for the editor. `null` when missing, trashed or archived. */
-export function useNote(id: string) {
-  return useQuery({
+export const noteQuery = (id: string) =>
+  queryOptions({
     queryKey: qk.note(id),
     queryFn: async (): Promise<NoteDetail | null> => {
       const { data, error } = await supabase
@@ -167,24 +177,27 @@ export function useNote(id: string) {
       return data;
     },
   });
+export function useNote(id: string) {
+  return useQuery(noteQuery(id));
 }
 /**
  * Blocks of every visible note, for backlinks, block refs/embeds and the graph. Only the note
  * editor and graph routes subscribe to it, so other pages never download note bodies.
  */
+export const noteBlocksQuery = queryOptions({
+  queryKey: qk.noteBlocks,
+  queryFn: async (): Promise<NoteBlocks[]> => {
+    const { data, error } = await supabase
+      .from("notes")
+      .select(NOTE_BLOCK_COLS)
+      .is("deleted_at", null)
+      .is("archived_at", null);
+    if (error) throw error;
+    return data;
+  },
+});
 export function useNoteBlocks() {
-  return useQuery({
-    queryKey: qk.noteBlocks,
-    queryFn: async (): Promise<NoteBlocks[]> => {
-      const { data, error } = await supabase
-        .from("notes")
-        .select(NOTE_BLOCK_COLS)
-        .is("deleted_at", null)
-        .is("archived_at", null);
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(noteBlocksQuery);
 }
 /**
  * Notes linking to this one by `[[title]]` or referencing one of `blockIds`, plus unlinked
@@ -193,10 +206,10 @@ export function useNoteBlocks() {
  * `title` is normalised like the stored links (trim + lower-case); callers should pass debounced
  * values so typing does not issue one request per key.
  */
-export function useBacklinks(noteId: string, title: string, blockIds: readonly string[]) {
+export const backlinksQuery = (noteId: string, title: string, blockIds: readonly string[]) => {
   const t = title.trim().toLowerCase();
   const ids = [...blockIds].sort();
-  return useQuery({
+  return queryOptions({
     queryKey: ["notes", "backlinks", noteId, t, ids.join(",")],
     placeholderData: (prev) => prev,
     queryFn: async () => {
@@ -218,15 +231,18 @@ export function useBacklinks(noteId: string, title: string, blockIds: readonly s
       return { linked, unlinked };
     },
   });
+};
+export function useBacklinks(noteId: string, title: string, blockIds: readonly string[]) {
+  return useQuery(backlinksQuery(noteId, title, blockIds));
 }
 
 /**
  * Ids of visible notes whose title or markdown `content` matches `term` (`ilike` in Postgres).
  * Used by the notes list, which no longer downloads `content`. `null` while the term is empty.
  */
-export function useNoteSearch(term: string) {
+export const noteSearchQuery = (term: string) => {
   const t = term.trim();
-  return useQuery({
+  return queryOptions({
     queryKey: ["notes", "search", t],
     enabled: !!t,
     staleTime: 15_000,
@@ -245,42 +261,48 @@ export function useNoteSearch(term: string) {
       return new Set((data ?? []).map((r) => r.id));
     },
   });
+};
+export function useNoteSearch(term: string) {
+  return useQuery(noteSearchQuery(term));
 }
+export const milestonesQuery = queryOptions({
+  queryKey: qk.milestones,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("milestones")
+      .select(MILESTONE_COLS)
+      .order("due_date", { nullsFirst: false });
+    if (error) throw error;
+    return data;
+  },
+});
 export function useMilestones() {
-  return useQuery({
-    queryKey: qk.milestones,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("milestones")
-        .select(MILESTONE_COLS)
-        .order("due_date", { nullsFirst: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(milestonesQuery);
 }
+export const depsQuery = queryOptions({
+  queryKey: qk.deps,
+  queryFn: async () => {
+    const { data, error } = await supabase.from("task_dependencies").select(DEP_COLS);
+    if (error) throw error;
+    return data;
+  },
+});
 export function useDeps() {
-  return useQuery({
-    queryKey: qk.deps,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("task_dependencies").select(DEP_COLS);
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(depsQuery);
 }
+export const automationsQuery = queryOptions({
+  queryKey: qk.automations,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("automations")
+      .select(AUTOMATION_COLS)
+      .order("created_at");
+    if (error) throw error;
+    return data;
+  },
+});
 export function useAutomations() {
-  return useQuery({
-    queryKey: qk.automations,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("automations")
-        .select(AUTOMATION_COLS)
-        .order("created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(automationsQuery);
 }
 
 export type SearchHit = { id: string; title: string };
@@ -729,3 +751,18 @@ export const useAutomationActions = () =>
     "automations",
     qk.automations,
   );
+
+/**
+ * Route-loader helper: starts the given queries (cache hits resolve immediately) without
+ * blocking the navigation, so the fetch runs while the route chunk loads and renders. Errors
+ * are swallowed here; the page's own `useQuery` surfaces them.
+ */
+export function preloadQueries(
+  queryClient: QueryClient,
+  // Each entry is one of the query option objects above (`tasksQuery`, `noteQuery(id)`, ...).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...queries: Array<{ queryKey: QueryKey; queryFn?: any; staleTime?: any }>
+) {
+  for (const q of queries)
+    queryClient.ensureQueryData(q as Parameters<QueryClient["ensureQueryData"]>[0]).catch(() => {});
+}

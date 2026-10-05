@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { NotesBoard } from "@/components/notes/NotesBoard";
 import { PageContainer } from "@/components/common/PageContainer";
+import { notesQuery, preloadQueries, projectsQuery } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/notes/")({
   head: () => ({
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/notes/")({
       { property: "og:description", content: "Simpan ide dan notulen, rapikan dengan AI." },
     ],
   }),
+  loader: ({ context }) => preloadQueries(context.queryClient, notesQuery, projectsQuery),
   component: NotesPage,
 });
 
