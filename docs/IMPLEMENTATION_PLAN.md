@@ -26,13 +26,13 @@ Definition of Done untuk setiap task: lint + typecheck + test + build lulus di C
 
 **Tujuan:** pipeline jalan dan ada angka baseline sebelum optimasi.
 
-| #   | Task                    | Detail / acceptance                                                                                                                                                             |
-| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1 | Rapikan CI agar hijau   | Workflow `.github/workflows/ci.yml` sudah ada; perbaiki kegagalan lint/format/typecheck yang dilaporkan. Format massal dilakukan di **satu commit terpisah** (`chore: format`). |
-| 0.2 | Preset Vercel           | Tambah `nitro: { preset: "vercel" }` di `vite.config.ts` (atau env `NITRO_PRESET=vercel` di Vercel). Pastikan build Lovable tetap jalan.                                        |
-| 0.3 | Env & secrets di Vercel | Isi semua variabel dari `.env.example`. Supabase Auth → tambah redirect URL domain Vercel. Google OAuth redirect URI.                                                           |
-| 0.4 | Baseline metrik         | Jalankan Lampiran A di ANALYSIS.md: ukuran bundle, jumlah request Supabase per navigasi, Lighthouse mobile (LCP/TBT/INP). Simpan hasil di `docs/perf-baseline.md`.              |
-| 0.5 | Branch protection       | `main` wajib PR + CI lulus; Dependabot aktif.                                                                                                                                   |
+| #   | Status         | Task                    | Detail / acceptance                                                                                                                                                                                                                                                                           |
+| --- | -------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1 | ✅ done        | Rapikan CI agar hijau   | Workflow `.github/workflows/ci.yml` sudah ada; perbaiki kegagalan lint/format/typecheck yang dilaporkan. Format massal dilakukan di **satu commit terpisah** (`chore: format`). _Selesai: 4 error ESLint diperbaiki, format massal di commit tersendiri, job Prettier kini blocking._         |
+| 0.2 | ✅ done        | Preset Vercel           | Tambah `nitro: { preset: "vercel" }` di `vite.config.ts` (atau env `NITRO_PRESET=vercel` di Vercel). Pastikan build Lovable tetap jalan. _Selesai: preset `vercel` otomatis saat env `VERCEL` ada (`NITRO_PRESET` tetap menang); build biasa/Lovable tetap `cloudflare-module`._              |
+| 0.3 | ⏳ needs owner | Env & secrets di Vercel | Isi semua variabel dari `.env.example`. Supabase Auth → tambah redirect URL domain Vercel. Google OAuth redirect URI.                                                                                                                                                                         |
+| 0.4 | ✅ done        | Baseline metrik         | Jalankan Lampiran A di ANALYSIS.md: ukuran bundle, jumlah request Supabase per navigasi, Lighthouse mobile (LCP/TBT/INP). Simpan hasil di `docs/perf-baseline.md`. _Ukuran bundle tercatat; metrik runtime (request Supabase, Profiler, Lighthouse) masih placeholder sampai ada deployment._ |
+| 0.5 | ⏳ needs owner | Branch protection       | `main` wajib PR + CI lulus; Dependabot aktif. _`.github/dependabot.yml` sudah ada; branch protection harus diaktifkan owner di GitHub Settings._                                                                                                                                              |
 
 **Exit criteria:** preview deploy di Vercel bisa login dan CRUD tugas; angka baseline tercatat.
 
