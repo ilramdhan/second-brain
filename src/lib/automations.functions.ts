@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -61,6 +62,30 @@ function fill(tpl: string, task: T, projectName: string) {
       "{{due}}",
       task.due_date ? new Date(String(task.due_date)).toLocaleDateString("id-ID") : "-",
     );
+}
+
+/**
+ * Minimal task payload for outgoing webhooks. Never send the full row: it contains internal
+ * ids (user_id, assignee_id), descriptions and other fields third parties do not need.
+ */
+function webhookTask(task: T) {
+  let url: string | null = null;
+  try {
+    const origin = new URL(getRequest().url).origin;
+    url = new URL(task.project_id ? `/projects/${task.project_id}` : "/tasks", origin).toString();
+  } catch {
+    url = null;
+  }
+  return {
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    priority: task.priority,
+    due_date: task.due_date,
+    project_id: task.project_id,
+    tags: task.tags ?? [],
+    url,
+  };
 }
 
 export const runAutomations = createServerFn({ method: "POST" })
@@ -152,26 +177,20 @@ export const runAutomations = createServerFn({ method: "POST" })
             if (err) throw new Error(err);
             log.push("telegram");
           } else if (a.type === "webhook") {
-            const url = new URL(a.url);
-            if (url.protocol !== "https:") throw new Error("Webhook harus https");
+            const { safeWebhookPost } = await import("@/server/ssrf.server");
             const text = fill(
               `[${rule.name}] {{title}} — status {{status}}, prioritas {{priority}}`,
               current,
               projectName,
             );
-            const res = await fetch(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                text,
-                content: text,
-                rule: rule.name,
-                event: data.event,
-                project: projectName,
-                task: current,
-              }),
+            await safeWebhookPost(a.url, {
+              text,
+              content: text,
+              rule: rule.name,
+              event: data.event,
+              project: projectName,
+              task: webhookTask(current),
             });
-            if (!res.ok) throw new Error(`Webhook ${res.status}`);
             log.push("webhook");
           }
         } catch (e) {
