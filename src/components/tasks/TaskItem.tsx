@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo, useRef } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { CalendarDays, ListChecks, Lock, Repeat, User } from "lucide-react";
@@ -5,7 +6,8 @@ import { CalendarDays, ListChecks, Lock, Repeat, User } from "lucide-react";
 import { CheckCircle } from "@/components/tasks/CheckCircle";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { color, labelOf, priorityOf, TASK_STATUS } from "@/lib/constants";
-import { openBlockers, useDeps, useTaskActions, type Project, type Task } from "@/lib/data";
+import { useDeps, useTaskActions, type Project, type Task } from "@/lib/data";
+import { byId, openBlockersByTask, subtasksByParent } from "@/lib/task-maps";
 import { cn } from "@/lib/utils";
 
 function DueLabel({ task }: { task: Task }) {
@@ -26,10 +28,56 @@ function DueLabel({ task }: { task: Task }) {
   );
 }
 
-function useBlocked(task: Task, allTasks: Task[]) {
+const NONE: Task[] = [];
+
+export type TaskRowLookups = {
+  projectById: Map<string, Project>;
+  subsByParent: Map<string, Task[]>;
+  blockersByTask: Map<string, Task[]>;
+  /** Stable across renders, so memoised rows do not re-render when the parent does. */
+  toggle: (task: Task) => void;
+};
+
+/**
+ * Builds the per-row lookups once in the list parent: one `useTaskActions`/`useDeps`
+ * subscription for the whole list instead of one per row, and O(1) map reads instead of
+ * scanning all tasks/deps in every row.
+ */
+export function useTaskRowLookups(allTasks: Task[], projects: Project[]): TaskRowLookups {
   const { data: deps = [] } = useDeps();
-  return task.status === "done" ? [] : openBlockers(task.id, deps, allTasks);
+  const { setStatus } = useTaskActions();
+  const setStatusRef = useRef(setStatus);
+  setStatusRef.current = setStatus;
+  const toggle = useCallback(
+    (task: Task) => void setStatusRef.current(task, task.status === "done" ? "todo" : "done"),
+    [],
+  );
+  const taskById = useMemo(() => byId(allTasks), [allTasks]);
+  const projectById = useMemo(() => byId(projects), [projects]);
+  const subsByParent = useMemo(() => subtasksByParent(allTasks), [allTasks]);
+  const blockersByTask = useMemo(() => openBlockersByTask(deps, taskById), [deps, taskById]);
+  return useMemo(
+    () => ({ projectById, subsByParent, blockersByTask, toggle }),
+    [projectById, subsByParent, blockersByTask, toggle],
+  );
 }
+
+/** Props for one row/card, read from the lookups. */
+export function rowProps(task: Task, l: TaskRowLookups) {
+  return {
+    task,
+    project: task.project_id ? l.projectById.get(task.project_id) : undefined,
+    subtasks: l.subsByParent.get(task.id) ?? NONE,
+    blockers: l.blockersByTask.get(task.id) ?? NONE,
+  };
+}
+
+type ItemProps = {
+  task: Task;
+  project?: Project | undefined;
+  subtasks: Task[];
+  blockers: Task[];
+};
 
 function Meta({
   task,
@@ -90,20 +138,15 @@ function Meta({
   );
 }
 
-export function TaskRow({
+export const TaskRow = memo(function TaskRow({
   task,
-  projects,
-  allTasks,
-}: {
-  task: Task;
-  projects: Project[];
-  allTasks: Task[];
-}) {
+  project,
+  subtasks,
+  blockers,
+  onToggle,
+}: ItemProps & { onToggle: (task: Task) => void }) {
   const { openTask } = useTaskDialog();
-  const { setStatus } = useTaskActions();
-  const subs = allTasks.filter((t) => t.parent_id === task.id);
   const done = task.status === "done";
-  const blockers = useBlocked(task, allTasks);
   return (
     <li
       onClick={() => openTask(task.id)}
@@ -113,11 +156,7 @@ export function TaskRow({
         blockers.length > 0 && "bg-muted/50 text-muted-foreground",
       )}
     >
-      <CheckCircle
-        done={done}
-        onClick={() => setStatus(task, done ? "todo" : "done")}
-        className="mt-0.5"
-      />
+      <CheckCircle done={done} onClick={() => onToggle(task)} className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className={cn("text-sm font-medium", done && "line-through")}>{task.title}</p>
@@ -132,28 +171,18 @@ export function TaskRow({
         )}
         <Meta
           task={task}
-          project={projects.find((p) => p.id === task.project_id)}
-          subCount={subs.length}
-          subDone={subs.filter((s) => s.status === "done").length}
+          project={project}
+          subCount={subtasks.length}
+          subDone={subtasks.filter((s) => s.status === "done").length}
           blockers={blockers}
         />
       </div>
     </li>
   );
-}
+});
 
-export function TaskCard({
-  task,
-  projects,
-  allTasks,
-}: {
-  task: Task;
-  projects: Project[];
-  allTasks: Task[];
-}) {
+export const TaskCard = memo(function TaskCard({ task, project, subtasks, blockers }: ItemProps) {
   const { openTask } = useTaskDialog();
-  const subs = allTasks.filter((t) => t.parent_id === task.id);
-  const blockers = useBlocked(task, allTasks);
   return (
     <div
       onClick={() => openTask(task.id)}
@@ -175,11 +204,22 @@ export function TaskCard({
       )}
       <Meta
         task={task}
-        project={projects.find((p) => p.id === task.project_id)}
-        subCount={subs.length}
-        subDone={subs.filter((s) => s.status === "done").length}
+        project={project}
+        subCount={subtasks.length}
+        subDone={subtasks.filter((s) => s.status === "done").length}
         blockers={blockers}
       />
     </div>
+  );
+});
+
+/** A list of rows for callers that only have the visible tasks (Today, calendar day view). */
+export function TaskRows({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }) {
+  return (
+    <ul className="space-y-2">
+      {tasks.map((t) => (
+        <TaskRow key={t.id} {...rowProps(t, lookups)} onToggle={lookups.toggle} />
+      ))}
+    </ul>
   );
 }
