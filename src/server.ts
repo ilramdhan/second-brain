@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { shouldApplyServerHeaders, withSecurityHeaders } from "./server/securityHeaders";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -44,18 +45,27 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// Security headers on every SSR/API response in production (see src/server/securityHeaders.ts).
+const applyHeaders = shouldApplyServerHeaders(
+  typeof process !== "undefined" ? (process.env ?? {}) : {},
+  import.meta.env.PROD,
+);
+const secure = (response: Response) => (applyHeaders ? withSecurityHeaders(response) : response);
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return secure(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return secure(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
     }
   },
 };
