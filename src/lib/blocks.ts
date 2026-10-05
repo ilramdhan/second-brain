@@ -1,4 +1,4 @@
-import type { Note, Task } from "@/lib/data";
+import type { Note, NoteBlocks, NoteSummary, Task } from "@/lib/data";
 
 export type BlockType =
   | "p"
@@ -135,15 +135,16 @@ export function linksOf(blocks: Block[]) {
   return { titles, refs };
 }
 
-export type BlockIndex = Map<string, { note: Note; block: Block }>;
-export function indexBlocks(notes: Note[]): BlockIndex {
+type IndexedNote = Pick<NoteBlocks, "id" | "title" | "blocks" | "content">;
+export type BlockIndex = Map<string, { note: IndexedNote; block: Block }>;
+export function indexBlocks(notes: IndexedNote[]): BlockIndex {
   const idx: BlockIndex = new Map();
   for (const n of notes) for (const b of loadBlocks(n)) idx.set(b.id, { note: n, block: b });
   return idx;
 }
 
 /** Edges note→note from [[wikilinks]] and ((block refs)). */
-export function noteGraph(notes: Note[]) {
+export function noteGraph(notes: IndexedNote[]) {
   const byTitle = new Map(notes.map((n) => [n.title.trim().toLowerCase(), n]));
   const idx = indexBlocks(notes);
   const edges: { source: string; target: string }[] = [];
@@ -224,7 +225,7 @@ function cmp(a: unknown, op: string, b: string) {
  */
 export function runQuery(
   q: string,
-  notes: Note[],
+  notes: NoteSummary[],
   tasks: Task[],
   projects: { id: string; name: string }[],
 ): QueryResult {

@@ -17,7 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, labelOf, NOTE_STATUS } from "@/lib/constants";
-import { useNoteActions, useNotes, useProjects, type Note, type Project } from "@/lib/data";
+import {
+  useNoteActions,
+  useNotes,
+  useProjects,
+  type NoteSummary as Note,
+  type Project,
+} from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export function NotesBoard({ projectId }: { projectId?: string | undefined }) {

@@ -9,11 +9,52 @@ import { notifyUnblocked, runAutomations } from "@/lib/automations.functions";
 import type { Trigger } from "@/lib/automation-types";
 import { ilikePattern } from "@/lib/query-cache";
 
-export type Task = Tables<"tasks">;
-export type Project = Tables<"projects">;
+/* ---------- column lists (no `select *`) ---------- */
+// Columns the client never reads are left out: soft-delete/archive flags (always null in the
+// lists), reminder bookkeeping and the Google event id (server-side only).
+export const TASK_COLS =
+  "id,user_id,project_id,parent_id,milestone_id,title,description,status,priority,tags,assignee_id,assignee_name,start_date,due_date,time_block_end,estimate_minutes,recurrence,position,completed_at,created_at,updated_at";
+export const PROJECT_COLS =
+  "id,user_id,parent_id,name,description,color,para_type,status,start_date,due_date,launch_date,position,created_at,updated_at";
+export const MILESTONE_COLS = "id,user_id,project_id,title,description,due_date,done,created_at";
+export const DEP_COLS = "id,blocker_id,blocked_id";
+export const AUTOMATION_COLS =
+  "id,user_id,name,enabled,trigger,conditions,actions,run_count,last_run_at,created_at";
+// Notes list: everything except `blocks` (the jsonb source of truth, roughly the markdown
+// mirror again plus per-block JSON). `content` stays for card previews and search; a true
+// server-side excerpt needs a generated column (migration, out of scope for Phase 3).
+export const NOTE_LIST_COLS =
+  "id,title,content,tags,status,pinned,project_id,position,properties,created_at,updated_at";
+export const NOTE_DETAIL_COLS = `${NOTE_LIST_COLS},blocks`;
+/** Only what backlinks, the block index (transclusion/refs) and the graph need. */
+export const NOTE_BLOCK_COLS = "id,title,tags,project_id,blocks,content";
+
+export type Task = Omit<
+  Tables<"tasks">,
+  "deleted_at" | "archived_at" | "reminded" | "google_event_id"
+>;
+export type Project = Omit<Tables<"projects">, "deleted_at">;
+/** Full note row (editor, inserts). */
 export type Note = Tables<"notes">;
+/** Row in the notes list cache (`qk.notes`): no `blocks`. */
+export type NoteSummary = Pick<
+  Note,
+  | "id"
+  | "title"
+  | "content"
+  | "tags"
+  | "status"
+  | "pinned"
+  | "project_id"
+  | "position"
+  | "properties"
+  | "created_at"
+  | "updated_at"
+>;
+export type NoteDetail = NoteSummary & Pick<Note, "blocks">;
+export type NoteBlocks = Pick<Note, "id" | "title" | "tags" | "project_id" | "blocks" | "content">;
 export type Milestone = Tables<"milestones">;
-export type Dependency = Tables<"task_dependencies">;
+export type Dependency = Pick<Tables<"task_dependencies">, "id" | "blocker_id" | "blocked_id">;
 export type Automation = Tables<"automations">;
 export type Person = { user_id: string; display_name: string | null; email: string; role: string };
 
@@ -21,6 +62,8 @@ export const qk = {
   tasks: ["tasks"] as const,
   projects: ["projects"] as const,
   notes: ["notes"] as const,
+  note: (id: string) => ["notes", "detail", id] as const,
+  noteBlocks: ["notes", "blocks"] as const,
   milestones: ["milestones"] as const,
   deps: ["deps"] as const,
   automations: ["automations"] as const,
@@ -47,7 +90,7 @@ export function useTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("*")
+        .select(TASK_COLS)
         .is("deleted_at", null)
         .is("archived_at", null)
         .order("position")
@@ -63,7 +106,7 @@ export function useProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("*")
+        .select(PROJECT_COLS)
         .is("deleted_at", null)
         .order("position")
         .order("name");
@@ -75,14 +118,49 @@ export function useProjects() {
 export function useNotes() {
   return useQuery({
     queryKey: qk.notes,
-    queryFn: async () => {
+    queryFn: async (): Promise<NoteSummary[]> => {
       const { data, error } = await supabase
         .from("notes")
-        .select("*")
+        .select(NOTE_LIST_COLS)
         .is("deleted_at", null)
         .is("archived_at", null)
         .order("pinned", { ascending: false })
         .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+/** One note with its blocks, for the editor. `null` when missing, trashed or archived. */
+export function useNote(id: string) {
+  return useQuery({
+    queryKey: qk.note(id),
+    queryFn: async (): Promise<NoteDetail | null> => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select(NOTE_DETAIL_COLS)
+        .eq("id", id)
+        .is("deleted_at", null)
+        .is("archived_at", null)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+/**
+ * Blocks of every visible note, for backlinks, block refs/embeds and the graph. Only the note
+ * editor and graph routes subscribe to it, so other pages never download note bodies.
+ */
+export function useNoteBlocks() {
+  return useQuery({
+    queryKey: qk.noteBlocks,
+    queryFn: async (): Promise<NoteBlocks[]> => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select(NOTE_BLOCK_COLS)
+        .is("deleted_at", null)
+        .is("archived_at", null);
       if (error) throw error;
       return data;
     },
@@ -94,7 +172,7 @@ export function useMilestones() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("milestones")
-        .select("*")
+        .select(MILESTONE_COLS)
         .order("due_date", { nullsFirst: false });
       if (error) throw error;
       return data;
@@ -105,7 +183,7 @@ export function useDeps() {
   return useQuery({
     queryKey: qk.deps,
     queryFn: async () => {
-      const { data, error } = await supabase.from("task_dependencies").select("*");
+      const { data, error } = await supabase.from("task_dependencies").select(DEP_COLS);
       if (error) throw error;
       return data;
     },
@@ -115,7 +193,10 @@ export function useAutomations() {
   return useQuery({
     queryKey: qk.automations,
     queryFn: async () => {
-      const { data, error } = await supabase.from("automations").select("*").order("created_at");
+      const { data, error } = await supabase
+        .from("automations")
+        .select(AUTOMATION_COLS)
+        .order("created_at");
       if (error) throw error;
       return data;
     },
@@ -423,7 +504,7 @@ export function useDependencyActions() {
 export const useProjectActions = () =>
   useCrud<Project, TablesInsert<"projects">, TablesUpdate<"projects">>("projects", qk.projects);
 export const useNoteActions = () =>
-  useCrud<Note, TablesInsert<"notes">, TablesUpdate<"notes">>("notes", qk.notes);
+  useCrud<NoteSummary, TablesInsert<"notes">, TablesUpdate<"notes">>("notes", qk.notes);
 export const useMilestoneActions = () =>
   useCrud<Milestone, TablesInsert<"milestones">, TablesUpdate<"milestones">>(
     "milestones",

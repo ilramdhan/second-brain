@@ -12,7 +12,7 @@ import { QuickCapture } from "@/components/QuickCapture";
 import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { PageContainer } from "@/components/common/PageContainer";
-import { qk } from "@/lib/data";
+import { qk, useProjects } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
@@ -28,7 +28,6 @@ export const Route = createFileRoute("/_authenticated/inbox")({
 });
 
 type InboxItem = Tables<"inbox_items">;
-type Project = Tables<"projects">;
 
 const SOURCE_LABEL: Record<string, string> = {
   manual: "Ketikan",
@@ -40,7 +39,8 @@ const SOURCE_LABEL: Record<string, string> = {
 function InboxPage() {
   const qc = useQueryClient();
   const [items, setItems] = useState<InboxItem[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  // Shared cached list (excludes trashed projects) instead of a private `select *`.
+  const { data: projects = [] } = useProjects();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [expandingId, setExpandingId] = useState<string | null>(null);
 
@@ -51,8 +51,6 @@ function InboxPage() {
       .eq("status", "pending")
       .order("created_at", { ascending: false });
     setItems(data ?? []);
-    const { data: p } = await supabase.from("projects").select("*").order("name");
-    setProjects(p ?? []);
   }, []);
 
   useEffect(() => {

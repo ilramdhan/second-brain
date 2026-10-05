@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { noteGraph } from "@/lib/blocks";
-import { useNotes, useProjects } from "@/lib/data";
+import { useNoteBlocks, useProjects } from "@/lib/data";
 import { color } from "@/lib/constants";
 import { PageContainer } from "@/components/common/PageContainer";
 
@@ -62,7 +62,8 @@ const MIN_Z = 0.3,
 function GraphPage() {
   const { focus } = Route.useSearch();
   const navigate = useNavigate();
-  const { data: notes = [] } = useNotes();
+  // Edges come from [[links]]/((refs)) inside blocks, so this route loads note bodies.
+  const { data: notes = [] } = useNoteBlocks();
   const { data: projects = [] } = useProjects();
   const [tag, setTag] = useState("all");
   const [q, setQ] = useState("");
