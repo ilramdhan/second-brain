@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
 import {
@@ -70,6 +71,7 @@ const MOBILE = ["/", "/tasks", "/calendar", "/projects"];
 
 function AuthenticatedLayout() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
@@ -78,11 +80,15 @@ function AuthenticatedLayout() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
+      // Drop every cached query (tasks, notes, `me`, ...) so the next person on a shared device
+      // never sees the previous user's data, whichever path ended the session (sign-out button,
+      // idle logout, token revocation, sign-out in another tab).
+      if (event === "SIGNED_OUT") queryClient.clear();
       if (["SIGNED_IN", "PASSWORD_RECOVERY", "USER_UPDATED"].includes(event))
         void logActivity(event.toLowerCase(), "auth", s?.user.id, {}, "auth");
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     if (session === null) navigate({ to: "/login", replace: true });
@@ -105,6 +111,7 @@ function AuthenticatedLayout() {
 
 function Shell() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { newTask } = useTaskDialog();
   const { t } = usePreferences();
@@ -134,14 +141,16 @@ function Shell() {
   async function signOut() {
     await logActivity("signed_out", "auth", undefined, {}, "auth");
     await supabase.auth.signOut();
+    queryClient.clear();
     navigate({ to: "/login" });
   }
   const onIdle = useCallback(async () => {
     await logActivity("idle_timeout", "auth", undefined, {}, "auth");
     await supabase.auth.signOut();
+    queryClient.clear();
     toast.message("Anda otomatis keluar karena tidak aktif");
     navigate({ to: "/login" });
-  }, [navigate]);
+  }, [navigate, queryClient]);
   useIdleLogout(onIdle);
 
   const NavLinks = () => (

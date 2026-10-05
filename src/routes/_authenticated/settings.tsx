@@ -30,6 +30,14 @@ import { usePreferences, type Locale, type Theme } from "@/lib/preferences";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTelegramLinkCode } from "@/lib/telegram.functions";
 import {
+  BACKUP_TABLES,
+  BackupError,
+  chunk,
+  MAX_BACKUP_BYTES,
+  planUpserts,
+  prepareBackup,
+} from "@/lib/backup";
+import {
   completeGoogleCalendarConnect,
   disconnectGoogleCalendar,
   googleCalendarStatus,
@@ -391,15 +399,6 @@ function GoogleCalendarPanel() {
   );
 }
 
-const BACKUP_TABLES = [
-  "projects",
-  "tasks",
-  "notes",
-  "milestones",
-  "task_dependencies",
-  "automations",
-] as const;
-
 function BackupPanel() {
   async function download() {
     const tables: Record<string, unknown[]> = {};
@@ -426,24 +425,61 @@ function BackupPanel() {
   }
   async function restore(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
     try {
-      const parsed = JSON.parse(await file.text()) as {
-        version?: number;
-        tables?: Record<string, unknown[]>;
-      };
-      if (parsed.version !== 1 || !parsed.tables) throw new Error("Format backup tidak dikenali");
-      for (const table of BACKUP_TABLES) {
-        const rows = parsed.tables[table];
-        if (!Array.isArray(rows) || !rows.length) continue;
-        const { error } = await supabase.from(table).upsert(rows as never[]);
-        if (error) throw error;
+      if (file.size > MAX_BACKUP_BYTES)
+        throw new BackupError(
+          `File backup terlalu besar (maks ${MAX_BACKUP_BYTES / 1024 / 1024}MB)`,
+        );
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) throw new BackupError("Sesi berakhir, silakan masuk lagi");
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(await file.text());
+      } catch {
+        throw new BackupError("File bukan JSON yang valid");
       }
-      toast.success("Backup dipulihkan. Muat ulang halaman untuk melihat data.");
+      const prepared = prepareBackup(parsed, userId);
+      let restored = 0;
+      let skipped = 0;
+      for (const table of BACKUP_TABLES) {
+        const rows = prepared[table];
+        if (!rows.length) continue;
+        // Only rows we own may be updated; ids owned by someone else are skipped and unseen ids
+        // are inserted with ON CONFLICT DO NOTHING (ids hidden by RLS are never overwritten).
+        const existing: { id: string; user_id: string }[] = [];
+        for (const ids of chunk(
+          rows.map((r) => r.id),
+          200,
+        )) {
+          const { data, error } = await supabase.from(table).select("id,user_id").in("id", ids);
+          if (error) throw error;
+          existing.push(...(data ?? []));
+        }
+        const plan = planUpserts(rows, existing, userId);
+        skipped += plan.skipped;
+        for (const batch of chunk(plan.update, 500)) {
+          const { error } = await supabase
+            .from(table)
+            .upsert(batch as never[], { onConflict: "id" });
+          if (error) throw error;
+        }
+        for (const batch of chunk(plan.insert, 500)) {
+          const { error } = await supabase
+            .from(table)
+            .upsert(batch as never[], { onConflict: "id", ignoreDuplicates: true });
+          if (error) throw error;
+        }
+        restored += plan.update.length + plan.insert.length;
+      }
+      toast.success(
+        `Backup dipulihkan (${restored} baris${skipped ? `, ${skipped} milik orang lain dilewati` : ""}). Muat ulang halaman untuk melihat data.`,
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Backup gagal dipulihkan");
     }
-    event.target.value = "";
   }
   return (
     <section className="mt-4 rounded-md border bg-card p-5">
