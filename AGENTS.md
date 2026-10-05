@@ -1,15 +1,10 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+> [!NOTE]
+> This repo was originally imported from Lovable and no longer depends on it. As good practice,
+> still never rewrite published git history (no force-push, and no rebase/amend/squash of pushed
+> commits), and keep `main` buildable.
 
 ## Architecture rules
+
 - Client data access goes through hooks in `src/lib/data.ts` (TanStack Query keys `tasks/projects/notes/milestones`); why: one cache keeps list, kanban, calendar and timeline in sync with optimistic updates.
 - Task create/edit happens only via the global `TaskDialogProvider` (mounted in `_authenticated` layout); why: every view opens the same full editor.
 - Team access is enforced in RLS via security-definer `is_project_member`/`is_project_owner`; tasks/notes/milestones in a shared project are visible to members; why: avoids recursive policies and keeps sharing project-scoped.
@@ -19,7 +14,8 @@
 - Notes store `blocks` (jsonb, block ids) as source of truth and mirror markdown into `content` for search/AI; links `[[title]]`, refs `((blockId))` and queries are parsed client-side in src/lib/blocks.ts; why: backlinks/graph/transclusion need stable block ids without extra tables.
 - Natural-language task parsing is a local regex parser (src/lib/nlp.ts); why: instant preview with no AI cost.
 - All authenticated pages use the shared `PageContainer`; why: horizontal spacing and responsive widths remain consistent across views.
-- Per-user Google Calendar access uses the linked App User Connector and encrypted server-side connection handles; why: provider credentials must never reach the browser or be shared across users.
+- Per-user Google Calendar access uses the app's own Google OAuth 2.0 client (code + PKCE, encrypted user-bound `state`) and stores only AES-GCM-encrypted refresh tokens (`TOKEN_ENCRYPTION_KEY`) in service-role-only `app_user_connections`, refreshed server-side; why: provider credentials must never reach the browser, n8n or other users.
+- n8n integration endpoints live in `src/routes/api/public/n8n/*` behind `handleN8n` (`x-api-key` = `N8N_API_KEY`, zod validation, idempotency via `n8n_events`); they use the service role only inside handlers, scope every query to the resolved user and reuse the server-side task rules; schedules (reminders, digests, maintenance, backups) run in n8n; why: Vercel Hobby/Supabase Free cannot schedule, while domain logic must stay in one place.
 - Note collaboration uses Yjs updates over authenticated realtime channels, while durable note state remains in `notes.blocks`; why: concurrent edits converge without introducing a second source of truth.
 - Deleting tasks/notes/projects is a soft delete (`deleted_at`), archiving sets `archived_at`; list hooks in `src/lib/data.ts` exclude both and `/archive` restores or purges; why: users can recover mistakes without a second copy of data.
 - Long lists paginate client-side via `usePaged`/`LoadMore` (src/components/common/LoadMore.tsx); why: one consistent "load more" pattern without changing the shared query cache.

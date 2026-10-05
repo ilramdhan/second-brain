@@ -9,7 +9,10 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Masuk — Second Brain" },
-      { name: "description", content: "Masuk ke Second Brain, asisten catatan dan tugas pribadi Anda." },
+      {
+        name: "description",
+        content: "Masuk ke Second Brain, asisten catatan dan tugas pribadi Anda.",
+      },
     ],
   }),
   component: LoginPage,
@@ -56,7 +59,10 @@ function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border bg-card p-6 shadow-sm">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-3 rounded-2xl border bg-card p-6 shadow-sm"
+        >
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="email">
               Email

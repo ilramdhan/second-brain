@@ -9,7 +9,10 @@ export const Route = createFileRoute("/_authenticated/tasks")({
   head: () => ({
     meta: [
       { title: "Tugas — Second Brain" },
-      { name: "description", content: "Kelola tugas, issue, dan deadline dalam tampilan list, kanban, dan upcoming." },
+      {
+        name: "description",
+        content: "Kelola tugas, issue, dan deadline dalam tampilan list, kanban, dan upcoming.",
+      },
       { property: "og:title", content: "Tugas — Second Brain" },
       { property: "og:description", content: "List, kanban, dan upcoming untuk semua tugas Anda." },
     ],

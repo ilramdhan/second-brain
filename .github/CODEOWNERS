@@ -1,0 +1,19 @@
+# Code owners are requested for review automatically on pull requests.
+# Docs: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Maintainer: Ilham Ramadhan (@ilramdhan). Later rules take precedence.
+
+*                               @ilramdhan
+
+# Database schema and RLS policies: security-sensitive
+/drizzle/                       @ilramdhan
+/src/integrations/supabase/     @ilramdhan
+
+# Server-only code, secrets handling and public API routes
+/src/server/                    @ilramdhan
+/src/routes/api/                @ilramdhan
+/src/lib/*.server.ts            @ilramdhan
+/src/lib/*.functions.ts         @ilramdhan
+
+# CI/CD and repository settings
+/.github/                       @ilramdhan

@@ -9,7 +9,10 @@ export const Route = createFileRoute("/_authenticated/timeline")({
   head: () => ({
     meta: [
       { title: "Timeline — Second Brain" },
-      { name: "description", content: "Timeline ala Gantt untuk semua proyek, tugas, milestone, dan launch date." },
+      {
+        name: "description",
+        content: "Timeline ala Gantt untuk semua proyek, tugas, milestone, dan launch date.",
+      },
       { property: "og:title", content: "Timeline — Second Brain" },
       { property: "og:description", content: "Geser dan perpanjang tugas langsung di timeline." },
     ],
@@ -23,8 +26,15 @@ function TimelinePage() {
   const { data: milestones = [] } = useMilestones();
   return (
     <PageContainer>
-      <PageHeader title="Timeline" subtitle="Geser batang untuk memindah jadwal, tarik ujungnya untuk memperpanjang." />
-      <Timeline tasks={tasks.filter((t) => !t.parent_id)} projects={projects} milestones={milestones} />
+      <PageHeader
+        title="Timeline"
+        subtitle="Geser batang untuk memindah jadwal, tarik ujungnya untuk memperpanjang."
+      />
+      <Timeline
+        tasks={tasks.filter((t) => !t.parent_id)}
+        projects={projects}
+        milestones={milestones}
+      />
     </PageContainer>
   );
 }

@@ -1,0 +1,114 @@
+# Optional Vercel deployment via the Vercel CLI.
+#
+# Vercel's Git integration already deploys every push and PR when the repo is
+# imported in Vercel. Use this workflow only if you prefer deploying from
+# GitHub Actions (for example to gate deploys on CI). In that case disable the
+# Git integration's automatic deployments in Vercel to avoid double deploys.
+#
+# Required repository secrets (the workflow skips cleanly when any is missing,
+# which is always the case for pull requests from forks):
+#   VERCEL_TOKEN       - https://vercel.com/account/tokens
+#   VERCEL_ORG_ID      - "orgId" from .vercel/project.json after `vercel link`
+#   VERCEL_PROJECT_ID  - "projectId" from .vercel/project.json
+# App environment variables (VITE_*, SUPABASE_*, ...) are pulled from the
+# Vercel project settings by `vercel pull`; they are not stored in GitHub.
+name: Deploy (Vercel)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check-secrets:
+    name: Check Vercel secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Vercel secrets are not configured; skipping deployment."
+          fi
+
+  deploy:
+    name: Deploy ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+    needs: check-secrets
+    if: needs.check-secrets.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # vite.config.ts defaults to this preset; kept explicit so the CLI deploy never drifts.
+      NITRO_PRESET: vercel
+      TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+
+      - name: Pull Vercel project settings and env
+        run: bunx vercel@latest pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
+
+      - name: Build
+        run: |
+          if [ "$TARGET" = "production" ]; then
+            bunx vercel@latest build --prod --token="$VERCEL_TOKEN"
+          else
+            bunx vercel@latest build --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Deploy
+        id: deploy
+        run: |
+          if [ "$TARGET" = "production" ]; then
+            url=$(bunx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          else
+            url=$(bunx vercel@latest deploy --prebuilt --token="$VERCEL_TOKEN")
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+        with:
+          script: |
+            const marker = "<!-- vercel-preview -->";
+            const body = `${marker}\nPreview deployment: ${process.env.DEPLOY_URL}\n\nCommit: ${context.sha}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

@@ -1,7 +1,12 @@
 // Shared (client + server) shapes for the automation rule engine.
-export type TriggerType = "task_created" | "status_changed" | "priority_changed" | "assignee_changed" | "due_changed";
+export type TriggerType =
+  "task_created" | "status_changed" | "priority_changed" | "assignee_changed" | "due_changed";
 export type Trigger = { type: TriggerType; to?: string | undefined };
-export type Condition = { field: "priority" | "status" | "project_id" | "tag" | "assignee_name"; op: "eq" | "neq" | "contains"; value: string };
+export type Condition = {
+  field: "priority" | "status" | "project_id" | "tag" | "assignee_name";
+  op: "eq" | "neq" | "contains";
+  value: string;
+};
 export type Action =
   | { type: "set_field"; field: "priority" | "status" | "assignee_name"; value: string }
   | { type: "add_tag"; value: string }
@@ -35,4 +40,10 @@ export const ACTION_TYPES = [
   { id: "webhook", label: "Kirim webhook" },
 ] as const;
 
-export type TaskSnapshot = { status?: string | null; priority?: string | null; assignee_name?: string | null; assignee_id?: string | null; due_date?: string | null };
+export type TaskSnapshot = {
+  status?: string | null;
+  priority?: string | null;
+  assignee_name?: string | null;
+  assignee_id?: string | null;
+  due_date?: string | null;
+};

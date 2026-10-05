@@ -22,15 +22,21 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
   const chunksRef = useRef<Blob[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setText(localStorage.getItem("second-brain-capture-draft") ?? ""); }, []);
-  useEffect(() => { localStorage.setItem("second-brain-capture-draft", text); }, [text]);
+  useEffect(() => {
+    setText(localStorage.getItem("second-brain-capture-draft") ?? "");
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("second-brain-capture-draft", text);
+  }, [text]);
 
   async function saveToInbox(content: string, source: "manual" | "voice" | "ocr") {
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from("inbox_items").insert({ user_id: user.id, content, source });
+    const { error } = await supabase
+      .from("inbox_items")
+      .insert({ user_id: user.id, content, source });
     if (error) toast.error("Gagal menyimpan: " + error.message);
     else {
       toast.success("Masuk ke Inbox");
@@ -64,7 +70,9 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
         try {
           const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
           const base64 = await fileToBase64(blob);
-          const transcript = await transcribeVoice({ data: { audioBase64: base64, mimeType: blob.type } });
+          const transcript = await transcribeVoice({
+            data: { audioBase64: base64, mimeType: blob.type },
+          });
           if (transcript?.trim()) {
             await saveToInbox(transcript.trim(), "voice");
           } else {
@@ -88,6 +96,10 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Gambar terlalu besar (maks 8MB)");
+      return;
+    }
     setBusy(true);
     try {
       const base64 = await fileToBase64(file);
@@ -126,7 +138,9 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
             disabled={busy}
             title={recording ? "Berhenti merekam" : "Rekam suara"}
             className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-              recording ? "bg-destructive text-destructive-foreground" : "text-muted-foreground hover:bg-accent"
+              recording
+                ? "bg-destructive text-destructive-foreground"
+                : "text-muted-foreground hover:bg-accent"
             }`}
           >
             {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -139,18 +153,33 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
           >
             <ImageIcon className="h-4 w-4" />
           </button>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImage} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleImage}
+          />
         </div>
         <button
           onClick={handleSend}
           disabled={busy || !text.trim()}
           className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <SendHorizonal className="h-4 w-4" />
+          )}
           Simpan
         </button>
       </div>
-      {recording && <p className="px-2 pt-2 text-xs text-destructive">Merekam… ketuk lagi untuk berhenti dan transkripsi.</p>}
+      {recording && (
+        <p className="px-2 pt-2 text-xs text-destructive">
+          Merekam… ketuk lagi untuk berhenti dan transkripsi.
+        </p>
+      )}
     </div>
   );
 }

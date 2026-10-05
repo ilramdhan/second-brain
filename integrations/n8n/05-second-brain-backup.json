@@ -1,0 +1,549 @@
+{
+  "name": "Second Brain – Backup (Google Drive + email)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 💾 Backup otomatis → Google Drive + email (Resend)\nTiap jam menit 05 workflow bangun; node **Jadwal?** hanya lanjut pada `BACKUP_HOUR` (default 2) dan, bila `BACKUP_FREQUENCY=weekly`, pada `BACKUP_WEEKDAY` (0 = Minggu). **Jalankan manual** selalu lanjut.\n\nAlur: `GET /api/public/n8n/backup?userId=all` (berhalaman, gzip) → gabung → `.json.gz` → upload ke folder `BACKUP_DRIVE_FOLDER_ID` → rotasi (simpan `BACKUP_RETENTION` file terbaru, default 14) → email ringkasan via **Resend SMTP** (lampiran bila ≤ `BACKUP_EMAIL_ATTACH_MAX_MB`, default 5). Gagal di langkah mana pun → alert Telegram admin + email.\n\nFormat file = format Settings → *Pulihkan JSON* (pilih file `.json.gz` langsung; tiap user memulihkan datanya sendiri).\n\n**Env:** `SECOND_BRAIN_URL`, `BACKUP_*`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`. **Credentials:** Header Auth, Google Drive OAuth2, SMTP (host `smtp.resend.com`, port 465, SSL, user `resend`, password = Resend API key).",
+        "height": 420,
+        "width": 760,
+        "color": 6
+      },
+      "id": "591d2946-1597-53de-98c5-8bd9e0f276a2",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-80, -520]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "5 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "f9323ea4-f0c9-5e26-9f0d-d26aef0cbe64",
+      "name": "Tiap jam (:05)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {},
+      "id": "102847fb-4ea8-5030-8fab-49b6deeebef2",
+      "name": "Jalankan manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lanjut hanya pada jam/hari backup (zona waktu workflow = Asia/Jakarta). Manual = selalu.\nconst manual = $('Jalankan manual').isExecuted;\nconst now = $now.setZone($env.GENERIC_TIMEZONE || 'Asia/Jakarta');\nconst hour = Number($env.BACKUP_HOUR ?? 2);\nconst freq = String($env.BACKUP_FREQUENCY || 'daily').toLowerCase();\nconst weekday = Number($env.BACKUP_WEEKDAY ?? 0); // 0 = Minggu … 6 = Sabtu\nconst isDay = freq !== 'weekly' || (now.weekday % 7) === weekday;\nif (!manual && (now.hour !== hour || !isDay)) return [];\nif (!$env.BACKUP_DRIVE_FOLDER_ID) throw new Error('BACKUP_DRIVE_FOLDER_ID belum diatur');\nreturn [{ json: {\n  stamp: now.toFormat('yyyy-MM-dd-HHmm'),\n  date: now.toFormat('yyyy-MM-dd'),\n  frequency: freq,\n  include_versions: String($env.BACKUP_INCLUDE_VERSIONS || '0') === '1' ? '1' : '0',\n} }];"
+      },
+      "id": "e3380e33-d730-5ace-8292-f4ecf713f976",
+      "name": "Jadwal?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 100]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/backup",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "userId",
+              "value": "all"
+            },
+            {
+              "name": "include",
+              "value": "all"
+            },
+            {
+              "name": "versions",
+              "value": "={{ $json.include_versions }}"
+            },
+            {
+              "name": "page_size",
+              "value": "10"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "page",
+                    "value": "={{ $pageCount }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.next_page === null || $response.body.next_page === undefined }}",
+              "limitPagesFetched": true,
+              "maxRequests": 200,
+              "requestInterval": 250
+            }
+          }
+        }
+      },
+      "id": "09ae22e1-5fee-5abd-82d4-d567a4d9bece",
+      "name": "Ambil backup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 10000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gabung semua halaman → satu file backup (format sama dengan endpoint & Settings restore).\nconst cfg = $('Jadwal?').first().json;\nconst users = $input.all().flatMap(i => i.json.users || []);\nif (!users.length) throw new Error('Backup kosong: tidak ada user yang diekspor');\nconst totals = {};\nfor (const u of users) for (const [t, n] of Object.entries(u.counts || {})) totals[t] = (totals[t] || 0) + n;\nconst backup = { version: 1, format: 'second-brain-backup', exported_at: new Date().toISOString(), page: 0, next_page: null, count: users.length, users };\nconst text = JSON.stringify(backup);\nconst fileName = `second-brain-backup-${cfg.stamp}.json`;\nconst binary = { data: await this.helpers.prepareBinaryData(Buffer.from(text, 'utf8'), fileName, 'application/json') };\nreturn [{ json: { fileName, users: users.length, totals, json_bytes: Buffer.byteLength(text) }, binary }];"
+      },
+      "id": "429130e2-4e8f-50c7-a25e-22d0a9fe478f",
+      "name": "Gabung & ringkas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 0]
+    },
+    {
+      "parameters": {
+        "operation": "compress",
+        "binaryPropertyName": "data",
+        "outputFormat": "gzip",
+        "binaryPropertyOutput": "data"
+      },
+      "id": "c061cb83-d477-5ef2-9be2-b4c6f29bf575",
+      "name": "Kompres (gzip)",
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1.1,
+      "position": [900, 0],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catat ukuran .gz (untuk batas lampiran email) dan teruskan file apa adanya.\nconst buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst item = $input.first();\nreturn [{ json: { ...item.json, gz_bytes: buf.length }, binary: item.binary }];"
+      },
+      "id": "9b1a4090-26fa-5334-8557-2c34f15939f9",
+      "name": "Ukuran file",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1010, -160]
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Gabung & ringkas').first().json.fileName }}.gz",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $env.BACKUP_DRIVE_FOLDER_ID }}"
+        },
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "6c63cb71-7e82-5b4b-8fe8-5eea773fee8e",
+      "name": "Upload ke Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1120, 0],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive Second Brain"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 15000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "name",
+        "queryString": "second-brain-backup-",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $env.BACKUP_DRIVE_FOLDER_ID }}"
+          }
+        },
+        "options": {
+          "fields": ["id", "name", "createdTime", "size"]
+        }
+      },
+      "id": "cc576afe-da9c-5a3c-a527-dc8ee171b771",
+      "name": "Daftar backup",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1340, 0],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive Second Brain"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Rotasi: simpan BACKUP_RETENTION file terbaru (default 14), hapus sisanya.\nconst keep = Math.max(1, Number($env.BACKUP_RETENTION || 14));\nconst files = $('Daftar backup').all().map(i => i.json)\n  .filter(f => f.id && /^second-brain-backup-.*\\.json(\\.gz)?$/.test(f.name || ''))\n  .sort((a, b) => String(b.createdTime || b.name).localeCompare(String(a.createdTime || a.name)));\nconst expired = files.slice(keep);\nreturn expired.map(f => ({ json: { id: f.id, name: f.name } }));"
+      },
+      "id": "74f94e47-01da-5897-a589-b73e70aec1d0",
+      "name": "Pilih yang dihapus",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, -100]
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "id": "a171ac23-d3c8-592f-8931-971b956f7a19",
+      "name": "Hapus backup lama",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1780, -100],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive Second Brain"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ringkasan email + lampiran .json.gz bila ukurannya ≤ BACKUP_EMAIL_ATTACH_MAX_MB.\nconst keep = Math.max(1, Number($env.BACKUP_RETENTION || 14));\nconst files = $('Daftar backup').all().map(i => i.json)\n  .filter(f => f.id && /^second-brain-backup-.*\\.json(\\.gz)?$/.test(f.name || ''))\n  .sort((a, b) => String(b.createdTime || b.name).localeCompare(String(a.createdTime || a.name)));\nconst expired = files.slice(keep);\nconst meta = $('Gabung & ringkas').first().json;\nconst upload = $('Upload ke Google Drive').first().json;\nconst sized = $('Ukuran file').first();\nconst gz = sized.binary.data;\nconst gzBytes = sized.json.gz_bytes;\nconst maxMb = Number($env.BACKUP_EMAIL_ATTACH_MAX_MB ?? 5);\nconst attach = maxMb > 0 && gzBytes > 0 && gzBytes <= maxMb * 1048576;\nconst mb = (b) => (b / 1048576).toFixed(2) + ' MB';\nconst rows = Object.entries(meta.totals).map(([t, n]) => `<tr><td>${t}</td><td align=\"right\">${n}</td></tr>`).join('');\nconst link = upload.id ? `https://drive.google.com/file/d/${upload.id}/view` : null;\nconst html = `<h2>✅ Backup Second Brain berhasil</h2>\n<p><b>File:</b> ${upload.name || meta.fileName + '.gz'} (${mb(gzBytes)}, JSON ${mb(meta.json_bytes)})<br>\n<b>User:</b> ${meta.users}<br>${link ? `<b>Google Drive:</b> <a href=\"${link}\">${link}</a><br>` : ''}\n<b>Rotasi:</b> simpan ${keep} terbaru, ${expired.length} file lama dihapus.<br>\n<b>Lampiran:</b> ${attach ? 'ya' : `tidak (lebih dari ${maxMb} MB, unduh dari Drive)`}</p>\n<table border=\"1\" cellpadding=\"4\" cellspacing=\"0\"><tr><th>Tabel</th><th>Baris</th></tr>${rows}</table>\n<p>Pulihkan: Second Brain → Pengaturan → Backup → <i>Pulihkan JSON</i> → pilih file .json.gz.</p>`;\nreturn [{ json: { subject: `Backup Second Brain ${meta.users} user · ${mb(gzBytes)}`, html, attach }, ...(attach ? { binary: { data: gz } } : {}) }];"
+      },
+      "id": "ef2aed62-90aa-5c1a-a9a7-0c72bc1df48a",
+      "name": "Susun email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 120]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.BACKUP_EMAIL_FROM }}",
+        "toEmail": "={{ $env.BACKUP_EMAIL_TO }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {
+          "attachments": "={{ $json.attach ? 'data' : '' }}",
+          "appendAttribution": false
+        }
+      },
+      "id": "533e9201-c0a0-5f5e-9a97-0e2e1b4ad2e8",
+      "name": "Kirim email (Resend)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1780, 120],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "Resend SMTP"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dipanggil dari output error node mana pun di workflow ini.\nconst err = $json.error || {};\nconst msg = String(err.message || err.description || $json.message || 'Unknown error').slice(0, 800);\nconst node = $prevNode?.name || '-';\nconst when = $now.setZone($env.GENERIC_TIMEZONE || 'Asia/Jakarta').toFormat('yyyy-MM-dd HH:mm');\nreturn [{ json: {\n  text: `🚨 Backup Second Brain GAGAL\\nLangkah: ${node}\\nWaktu: ${when}\\nPesan: ${msg}\\n🔗 ${$execution.id}`,\n  subject: `GAGAL: backup Second Brain ${when}`,\n  html: `<h2>🚨 Backup Second Brain gagal</h2><p><b>Langkah:</b> ${node}<br><b>Waktu:</b> ${when}<br><b>Eksekusi:</b> ${$execution.id}</p><pre>${msg.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</pre>`,\n} }];"
+      },
+      "id": "0fb1af68-1dbb-5d52-8881-bd8985a28357",
+      "name": "Format alert gagal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_ADMIN_CHAT_ID, text: $json.text, disable_web_page_preview: true }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "f090a0c5-bc09-5410-bcf7-653c97bf255c",
+      "name": "Alert Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.BACKUP_EMAIL_FROM }}",
+        "toEmail": "={{ $env.BACKUP_EMAIL_TO }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "89990e14-fe33-5da1-beee-42fb1d1095c9",
+      "name": "Alert email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1340, 460],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "Resend SMTP"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Tiap jam (:05)": {
+      "main": [
+        [
+          {
+            "node": "Jadwal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jalankan manual": {
+      "main": [
+        [
+          {
+            "node": "Jadwal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jadwal?": {
+      "main": [
+        [
+          {
+            "node": "Ambil backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil backup": {
+      "main": [
+        [
+          {
+            "node": "Gabung & ringkas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format alert gagal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gabung & ringkas": {
+      "main": [
+        [
+          {
+            "node": "Kompres (gzip)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kompres (gzip)": {
+      "main": [
+        [
+          {
+            "node": "Ukuran file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format alert gagal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ukuran file": {
+      "main": [
+        [
+          {
+            "node": "Upload ke Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload ke Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Daftar backup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format alert gagal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daftar backup": {
+      "main": [
+        [
+          {
+            "node": "Pilih yang dihapus",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Susun email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pilih yang dihapus": {
+      "main": [
+        [
+          {
+            "node": "Hapus backup lama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun email": {
+      "main": [
+        [
+          {
+            "node": "Kirim email (Resend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim email (Resend)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Format alert gagal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format alert gagal": {
+      "main": [
+        [
+          {
+            "node": "Alert Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Alert email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

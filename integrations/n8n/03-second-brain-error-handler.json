@@ -1,0 +1,121 @@
+{
+  "name": "Second Brain – Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7f570a90-43a4-43b9-a01a-3abf6aeed905",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $json;\nconst wf = e.workflow?.name ?? '-';\nconst node = e.execution?.lastNodeExecuted ?? e.trigger?.error?.node?.name ?? '-';\nconst msg = String(e.execution?.error?.message ?? e.trigger?.error?.message ?? 'Unknown error').slice(0, 600);\nconst url = e.execution?.url ? `\\n🔗 ${e.execution.url}` : '';\nconst mode = e.execution?.mode ? `\\nMode: ${e.execution.mode}` : '';\nreturn [{ json: {\n  text: `🚨 Second Brain · n8n error\\nWorkflow: ${wf}\\nNode: ${node}${mode}\\nPesan: ${msg}${url}`,\n  report: { workflow: wf, node, message: msg, execution_id: e.execution?.id ?? null, execution_url: e.execution?.url ?? null, at: new Date().toISOString() },\n} }];"
+      },
+      "id": "b3ee183d-c120-457b-8fee-370a8d26568c",
+      "name": "Format pesan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_ADMIN_CHAT_ID, text: $json.text, disable_web_page_preview: true }) }}"
+      },
+      "id": "4a8373bb-925a-47af-89d3-23ce8d83fb00",
+      "name": "Kirim ke admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, -80],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/events",
+        "options": {
+          "timeout": 10000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'n8n_error', ...$json.report }) }}"
+      },
+      "id": "87ef60b1-5ae6-4493-ac18-da21e972e84d",
+      "name": "Log ke Second Brain",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 100],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 🚨 Error handler\nSet workflow ini sebagai **Error Workflow** di Settings workflow 01, 02, 05, 06, 07, 08. Notifikasi ke `TELEGRAM_ADMIN_CHAT_ID` (env: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`).\n\nNode *Log ke Second Brain* mencatat error ke `activity_logs` (source `n8n`) lewat `POST /api/public/n8n/events` (Header Auth `x-api-key`). Gagal mencatat tidak menghentikan alert.",
+        "height": 220,
+        "width": 560,
+        "color": "3"
+      },
+      "id": "c2292e4f-cc6a-405c-9a33-24ef1d37e55a",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-40, -300]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format pesan": {
+      "main": [
+        [
+          {
+            "node": "Kirim ke admin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log ke Second Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

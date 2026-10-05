@@ -1,7 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
-
 interface TelegramUpdate {
   update_id: number;
   message?: {
@@ -12,28 +10,39 @@ interface TelegramUpdate {
   };
 }
 
+const LINK_HOWTO =
+  "Untuk menghubungkan akun: buka Second Brain → Pengaturan → Bot Telegram → " +
+  '"Hubungkan Telegram", lalu kirim ke sini: /link KODE (kode berlaku 10 menit, sekali pakai).';
+const START_TEXT =
+  "Halo! Saya bot Second Brain. Kirim catatan apa pun ke sini dan akan masuk ke Inbox Anda.\n\n" +
+  LINK_HOWTO;
+const NOT_LINKED_TEXT = "Akun belum terhubung.\n\n" + LINK_HOWTO;
+const LINK_FAILED_TEXT =
+  "Kode tidak valid atau sudah kedaluwarsa. Buat kode baru di Pengaturan → Bot Telegram, " +
+  "lalu kirim /link KODE.";
+
 async function sendTelegramMessage(chatId: number, text: string) {
-  const apiKey = process.env['LOVABLE_API_KEY'];
-  const connectionKey = process.env['TELEGRAM_API_KEY'];
-  if (!apiKey || !connectionKey) return;
-  await fetch(`${GATEWAY_URL}/sendMessage`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "X-Connection-Api-Key": connectionKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
+  const { sendTelegram } = await import("@/lib/telegram.server");
+  await sendTelegram(chatId, text);
 }
 
 export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Verifikasi header rahasia dari Telegram
-        const secret = process.env['TELEGRAM_WEBHOOK_SECRET'];
-        if (secret && request.headers.get("x-telegram-bot-api-secret-token") !== secret) {
+        // Verifikasi header rahasia dari Telegram (fail-closed, constant-time)
+        const { checkWebhookSecret } = await import("@/server/telegramSecurity.server");
+        const check = checkWebhookSecret(
+          request.headers.get("x-telegram-bot-api-secret-token"),
+          process.env["TELEGRAM_WEBHOOK_SECRET"],
+        );
+        if (check !== "ok") {
+          if (check === "missing-secret") {
+            console.error(
+              "[telegram/webhook] TELEGRAM_WEBHOOK_SECRET is not set; rejecting all updates. " +
+                "Set it and register it with Telegram via setWebhook(secret_token=...).",
+            );
+          }
           return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
         }
 
@@ -49,29 +58,29 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Perintah /start: kirim instruksi tautan akun
-        if (text === "/start") {
-          await sendTelegramMessage(
-            chatId,
-            "Halo! Saya bot Second Brain. Kirim catatan apa pun ke sini dan akan masuk ke Inbox Anda.\n\nUntuk menghubungkan akun, kirim: /link email@anda.com",
-          );
+        const { parseLinkCommand, parseStartPayload } =
+          await import("@/server/telegramLinkCode.server");
+
+        // /start tanpa kode: kirim instruksi tautan akun. `/start <kode>` (deep link dari
+        // Settings, t.me/<bot>?start=<kode>) diperlakukan sama dengan `/link <kode>`.
+        const startPayload = parseStartPayload(text);
+        if (startPayload === "") {
+          await sendTelegramMessage(chatId, START_TEXT);
           return new Response(JSON.stringify({ ok: true }));
         }
 
-        // /link email — tautkan chat ini ke akun pengguna
-        if (text.startsWith("/link ")) {
-          const email = text.slice(6).trim().toLowerCase();
-          const { data: userData } = await supabaseAdmin.auth.admin.listUsers();
-          const target = userData?.users?.find((u) => u.email?.toLowerCase() === email);
-          if (target) {
-            await supabaseAdmin
-              .from("profiles")
-              .update({ telegram_chat_id: String(chatId), telegram_username: username })
-              .eq("id", target.id);
-            await sendTelegramMessage(chatId, "Akun terhubung! Semua pesan Anda sekarang masuk ke Inbox Second Brain.");
-          } else {
-            await sendTelegramMessage(chatId, "Email tidak ditemukan. Pastikan sama dengan email akun Second Brain Anda.");
-          }
+        // /link <kode> — tautkan chat ini ke akun lewat kode sekali pakai dari Settings.
+        // Pesan seragam untuk kode salah, kedaluwarsa, atau sudah dipakai (tanpa enumerasi).
+        const linkArg = startPayload ?? parseLinkCommand(text);
+        if (linkArg !== null) {
+          const { redeemTelegramLinkCode } = await import("@/server/telegramLink.server");
+          const result = await redeemTelegramLinkCode(linkArg, String(chatId), username);
+          await sendTelegramMessage(
+            chatId,
+            result.ok
+              ? "Akun terhubung! Semua pesan Anda sekarang masuk ke Inbox Second Brain."
+              : LINK_FAILED_TEXT,
+          );
           return new Response(JSON.stringify({ ok: true }));
         }
 
@@ -83,10 +92,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           .maybeSingle();
 
         if (!profile) {
-          await sendTelegramMessage(
-            chatId,
-            "Akun belum terhubung. Kirim: /link email@anda.com (email akun Second Brain Anda).",
-          );
+          await sendTelegramMessage(chatId, NOT_LINKED_TEXT);
           return new Response(JSON.stringify({ ok: true }));
         }
 

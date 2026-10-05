@@ -1,0 +1,831 @@
+{
+  "name": "Second Brain – Telegram Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🧠 Second Brain — Telegram Bot (mode n8n)\n\nn8n hanya **relay tipis**: parsing perintah, NLP tanggal, AI ringkasan, pembuatan task/note/inbox, `/link`, dan tombol inline semuanya ada di web app (`POST /api/public/n8n/bot`, idempoten per `update_id`). n8n menambah 2 kemampuan berbasis file: **OCR** (foto/gambar/PDF → OpenAI vision) dan **transkripsi** (voice → OpenAI audio).\n\n**Env n8n:** `SECOND_BRAIN_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS` (kosong = tolak semua), `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIBE_MODEL` (opsional) + `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`\n**Credentials:** Telegram API (token BotFather, trigger), Header Auth `x-api-key` = `N8N_API_KEY` web app, OpenAI API. Ganti semua `REPLACE_ME`.\n\n⚠️ Satu bot = satu webhook. Mengaktifkan workflow ini menimpa webhook mode app (`/api/public/telegram/webhook`). Lihat README → *Mode bot*.\n🔒 Chat di luar allow-list diabaikan diam-diam. Eksekusi sukses tidak disimpan (privasi).",
+        "height": 400,
+        "width": 820,
+        "color": "6"
+      },
+      "id": "b39aa2e0-532b-4a63-b099-91f1e691eb25",
+      "name": "Note: Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -460]
+    },
+    {
+      "parameters": {
+        "updates": ["message", "callback_query"],
+        "additionalFields": {}
+      },
+      "id": "816dac13-b896-4657-b529-9e95b7fec12e",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 200],
+      "webhookId": "dfc3affe-356b-4231-89a1-6d50715a0021",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "Telegram Second Brain Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalisasi update Telegram + allow-list (fail-closed: daftar kosong = tolak semua).\nconst allowed = String($env.TELEGRAM_ALLOWED_CHAT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\nconst MAX_FILE_BYTES = 19_000_000; // batas getFile Bot API = 20 MB\nconst out = [];\n\nfor (const item of $input.all()) {\n  const u = item.json;\n  const cb = u.callback_query;\n  const msg = cb ? cb.message : (u.message || u.edited_message);\n  const chatId = String(msg?.chat?.id ?? cb?.from?.id ?? '');\n  const from = cb?.from ?? msg?.from ?? {};\n  const base = {\n    update_id: u.update_id,\n    chat_id: chatId,\n    message_id: msg?.message_id ?? null,\n    callback_id: cb?.id ?? null,\n  };\n  const meta = { update_id: u.update_id, chat_id: chatId, message_id: msg?.message_id ?? null, username: from.username ?? null, first_name: from.first_name ?? null };\n\n  if (!chatId || !allowed.includes(chatId)) { out.push({ json: { ...base, type: 'blocked' } }); continue; }\n\n  if (cb) {\n    out.push({ json: { ...base, type: 'callback', payload: { ...meta, kind: 'callback', callback_data: String(cb.data || '').slice(0, 64) } } });\n    continue;\n  }\n\n  // Media: foto, dokumen (gambar/PDF), voice note, audio\n  let media = null;\n  if (Array.isArray(msg?.photo) && msg.photo.length) {\n    const p = msg.photo[msg.photo.length - 1]; // resolusi terbesar\n    media = { kind: 'vision', file_id: p.file_id, file_size: p.file_size ?? 0, mime_type: 'image/jpeg', file_name: 'photo.jpg' };\n  } else if (msg?.document) {\n    const d = msg.document; const mt = d.mime_type || '';\n    if (/^image\\/(jpeg|png|webp|gif)$/.test(mt) || mt === 'application/pdf') {\n      media = { kind: 'vision', file_id: d.file_id, file_size: d.file_size ?? 0, mime_type: mt, file_name: d.file_name || 'document' };\n    } else if (/^audio\\//.test(mt)) {\n      media = { kind: 'audio', file_id: d.file_id, file_size: d.file_size ?? 0, mime_type: mt, file_name: d.file_name || 'audio' };\n    } else {\n      out.push({ json: { ...base, type: 'reply', reply: '📎 Jenis file ini belum didukung. Kirim foto, gambar, PDF, atau voice note.' } });\n      continue;\n    }\n  } else if (msg?.voice || msg?.audio) {\n    const a = msg.voice || msg.audio;\n    media = { kind: 'audio', file_id: a.file_id, file_size: a.file_size ?? 0, mime_type: a.mime_type || 'audio/ogg', file_name: a.file_name || 'voice.ogg', duration: a.duration ?? null };\n  }\n\n  if (media) {\n    if (media.file_size > MAX_FILE_BYTES) {\n      out.push({ json: { ...base, type: 'reply', reply: '⚠️ File terlalu besar (maks ±19 MB untuk bot Telegram).' } });\n      continue;\n    }\n    out.push({ json: { ...base, type: 'media', ...media, caption: (msg.caption ?? '').slice(0, 1000), meta } });\n    continue;\n  }\n\n  const text = msg?.text ?? null;\n  if (text) {\n    out.push({ json: { ...base, type: 'text', payload: { ...meta, kind: 'text', source: 'telegram', text: text.slice(0, 4000) } } });\n    continue;\n  }\n\n  out.push({ json: { ...base, type: 'reply', reply: '🙏 Bot ini menerima teks, foto, dokumen (gambar/PDF), dan voice note. Ketik /help untuk bantuan.' } });\n}\nreturn out;"
+      },
+      "id": "34a3ea3b-4908-4b93-b64b-641580165afa",
+      "name": "Normalize & Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1d2f2d45-cf36-4ee3-8e86-a86fa0c67169",
+                    "leftValue": "={{ $json.type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "callback"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "callback"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9614236e-e04f-4e6e-8330-2c7ec635e672",
+                    "leftValue": "={{ $json.type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "text"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6a201a61-2a5e-4b1a-adcb-d7e5007e3784",
+                    "leftValue": "={{ $json.type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "media"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "media"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cb94fc28-351c-4a48-b82b-978fa8c02eed",
+                    "leftValue": "={{ $json.type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "reply"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reply"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "abf9bfd4-1236-498f-8047-740f6b9b18cd",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [440, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendChatAction",
+        "options": {
+          "timeout": 5000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, action: 'typing' }) }}"
+      },
+      "id": "c3f93481-cb08-4bd9-b778-0413035128b9",
+      "name": "Typing…",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 60],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendChatAction",
+        "options": {
+          "timeout": 5000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chat_id, action: $json.kind === 'audio' ? 'record_voice' : 'upload_document' }) }}"
+      },
+      "id": "a124511f-cc09-48a1-81bf-b5732dd7c8b6",
+      "name": "Uploading…",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 380],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getFile?file_id={{ encodeURIComponent($json.file_id) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "cc934933-e1f9-4860-adbc-41de79dbac02",
+      "name": "Telegram getFile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 540],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/file/bot{{ $env.TELEGRAM_BOT_TOKEN }}/{{ $json.result.file_path }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "b1a2aecd-a57e-4029-9674-364cef751c96",
+      "name": "Download file",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 540],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4d91b5c1-ce08-4381-8c84-5713ec285981",
+                    "leftValue": "={{ $('Normalize & Guard').item.json.kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "vision"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "vision"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "145c49f1-73d4-42bc-876d-468fb46a68ed",
+                    "leftValue": "={{ $('Normalize & Guard').item.json.kind }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "audio"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4e9eb205-d605-4385-b3c2-528338c6db76",
+      "name": "Media kind",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1140, 540]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Bangun request OpenAI Responses API (vision) dari file Telegram yang sudah diunduh.\nconst src = $('Normalize & Guard').item.json;\nconst buf = await this.helpers.getBinaryDataBuffer($itemIndex, 'data');\nif (buf.length > 15_000_000) throw new Error('File terlalu besar untuk OCR');\nconst b64 = buf.toString('base64');\nconst prompt = 'Ekstrak SEMUA teks dari file ini (foto papan tulis, tulisan tangan, dokumen, screenshot, struk). ' +\n  'Tulis dalam bahasa aslinya, rapikan menjadi markdown terstruktur (judul, daftar, tabel bila ada). ' +\n  'Tandai bagian yang tidak terbaca dengan [?]. Jangan menambah informasi yang tidak ada. Balas hanya dengan hasil ekstraksi.';\nconst filePart = src.mime_type === 'application/pdf'\n  ? { type: 'input_file', filename: src.file_name || 'document.pdf', file_data: `data:application/pdf;base64,${b64}` }\n  : { type: 'input_image', image_url: `data:${src.mime_type};base64,${b64}`, detail: 'high' };\nreturn {\n  json: {\n    openai_body: {\n      model: $env.OPENAI_VISION_MODEL || 'gpt-4.1-mini',\n      max_output_tokens: 4000,\n      input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }, filePart] }],\n    },\n  },\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "3fced92b-ec4b-43cb-b151-c894e1273454",
+      "name": "Prepare OCR request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openai_body) }}"
+      },
+      "id": "26dc4161-d28d-4b06-8c5f-6de21ae7c6e7",
+      "name": "OpenAI OCR (vision)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1580, 460],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenAI Second Brain"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil teks hasil OCR dari respons OpenAI lalu susun payload untuk Second Brain.\nconst src = $('Normalize & Guard').item.json;\nconst r = $json;\nlet text = r.output_text;\nif (!text && Array.isArray(r.output)) {\n  text = r.output.flatMap(o => o.content || []).filter(c => c.type === 'output_text').map(c => c.text).join('\\n');\n}\ntext = String(text || '').trim();\nreturn {\n  json: {\n    payload: {\n      ...src.meta,\n      kind: 'ocr',\n      source: 'ocr',\n      text: src.caption || null,          // caption bisa berisi perintah: /task, /note, /inbox\n      ocr_text: text.slice(0, 20000),\n      file_name: src.file_name,\n      mime_type: src.mime_type,\n      ocr_model: r.model ?? null,\n    },\n  },\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "674921f0-7f96-4be2-bc42-62c4c866cf24",
+      "name": "OCR → payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Telegram voice = .oga; OpenAI menerima .ogg (format sama).\nconst item = $input.item;\nconst b = item.binary.data;\nb.fileName = String(b.fileName || 'voice.ogg').replace(/\\.oga$/i, '.ogg');\nif (!/\\.[a-z0-9]+$/i.test(b.fileName)) b.fileName += '.ogg';\nreturn item;",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "d711814d-e62c-4cc3-8dca-60c58d47e743",
+      "name": "Fix audio filename",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 640]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "={{ $env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe' }}"
+            },
+            {
+              "name": "language",
+              "value": "id"
+            },
+            {
+              "name": "response_format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "f4a8949e-e2c2-4f9b-b9b3-f0787fbcc915",
+      "name": "OpenAI Transcribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1580, 640],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenAI Second Brain"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Susun payload transkripsi voice/audio untuk Second Brain.\nconst src = $('Normalize & Guard').item.json;\nconst text = String($json.text || '').trim();\nreturn {\n  json: {\n    payload: {\n      ...src.meta,\n      kind: 'voice',\n      source: 'voice',\n      text: src.caption || null,\n      transcript: text.slice(0, 20000),\n      duration: src.duration ?? null,\n      mime_type: src.mime_type,\n    },\n  },\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "97b3e661-83eb-4526-999a-50efe24bff51",
+      "name": "Transcript → payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 640]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/bot",
+        "options": {
+          "timeout": 90000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}"
+      },
+      "id": "7caef395-e664-4ba2-a5f6-a8b1a81db9dd",
+      "name": "Second Brain /bot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2020, 200],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "143f3757-860c-47fa-8923-861984ec6748",
+                    "leftValue": "={{ $json.method }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "send"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "send"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b83b3841-2d5d-43b0-bb30-c0c640d5ac35",
+                    "leftValue": "={{ $json.method }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "callback"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "callback"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "01d29feb-372c-4378-be3a-158068cc0a8e",
+      "name": "Reply method",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [2240, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: $('Normalize & Guard').item.json.chat_id, text: String($json.text || $json.reply || '⚠️ Gagal memproses pesan. Coba lagi sebentar.').slice(0, 4000), disable_web_page_preview: true }, $json.parse_mode ? { parse_mode: $json.parse_mode } : {}, $json.reply_markup ? { reply_markup: $json.reply_markup } : {}, $('Normalize & Guard').item.json.message_id && $json.reply_to !== false ? { reply_parameters: { message_id: $('Normalize & Guard').item.json.message_id, allow_sending_without_reply: true } } : {})) }}"
+      },
+      "id": "ec4882a3-e561-4561-b203-7f8fea6258fb",
+      "name": "Send message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2500, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "options": {
+          "timeout": 5000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Normalize & Guard').item.json.callback_id, text: String($json.toast || '').slice(0, 190) }) }}"
+      },
+      "id": "77d9ddcc-a8e2-4a74-8e79-f1259e1a0135",
+      "name": "Answer callback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2500, 40],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/editMessageText",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: $('Normalize & Guard').item.json.chat_id, message_id: $('Normalize & Guard').item.json.message_id, text: String($('Reply method').item.json.text || '✔️').slice(0, 4000), disable_web_page_preview: true }, $('Reply method').item.json.parse_mode ? { parse_mode: $('Reply method').item.json.parse_mode } : {}, $('Reply method').item.json.reply_markup ? { reply_markup: $('Reply method').item.json.reply_markup } : {})) }}"
+      },
+      "id": "ff11b171-ea98-4727-af32-3c63777eb38a",
+      "name": "Edit message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2720, 40],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Alur\n1. **callback** (tombol inline) → `/bot` → answerCallbackQuery + editMessageText\n2. **text** (teks & /perintah) → typing… + `/bot` → balasan\n3. **media** → getFile → unduh → *vision* (foto/gambar/PDF) → OpenAI Responses → `/bot` (kind=`ocr`) · *audio* (voice) → OpenAI transcriptions → `/bot` (kind=`voice`)\n4. **reply** → pesan lokal (file tidak didukung/terlalu besar)\n\nCaption foto bisa berisi `/task`, `/note`, `/inbox`, `/sum` untuk memilih tujuan hasil OCR.\nAlternatif OCR: Mistral OCR (`POST https://api.mistral.ai/v1/ocr`), Google Vision, atau node **OpenAI** bawaan n8n (Analyze Image).",
+        "height": 280,
+        "width": 760,
+        "color": "7"
+      },
+      "id": "f0c553e0-fdec-40a8-aea4-9b4327d19516",
+      "name": "Note: Flow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [700, 760]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Guard": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Second Brain /bot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Typing…",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Second Brain /bot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Uploading…",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram getFile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram getFile": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Media kind",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Media kind": {
+      "main": [
+        [
+          {
+            "node": "Prepare OCR request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fix audio filename",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix audio filename": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare OCR request": {
+      "main": [
+        [
+          {
+            "node": "OpenAI OCR (vision)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI OCR (vision)": {
+      "main": [
+        [
+          {
+            "node": "OCR → payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR → payload": {
+      "main": [
+        [
+          {
+            "node": "Second Brain /bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Transcribe": {
+      "main": [
+        [
+          {
+            "node": "Transcript → payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcript → payload": {
+      "main": [
+        [
+          {
+            "node": "Second Brain /bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Second Brain /bot": {
+      "main": [
+        [
+          {
+            "node": "Reply method",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply method": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer callback": {
+      "main": [
+        [
+          {
+            "node": "Edit message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

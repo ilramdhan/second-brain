@@ -1,0 +1,521 @@
+{
+  "name": "Second Brain – Schedules",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ⏰ Second Brain — Jadwal\nSemua jadwal hidup di n8n (Vercel Hobby hanya 1 cron/hari, Supabase Free tanpa jaminan pg_cron). Isi pesan disusun server per user yang sudah `/link` Telegram; n8n hanya memicu & mengirim.\n\n| Jadwal (WIB) | Endpoint |\n|---|---|\n| Tiap 15 menit | `POST /reminders` (jatuh tempo ≤ `REMINDER_LEAD_MINUTES`, tandai `reminded`) |\n| 07:00 | `GET /digest?kind=morning` (hari ini + overdue + inbox) |\n| 12:30 Sen–Jum | `GET /digest?kind=overdue` |\n| 20:30 | `GET /digest?kind=evening` (selesai hari ini, besok) |\n| Minggu 18:00 | `GET /digest?kind=weekly` (weekly review) |\n| 03:00 | `POST /maintenance` (purge trash > `TRASH_RETENTION_DAYS`, link code kedaluwarsa, rate_limits, n8n_events) |\n\n**Env:** `SECOND_BRAIN_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS`, `REMINDER_LEAD_MINUTES` (default 60), `TRASH_RETENTION_DAYS` (default 30). **Credential:** Header Auth `x-api-key`.\nTombol ✅/⏰ di pesan diproses workflow 01 (mode n8n).",
+        "height": 420,
+        "width": 640,
+        "color": "6"
+      },
+      "id": "dace0bec-c064-4949-b609-ab469cf97371",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -480]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "7cb6bb02-8174-42ec-a827-f6da3a54fdc0",
+      "name": "Tiap 15 menit",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/reminders",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ lead_minutes: Number($env.REMINDER_LEAD_MINUTES || 60), include_overdue: true }) }}"
+      },
+      "id": "5aa739f4-5f0a-42fa-999b-18fb7eb4fc0d",
+      "name": "Pengingat jatuh tempo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "eed75ba6-1b43-4c21-9b1d-23aea13eb946",
+      "name": "Tiap hari 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 180]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=morning",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "4e217f1a-d881-4d8e-b811-54486f5d5e57",
+      "name": "Digest pagi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 180],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 12 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "1219caae-d112-40cb-8e99-d6056667826b",
+      "name": "Sen–Jum 12:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 360]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=overdue",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "625e528e-ba01-4760-aec8-bc3a1e5f4bb4",
+      "name": "Digest overdue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 360],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 20,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "id": "5ac9c01b-a0f9-49f2-996b-c010c6abecac",
+      "name": "Tiap hari 20:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 540]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=evening",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "1ecdca36-24df-403f-acca-b171c70e0923",
+      "name": "Digest malam",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 540],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [0],
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "id": "4951580a-ab9f-476a-9e98-f44ba62c912b",
+      "name": "Minggu 18:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 720]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=weekly",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "fb09fd3e-5f0b-4b52-aa4c-af5fb95b8f6e",
+      "name": "Weekly review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 720],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pecah respons { messages: [...] } menjadi satu item per pesan Telegram.\n// Server hanya mengembalikan chat yang sudah ditautkan (profiles.telegram_chat_id); n8n tetap memfilter allow-list.\nconst allowed = String($env.TELEGRAM_ALLOWED_CHAT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\nconst out = [];\nfor (const item of $input.all()) {\n  for (const m of item.json.messages || []) {\n    const chat = String(m.chat_id || '');\n    if (!chat || (allowed.length && !allowed.includes(chat))) continue;\n    out.push({ json: { chat_id: chat, text: String(m.text || '').slice(0, 4000), parse_mode: m.parse_mode || null, reply_markup: m.reply_markup || null } });\n  }\n}\nreturn out;"
+      },
+      "id": "c2dcac67-9eac-41e8-bb33-4110b1be4008",
+      "name": "Pecah per chat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: $json.chat_id, text: $json.text, disable_web_page_preview: true }, $json.parse_mode ? { parse_mode: $json.parse_mode } : {}, $json.reply_markup ? { reply_markup: $json.reply_markup } : {})) }}"
+      },
+      "id": "7a1f945d-ac85-4228-bc25-17808260c116",
+      "name": "Kirim ke Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 360],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "id": "fd370710-1a2f-402b-aef8-d09b5e1aa44d",
+      "name": "Tiap hari 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 920]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/maintenance",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tasks: ['purge_trash', 'link_codes', 'rate_limits', 'n8n_events'], purge_after_days: Number($env.TRASH_RETENTION_DAYS || 30), events_after_days: 30 }) }}"
+      },
+      "id": "98cda273-50db-4e42-9689-b0ddd79c6721",
+      "name": "Maintenance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 920],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "3ebb4b74-4f85-4416-ba43-4f5ff1d8c0bb",
+      "name": "Tiap jam (legacy)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 1120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/hooks/reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SECOND_BRAIN_CRON_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "c2aeda94-f939-48ed-9399-29fddff4e3b5",
+      "name": "Legacy hooks/reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 1120],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## Fallback: `POST /api/public/hooks/reminders`\n`Authorization: Bearer $SECOND_BRAIN_CRON_SECRET` (nilai sama dengan env app). Endpoint ini mengirim pengingat ≤ 24 jam **langsung** dari app via Telegram (tanpa tombol). Node ini **disabled**; pakai hanya bila tidak memakai `POST /n8n/reminders` — jangan aktifkan keduanya.",
+        "height": 200,
+        "width": 520,
+        "color": "7"
+      },
+      "id": "0e5a7a6c-1791-4e0c-b9da-7364516bd2ce",
+      "name": "Note: Legacy",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [480, 1060]
+    }
+  ],
+  "connections": {
+    "Tiap 15 menit": {
+      "main": [
+        [
+          {
+            "node": "Pengingat jatuh tempo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiap hari 07:00": {
+      "main": [
+        [
+          {
+            "node": "Digest pagi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sen–Jum 12:30": {
+      "main": [
+        [
+          {
+            "node": "Digest overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiap hari 20:30": {
+      "main": [
+        [
+          {
+            "node": "Digest malam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Minggu 18:00": {
+      "main": [
+        [
+          {
+            "node": "Weekly review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiap hari 03:00": {
+      "main": [
+        [
+          {
+            "node": "Maintenance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiap jam (legacy)": {
+      "main": [
+        [
+          {
+            "node": "Legacy hooks/reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pecah per chat": {
+      "main": [
+        [
+          {
+            "node": "Kirim ke Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pengingat jatuh tempo": {
+      "main": [
+        [
+          {
+            "node": "Pecah per chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digest pagi": {
+      "main": [
+        [
+          {
+            "node": "Pecah per chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digest overdue": {
+      "main": [
+        [
+          {
+            "node": "Pecah per chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digest malam": {
+      "main": [
+        [
+          {
+            "node": "Pecah per chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly review": {
+      "main": [
+        [
+          {
+            "node": "Pecah per chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

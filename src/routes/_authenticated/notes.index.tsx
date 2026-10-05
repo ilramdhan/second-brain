@@ -8,7 +8,10 @@ export const Route = createFileRoute("/_authenticated/notes/")({
   head: () => ({
     meta: [
       { title: "Catatan — Second Brain" },
-      { name: "description", content: "Catatan, ide, dan notulen meeting dalam tampilan grid atau kanban." },
+      {
+        name: "description",
+        content: "Catatan, ide, dan notulen meeting dalam tampilan grid atau kanban.",
+      },
       { property: "og:title", content: "Catatan — Second Brain" },
       { property: "og:description", content: "Simpan ide dan notulen, rapikan dengan AI." },
     ],

@@ -12,7 +12,13 @@ export function useIdleLogout(onTimeout: () => void) {
   useEffect(() => {
     const STAMP = "second-brain-last-active";
     let last = 0;
-    const touch = () => { const now = Date.now(); if (now - last > 5000) { last = now; localStorage.setItem(STAMP, String(now)); } };
+    const touch = () => {
+      const now = Date.now();
+      if (now - last > 5000) {
+        last = now;
+        localStorage.setItem(STAMP, String(now));
+      }
+    };
     touch();
     const events = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
     events.forEach((e) => window.addEventListener(e, touch, { passive: true }));
@@ -22,6 +28,9 @@ export function useIdleLogout(onTimeout: () => void) {
       const lastActive = Number(localStorage.getItem(STAMP) ?? Date.now());
       if (Date.now() - lastActive > minutes * 60_000) onTimeout();
     }, 30_000);
-    return () => { events.forEach((e) => window.removeEventListener(e, touch)); window.clearInterval(id); };
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, touch));
+      window.clearInterval(id);
+    };
   }, [onTimeout]);
 }

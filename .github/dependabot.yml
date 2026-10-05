@@ -1,0 +1,59 @@
+# Dependabot version updates.
+# Bun projects use the native "bun" ecosystem so bun.lock is updated together
+# with package.json (the "npm" ecosystem would leave bun.lock stale and break
+# `bun install --frozen-lockfile` in CI).
+version: 2
+updates:
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Jakarta
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    ignore:
+      # Pinned on purpose: TanStack Start, its router packages, Vite and Nitro must move
+      # in lockstep. Upgrade these manually and verify `bun run build`.
+      - dependency-name: "@tanstack/react-start"
+      - dependency-name: "@tanstack/react-router"
+      - dependency-name: "@tanstack/router-plugin"
+      - dependency-name: "vite"
+      - dependency-name: "nitro"
+    groups:
+      radix-ui:
+        patterns: ["@radix-ui/*"]
+      tanstack:
+        patterns: ["@tanstack/*"]
+      ai-sdk:
+        patterns: ["ai", "@ai-sdk/*"]
+      lint-format:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "prettier"
+          - "globals"
+      testing:
+        patterns: ["vitest", "@testing-library/*", "jsdom"]
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Jakarta
+    labels: [dependencies, github-actions]
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns: ["*"]

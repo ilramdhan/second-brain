@@ -44,7 +44,13 @@ export function useTasks() {
   return useQuery({
     queryKey: qk.tasks,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tasks").select("*").is("deleted_at", null).is("archived_at", null).order("position").order("created_at");
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .is("deleted_at", null)
+        .is("archived_at", null)
+        .order("position")
+        .order("created_at");
       if (error) throw error;
       return data;
     },
@@ -54,7 +60,12 @@ export function useProjects() {
   return useQuery({
     queryKey: qk.projects,
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("*").is("deleted_at", null).order("position").order("name");
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .is("deleted_at", null)
+        .order("position")
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -64,7 +75,13 @@ export function useNotes() {
   return useQuery({
     queryKey: qk.notes,
     queryFn: async () => {
-      const { data, error } = await supabase.from("notes").select("*").is("deleted_at", null).is("archived_at", null).order("pinned", { ascending: false }).order("updated_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .is("deleted_at", null)
+        .is("archived_at", null)
+        .order("pinned", { ascending: false })
+        .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -74,7 +91,10 @@ export function useMilestones() {
   return useQuery({
     queryKey: qk.milestones,
     queryFn: async () => {
-      const { data, error } = await supabase.from("milestones").select("*").order("due_date", { nullsFirst: false });
+      const { data, error } = await supabase
+        .from("milestones")
+        .select("*")
+        .order("due_date", { nullsFirst: false });
       if (error) throw error;
       return data;
     },
@@ -114,7 +134,9 @@ export function usePeople(projectId: string | null | undefined) {
     queryKey: ["people", projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("list_project_people", { _project_id: projectId! });
+      const { data, error } = await supabase.rpc("list_project_people", {
+        _project_id: projectId!,
+      });
       if (error) throw error;
       return (data ?? []) as Person[];
     },
@@ -131,7 +153,10 @@ function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: re
 
   async function create(input: Omit<Ins, "user_id">): Promise<Row | null> {
     const user_id = await getUid();
-    const { data, error } = await from().insert({ ...input, user_id }).select().single();
+    const { data, error } = await from()
+      .insert({ ...input, user_id })
+      .select()
+      .single();
     if (error) {
       toast.error(error.message);
       return null;
@@ -140,8 +165,13 @@ function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: re
     return data as Row;
   }
   async function update(id: string, patch: Upd) {
-    qc.setQueryData<Row[]>(key, (old) => old?.map((r) => (r.id === id ? ({ ...r, ...patch } as Row) : r)));
-    const withTs = table === "milestones" || table === "automations" ? patch : { ...patch, updated_at: new Date().toISOString() };
+    qc.setQueryData<Row[]>(key, (old) =>
+      old?.map((r) => (r.id === id ? ({ ...r, ...patch } as Row) : r)),
+    );
+    const withTs =
+      table === "milestones" || table === "automations"
+        ? patch
+        : { ...patch, updated_at: new Date().toISOString() };
     const { error } = await from().update(withTs).eq("id", id);
     if (error) toast.error(error.message);
     invalidate();
@@ -150,8 +180,11 @@ function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: re
     qc.setQueryData<Row[]>(key, (old) => old?.filter((r) => r.id !== id));
     const soft = table === "tasks" || table === "notes" || table === "projects";
     const now = new Date().toISOString();
-    const { error } = soft ? await from().update({ deleted_at: now }).eq("id", id) : await from().delete().eq("id", id);
-    if (!error && table === "tasks") await from().update({ deleted_at: now }).eq("parent_id", id).is("deleted_at", null);
+    const { error } = soft
+      ? await from().update({ deleted_at: now }).eq("id", id)
+      : await from().delete().eq("id", id);
+    if (!error && table === "tasks")
+      await from().update({ deleted_at: now }).eq("parent_id", id).is("deleted_at", null);
     if (error) toast.error(error.message);
     else if (soft) toast.message("Dipindah ke Tempat Sampah — bisa dikembalikan dalam 30 hari");
     invalidate();
@@ -160,7 +193,8 @@ function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: re
   async function archive(id: string) {
     qc.setQueryData<Row[]>(key, (old) => old?.filter((r) => r.id !== id));
     const { error } = await from().update({ archived_at: new Date().toISOString() }).eq("id", id);
-    if (error) toast.error(error.message); else toast.message("Diarsipkan");
+    if (error) toast.error(error.message);
+    else toast.message("Diarsipkan");
     invalidate();
     qc.invalidateQueries({ queryKey: ["bin"] });
   }
@@ -184,7 +218,13 @@ export function useTaskActions() {
       return t.type !== "task_created";
     });
     if (!relevant) return;
-    const snap = before && { status: before.status, priority: before.priority, assignee_name: before.assignee_name, assignee_id: before.assignee_id, due_date: before.due_date };
+    const snap = before && {
+      status: before.status,
+      priority: before.priority,
+      assignee_name: before.assignee_name,
+      assignee_id: before.assignee_id,
+      due_date: before.due_date,
+    };
     run({ data: { event, taskId: task.id, ...(snap ? { before: snap } : {}) } })
       .then((r) => {
         if (r.ran) {
@@ -224,8 +264,13 @@ export function useTaskActions() {
             queue.push(d.blocked_id);
             const t = tasks.find((x) => x.id === d.blocked_id);
             if (!t || t.status === "done" || (!t.due_date && !t.start_date)) continue;
-            const mv = (iso: string | null) => (iso ? new Date(new Date(iso).getTime() + delta).toISOString() : null);
-            await crud.update(t.id, { start_date: mv(t.start_date), due_date: mv(t.due_date), reminded: false });
+            const mv = (iso: string | null) =>
+              iso ? new Date(new Date(iso).getTime() + delta).toISOString() : null;
+            await crud.update(t.id, {
+              start_date: mv(t.start_date),
+              due_date: mv(t.due_date),
+              reminded: false,
+            });
             shifted++;
           }
         }
@@ -262,7 +307,12 @@ export function useTaskActions() {
       const shift = (d: string | null) => {
         if (!d) return null;
         const x = new Date(d);
-        const n = task.recurrence === "daily" ? addDays(x, 1) : task.recurrence === "weekly" ? addWeeks(x, 1) : addMonths(x, 1);
+        const n =
+          task.recurrence === "daily"
+            ? addDays(x, 1)
+            : task.recurrence === "weekly"
+              ? addWeeks(x, 1)
+              : addMonths(x, 1);
         return n.toISOString();
       };
       await create({
@@ -294,13 +344,18 @@ export function useDependencyActions() {
     const seen = new Set<string>();
     while (stack.length) {
       const cur = stack.pop()!;
-      if (cur === blocker_id) { toast.error("Tidak bisa: akan membuat ketergantungan melingkar"); return; }
+      if (cur === blocker_id) {
+        toast.error("Tidak bisa: akan membuat ketergantungan melingkar");
+        return;
+      }
       if (seen.has(cur)) continue;
       seen.add(cur);
       deps.filter((d) => d.blocker_id === cur).forEach((d) => stack.push(d.blocked_id));
     }
     const user_id = await getUid();
-    const { error } = await supabase.from("task_dependencies").insert({ blocker_id, blocked_id, user_id });
+    const { error } = await supabase
+      .from("task_dependencies")
+      .insert({ blocker_id, blocked_id, user_id });
     if (error) toast.error(error.message);
     inv();
   }
@@ -315,14 +370,19 @@ export function useDependencyActions() {
 
 export const useProjectActions = () =>
   useCrud<Project, TablesInsert<"projects">, TablesUpdate<"projects">>("projects", qk.projects);
-export const useNoteActions = () => useCrud<Note, TablesInsert<"notes">, TablesUpdate<"notes">>("notes", qk.notes);
+export const useNoteActions = () =>
+  useCrud<Note, TablesInsert<"notes">, TablesUpdate<"notes">>("notes", qk.notes);
 export const useMilestoneActions = () =>
-  useCrud<Milestone, TablesInsert<"milestones">, TablesUpdate<"milestones">>("milestones", qk.milestones);
+  useCrud<Milestone, TablesInsert<"milestones">, TablesUpdate<"milestones">>(
+    "milestones",
+    qk.milestones,
+  );
 
 /* ---------- date helpers ---------- */
 export const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 /** Date-only string (yyyy-MM-dd) → ISO timestamp at 17:00 local time. */
-export const dateToIso = (s: string, hour = 17) => (s ? new Date(`${s}T${String(hour).padStart(2, "0")}:00:00`).toISOString() : null);
+export const dateToIso = (s: string, hour = 17) =>
+  s ? new Date(`${s}T${String(hour).padStart(2, "0")}:00:00`).toISOString() : null;
 export const isoToDate = (iso: string | null) => (iso ? format(new Date(iso), "yyyy-MM-dd") : "");
 
 export function taskRange(t: Pick<Task, "start_date" | "due_date">) {
@@ -339,4 +399,7 @@ export function shiftIso(iso: string | null, days: number) {
 }
 
 export const useAutomationActions = () =>
-  useCrud<Automation, TablesInsert<"automations">, TablesUpdate<"automations">>("automations", qk.automations);
+  useCrud<Automation, TablesInsert<"automations">, TablesUpdate<"automations">>(
+    "automations",
+    qk.automations,
+  );

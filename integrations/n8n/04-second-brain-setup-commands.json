@@ -1,0 +1,201 @@
+{
+  "name": "Second Brain – Setup Bot Commands",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d319831c-5e88-4b6f-8646-b243706de3e3",
+      "name": "Jalankan manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/setMyCommands",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"commands\": [{\"command\": \"today\", \"description\": \"Tugas hari ini + overdue\"}, {\"command\": \"inbox\", \"description\": \"Isi Inbox (pending)\"}, {\"command\": \"task\", \"description\": \"Buat tugas: /task Rapat besok 9:00 #kerja !high\"}, {\"command\": \"note\", \"description\": \"Buat catatan: /note Judul | isi\"}, {\"command\": \"done\", \"description\": \"Tandai selesai: /done <kata kunci>\"}, {\"command\": \"search\", \"description\": \"Cari tugas & catatan\"}, {\"command\": \"upcoming\", \"description\": \"Tugas 7 hari ke depan\"}, {\"command\": \"overdue\", \"description\": \"Tugas terlambat\"}, {\"command\": \"sum\", \"description\": \"Ringkas teks/URL dengan AI\"}, {\"command\": \"week\", \"description\": \"Ringkasan minggu ini\"}, {\"command\": \"link\", \"description\": \"Tautkan akun: /link KODE (dari Pengaturan)\"}, {\"command\": \"unlink\", \"description\": \"Putuskan tautan akun\"}, {\"command\": \"help\", \"description\": \"Bantuan\"}], \"language_code\": \"id\"}"
+      },
+      "id": "c7945c03-c853-4270-8e2b-b428a1a67765",
+      "name": "setMyCommands (id)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/setMyCommands",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"commands\": [{\"command\": \"today\", \"description\": \"Tugas hari ini + overdue\"}, {\"command\": \"inbox\", \"description\": \"Isi Inbox (pending)\"}, {\"command\": \"task\", \"description\": \"Buat tugas: /task Rapat besok 9:00 #kerja !high\"}, {\"command\": \"note\", \"description\": \"Buat catatan: /note Judul | isi\"}, {\"command\": \"done\", \"description\": \"Tandai selesai: /done <kata kunci>\"}, {\"command\": \"search\", \"description\": \"Cari tugas & catatan\"}, {\"command\": \"upcoming\", \"description\": \"Tugas 7 hari ke depan\"}, {\"command\": \"overdue\", \"description\": \"Tugas terlambat\"}, {\"command\": \"sum\", \"description\": \"Ringkas teks/URL dengan AI\"}, {\"command\": \"week\", \"description\": \"Ringkasan minggu ini\"}, {\"command\": \"link\", \"description\": \"Tautkan akun: /link KODE (dari Pengaturan)\"}, {\"command\": \"unlink\", \"description\": \"Putuskan tautan akun\"}, {\"command\": \"help\", \"description\": \"Bantuan\"}]}"
+      },
+      "id": "ea61a55c-c8ed-4fc8-ba21-41d63d0f17ca",
+      "name": "setMyCommands (default)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getMe",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "b887283a-7d81-42e0-8fe8-098fb0fb15b8",
+      "name": "getMe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getWebhookInfo",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "f2786ff2-4364-474b-9fcd-06ee1bebb330",
+      "name": "getWebhookInfo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/setWebhook",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $env.SECOND_BRAIN_URL + '/api/public/telegram/webhook', secret_token: $env.TELEGRAM_WEBHOOK_SECRET, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true }) }}"
+      },
+      "id": "2c9001c8-9338-484a-bce5-308364603158",
+      "name": "setWebhook → app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 220],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/deleteWebhook",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"drop_pending_updates\": true}"
+      },
+      "id": "c017fc90-c501-4f5f-b51f-b153f0c9f13e",
+      "name": "deleteWebhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 400],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## 🛠️ Setup bot (jalankan manual sekali)\n1. **setMyCommands** (id + default) → menu `/` di Telegram.\n2. **getMe** + **getWebhookInfo** → cek token & webhook aktif.\n\nNode **disabled** (pilih salah satu mode, lalu enable & Execute):\n- **setWebhook → app**: mode *app* — Telegram langsung ke `SECOND_BRAIN_URL/api/public/telegram/webhook` dengan `secret_token = TELEGRAM_WEBHOOK_SECRET` (dicek app via header `x-telegram-bot-api-secret-token`). Jangan aktifkan workflow 01 di mode ini.\n- **deleteWebhook**: bersihkan webhook sebelum pindah mode. Untuk mode n8n cukup *activate* workflow 01 — Telegram Trigger mendaftarkan webhook-nya sendiri.\n\nEnv: `TELEGRAM_BOT_TOKEN` (+ `SECOND_BRAIN_URL`, `TELEGRAM_WEBHOOK_SECRET` untuk setWebhook).",
+        "height": 360,
+        "width": 720,
+        "color": "6"
+      },
+      "id": "d5b3427d-6828-4e37-b316-e8839965b9b5",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -400]
+    }
+  ],
+  "connections": {
+    "Jalankan manual": {
+      "main": [
+        [
+          {
+            "node": "setMyCommands (id)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "setWebhook → app",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "deleteWebhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "setMyCommands (id)": {
+      "main": [
+        [
+          {
+            "node": "setMyCommands (default)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "setMyCommands (default)": {
+      "main": [
+        [
+          {
+            "node": "getMe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "getMe": {
+      "main": [
+        [
+          {
+            "node": "getWebhookInfo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "setWebhook → app": {
+      "main": [
+        [
+          {
+            "node": "getWebhookInfo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

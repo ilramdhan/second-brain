@@ -1,4 +1,12 @@
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: React.ReactNode | undefined; actions?: React.ReactNode | undefined }) {
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: React.ReactNode | undefined;
+  actions?: React.ReactNode | undefined;
+}) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">

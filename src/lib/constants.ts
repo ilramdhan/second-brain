@@ -6,9 +6,24 @@ export const TASK_STATUS = [
 ] as const;
 
 export const PRIORITY = [
-  { id: "high", label: "Tinggi", className: "bg-priority-high/10 text-priority-high", dot: "bg-priority-high" },
-  { id: "medium", label: "Sedang", className: "bg-priority-medium/15 text-priority-medium", dot: "bg-priority-medium" },
-  { id: "low", label: "Rendah", className: "bg-secondary text-muted-foreground", dot: "bg-priority-low" },
+  {
+    id: "high",
+    label: "Tinggi",
+    className: "bg-priority-high/10 text-priority-high",
+    dot: "bg-priority-high",
+  },
+  {
+    id: "medium",
+    label: "Sedang",
+    className: "bg-priority-medium/15 text-priority-medium",
+    dot: "bg-priority-medium",
+  },
+  {
+    id: "low",
+    label: "Rendah",
+    className: "bg-secondary text-muted-foreground",
+    dot: "bg-priority-low",
+  },
 ] as const;
 
 export const NOTE_STATUS = [
@@ -40,13 +55,48 @@ export const RECURRENCE = [
 
 // Literal class names so Tailwind keeps them.
 export const COLORS: Record<string, { dot: string; soft: string; bar: string; label: string }> = {
-  teal: { dot: "bg-tone-teal", soft: "bg-tone-teal/15 text-tone-teal", bar: "bg-tone-teal", label: "Teal" },
-  blue: { dot: "bg-tone-blue", soft: "bg-tone-blue/15 text-tone-blue", bar: "bg-tone-blue", label: "Biru" },
-  amber: { dot: "bg-tone-amber", soft: "bg-tone-amber/15 text-tone-amber", bar: "bg-tone-amber", label: "Kuning" },
-  rose: { dot: "bg-tone-rose", soft: "bg-tone-rose/15 text-tone-rose", bar: "bg-tone-rose", label: "Merah" },
-  violet: { dot: "bg-tone-violet", soft: "bg-tone-violet/15 text-tone-violet", bar: "bg-tone-violet", label: "Ungu" },
-  green: { dot: "bg-tone-green", soft: "bg-tone-green/15 text-tone-green", bar: "bg-tone-green", label: "Hijau" },
-  slate: { dot: "bg-tone-slate", soft: "bg-tone-slate/15 text-tone-slate", bar: "bg-tone-slate", label: "Abu" },
+  teal: {
+    dot: "bg-tone-teal",
+    soft: "bg-tone-teal/15 text-tone-teal",
+    bar: "bg-tone-teal",
+    label: "Teal",
+  },
+  blue: {
+    dot: "bg-tone-blue",
+    soft: "bg-tone-blue/15 text-tone-blue",
+    bar: "bg-tone-blue",
+    label: "Biru",
+  },
+  amber: {
+    dot: "bg-tone-amber",
+    soft: "bg-tone-amber/15 text-tone-amber",
+    bar: "bg-tone-amber",
+    label: "Kuning",
+  },
+  rose: {
+    dot: "bg-tone-rose",
+    soft: "bg-tone-rose/15 text-tone-rose",
+    bar: "bg-tone-rose",
+    label: "Merah",
+  },
+  violet: {
+    dot: "bg-tone-violet",
+    soft: "bg-tone-violet/15 text-tone-violet",
+    bar: "bg-tone-violet",
+    label: "Ungu",
+  },
+  green: {
+    dot: "bg-tone-green",
+    soft: "bg-tone-green/15 text-tone-green",
+    bar: "bg-tone-green",
+    label: "Hijau",
+  },
+  slate: {
+    dot: "bg-tone-slate",
+    soft: "bg-tone-slate/15 text-tone-slate",
+    bar: "bg-tone-slate",
+    label: "Abu",
+  },
 };
 
 export const color = (c?: string | null) => COLORS[c ?? "teal"] ?? COLORS["teal"]!;

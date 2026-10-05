@@ -30,7 +30,15 @@ import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth/google-calendar/return'
 import { Route as ApiPublicHooksRemindersRouteImport } from './routes/api/public/hooks/reminders'
+import { Route as ApiPublicN8nBackupRouteImport } from './routes/api/public/n8n/backup'
+import { Route as ApiPublicN8nBotRouteImport } from './routes/api/public/n8n/bot'
+import { Route as ApiPublicN8nCaptureRouteImport } from './routes/api/public/n8n/capture'
+import { Route as ApiPublicN8nDigestRouteImport } from './routes/api/public/n8n/digest'
+import { Route as ApiPublicN8nEventsRouteImport } from './routes/api/public/n8n/events'
+import { Route as ApiPublicN8nMaintenanceRouteImport } from './routes/api/public/n8n/maintenance'
+import { Route as ApiPublicN8nRemindersRouteImport } from './routes/api/public/n8n/reminders'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicN8nCalendarSyncRouteImport } from './routes/api/public/n8n/calendar/sync'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -141,10 +149,51 @@ const ApiPublicHooksRemindersRoute = ApiPublicHooksRemindersRouteImport.update({
   path: '/api/public/hooks/reminders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicN8nBackupRoute = ApiPublicN8nBackupRouteImport.update({
+  id: '/api/public/n8n/backup',
+  path: '/api/public/n8n/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicN8nBotRoute = ApiPublicN8nBotRouteImport.update({
+  id: '/api/public/n8n/bot',
+  path: '/api/public/n8n/bot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicN8nCaptureRoute = ApiPublicN8nCaptureRouteImport.update({
+  id: '/api/public/n8n/capture',
+  path: '/api/public/n8n/capture',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicN8nDigestRoute = ApiPublicN8nDigestRouteImport.update({
+  id: '/api/public/n8n/digest',
+  path: '/api/public/n8n/digest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicN8nEventsRoute = ApiPublicN8nEventsRouteImport.update({
+  id: '/api/public/n8n/events',
+  path: '/api/public/n8n/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicN8nMaintenanceRoute = ApiPublicN8nMaintenanceRouteImport.update({
+  id: '/api/public/n8n/maintenance',
+  path: '/api/public/n8n/maintenance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicN8nRemindersRoute = ApiPublicN8nRemindersRouteImport.update({
+  id: '/api/public/n8n/reminders',
+  path: '/api/public/n8n/reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTelegramWebhookRoute =
   ApiPublicTelegramWebhookRouteImport.update({
     id: '/api/public/telegram/webhook',
     path: '/api/public/telegram/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicN8nCalendarSyncRoute =
+  ApiPublicN8nCalendarSyncRouteImport.update({
+    id: '/api/public/n8n/calendar/sync',
+    path: '/api/public/n8n/calendar/sync',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -169,7 +218,15 @@ export interface FileRoutesByFullPath {
   '/notes/': typeof AuthenticatedNotesIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
+  '/api/public/n8n/backup': typeof ApiPublicN8nBackupRoute
+  '/api/public/n8n/bot': typeof ApiPublicN8nBotRoute
+  '/api/public/n8n/capture': typeof ApiPublicN8nCaptureRoute
+  '/api/public/n8n/digest': typeof ApiPublicN8nDigestRoute
+  '/api/public/n8n/events': typeof ApiPublicN8nEventsRoute
+  '/api/public/n8n/maintenance': typeof ApiPublicN8nMaintenanceRoute
+  '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -192,7 +249,15 @@ export interface FileRoutesByTo {
   '/notes': typeof AuthenticatedNotesIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
+  '/api/public/n8n/backup': typeof ApiPublicN8nBackupRoute
+  '/api/public/n8n/bot': typeof ApiPublicN8nBotRoute
+  '/api/public/n8n/capture': typeof ApiPublicN8nCaptureRoute
+  '/api/public/n8n/digest': typeof ApiPublicN8nDigestRoute
+  '/api/public/n8n/events': typeof ApiPublicN8nEventsRoute
+  '/api/public/n8n/maintenance': typeof ApiPublicN8nMaintenanceRoute
+  '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -217,7 +282,15 @@ export interface FileRoutesById {
   '/_authenticated/notes/': typeof AuthenticatedNotesIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
+  '/api/public/n8n/backup': typeof ApiPublicN8nBackupRoute
+  '/api/public/n8n/bot': typeof ApiPublicN8nBotRoute
+  '/api/public/n8n/capture': typeof ApiPublicN8nCaptureRoute
+  '/api/public/n8n/digest': typeof ApiPublicN8nDigestRoute
+  '/api/public/n8n/events': typeof ApiPublicN8nEventsRoute
+  '/api/public/n8n/maintenance': typeof ApiPublicN8nMaintenanceRoute
+  '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -242,7 +315,15 @@ export interface FileRouteTypes {
     | '/notes/'
     | '/projects/'
     | '/api/public/hooks/reminders'
+    | '/api/public/n8n/backup'
+    | '/api/public/n8n/bot'
+    | '/api/public/n8n/capture'
+    | '/api/public/n8n/digest'
+    | '/api/public/n8n/events'
+    | '/api/public/n8n/maintenance'
+    | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
+    | '/api/public/n8n/calendar/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -265,7 +346,15 @@ export interface FileRouteTypes {
     | '/notes'
     | '/projects'
     | '/api/public/hooks/reminders'
+    | '/api/public/n8n/backup'
+    | '/api/public/n8n/bot'
+    | '/api/public/n8n/capture'
+    | '/api/public/n8n/digest'
+    | '/api/public/n8n/events'
+    | '/api/public/n8n/maintenance'
+    | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
+    | '/api/public/n8n/calendar/sync'
   id:
     | '__root__'
     | '/_authenticated'
@@ -289,7 +378,15 @@ export interface FileRouteTypes {
     | '/_authenticated/notes/'
     | '/_authenticated/projects/'
     | '/api/public/hooks/reminders'
+    | '/api/public/n8n/backup'
+    | '/api/public/n8n/bot'
+    | '/api/public/n8n/capture'
+    | '/api/public/n8n/digest'
+    | '/api/public/n8n/events'
+    | '/api/public/n8n/maintenance'
+    | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
+    | '/api/public/n8n/calendar/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -297,7 +394,15 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicHooksRemindersRoute: typeof ApiPublicHooksRemindersRoute
+  ApiPublicN8nBackupRoute: typeof ApiPublicN8nBackupRoute
+  ApiPublicN8nBotRoute: typeof ApiPublicN8nBotRoute
+  ApiPublicN8nCaptureRoute: typeof ApiPublicN8nCaptureRoute
+  ApiPublicN8nDigestRoute: typeof ApiPublicN8nDigestRoute
+  ApiPublicN8nEventsRoute: typeof ApiPublicN8nEventsRoute
+  ApiPublicN8nMaintenanceRoute: typeof ApiPublicN8nMaintenanceRoute
+  ApiPublicN8nRemindersRoute: typeof ApiPublicN8nRemindersRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  ApiPublicN8nCalendarSyncRoute: typeof ApiPublicN8nCalendarSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -449,11 +554,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/n8n/backup': {
+      id: '/api/public/n8n/backup'
+      path: '/api/public/n8n/backup'
+      fullPath: '/api/public/n8n/backup'
+      preLoaderRoute: typeof ApiPublicN8nBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/n8n/bot': {
+      id: '/api/public/n8n/bot'
+      path: '/api/public/n8n/bot'
+      fullPath: '/api/public/n8n/bot'
+      preLoaderRoute: typeof ApiPublicN8nBotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/n8n/capture': {
+      id: '/api/public/n8n/capture'
+      path: '/api/public/n8n/capture'
+      fullPath: '/api/public/n8n/capture'
+      preLoaderRoute: typeof ApiPublicN8nCaptureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/n8n/digest': {
+      id: '/api/public/n8n/digest'
+      path: '/api/public/n8n/digest'
+      fullPath: '/api/public/n8n/digest'
+      preLoaderRoute: typeof ApiPublicN8nDigestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/n8n/events': {
+      id: '/api/public/n8n/events'
+      path: '/api/public/n8n/events'
+      fullPath: '/api/public/n8n/events'
+      preLoaderRoute: typeof ApiPublicN8nEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/n8n/maintenance': {
+      id: '/api/public/n8n/maintenance'
+      path: '/api/public/n8n/maintenance'
+      fullPath: '/api/public/n8n/maintenance'
+      preLoaderRoute: typeof ApiPublicN8nMaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/n8n/reminders': {
+      id: '/api/public/n8n/reminders'
+      path: '/api/public/n8n/reminders'
+      fullPath: '/api/public/n8n/reminders'
+      preLoaderRoute: typeof ApiPublicN8nRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/telegram/webhook': {
       id: '/api/public/telegram/webhook'
       path: '/api/public/telegram/webhook'
       fullPath: '/api/public/telegram/webhook'
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/n8n/calendar/sync': {
+      id: '/api/public/n8n/calendar/sync'
+      path: '/api/public/n8n/calendar/sync'
+      fullPath: '/api/public/n8n/calendar/sync'
+      preLoaderRoute: typeof ApiPublicN8nCalendarSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -508,7 +669,15 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicHooksRemindersRoute: ApiPublicHooksRemindersRoute,
+  ApiPublicN8nBackupRoute: ApiPublicN8nBackupRoute,
+  ApiPublicN8nBotRoute: ApiPublicN8nBotRoute,
+  ApiPublicN8nCaptureRoute: ApiPublicN8nCaptureRoute,
+  ApiPublicN8nDigestRoute: ApiPublicN8nDigestRoute,
+  ApiPublicN8nEventsRoute: ApiPublicN8nEventsRoute,
+  ApiPublicN8nMaintenanceRoute: ApiPublicN8nMaintenanceRoute,
+  ApiPublicN8nRemindersRoute: ApiPublicN8nRemindersRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  ApiPublicN8nCalendarSyncRoute: ApiPublicN8nCalendarSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
