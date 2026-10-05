@@ -21,7 +21,7 @@ import {
   type BlockIndex,
   type BlockType,
 } from "@/lib/blocks";
-import { useNoteActions, useNotes, useProjects, useTasks } from "@/lib/data";
+import { useNoteActions, useNoteBlocks, useNotes, useProjects, useTasks } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 type Menu = { kind: "slash" | "wiki" | "ref"; query: string; index: number } | null;
@@ -238,7 +238,9 @@ export function BlockEditor({
   onChange: (b: Block[]) => void;
 }) {
   const { data: notes = [] } = useNotes();
-  const index = useMemo(() => indexBlocks(notes), [notes]);
+  // Block refs/embeds need every note's blocks; the list cache (`useNotes`) has no blocks.
+  const { data: blockNotes = [] } = useNoteBlocks();
+  const index = useMemo(() => indexBlocks(blockNotes), [blockNotes]);
   const [focus, setFocus] = useState<{ id: string; caret: number } | null>(null);
   const [menu, setMenu] = useState<Menu>(null);
   const [drag, setDrag] = useState<{ from: string; over: string | null } | null>(null);

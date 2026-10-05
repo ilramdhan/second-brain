@@ -13,19 +13,11 @@ import { id as localeId } from "date-fns/locale";
 import { ArrowRight, Diamond, Inbox as InboxIcon, Plus, Rocket } from "lucide-react";
 
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { TaskRow } from "@/components/tasks/TaskItem";
+import { TaskRows, useTaskRowLookups, type TaskRowLookups } from "@/components/tasks/TaskItem";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { color } from "@/lib/constants";
-import {
-  taskRange,
-  useMe,
-  useMilestones,
-  useProjects,
-  useTasks,
-  type Project,
-  type Task,
-} from "@/lib/data";
+import { taskRange, useMe, useMilestones, useProjects, useTasks, type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 
@@ -64,6 +56,7 @@ function Dashboard() {
       ).count ?? 0,
   });
 
+  const lookups = useTaskRowLookups(tasks, projects);
   const today = startOfDay(new Date());
   const top = tasks.filter((t) => !t.parent_id);
   const open = top.filter((t) => t.status !== "done");
@@ -157,21 +150,14 @@ function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Section
-            title="Terlambat"
-            tasks={overdue}
-            tone="text-priority-high"
-            projects={projects}
-            all={tasks}
-          />
+          <Section title="Terlambat" tasks={overdue} tone="text-priority-high" lookups={lookups} />
           <Section
             title="Hari ini"
             tasks={todayList}
-            projects={projects}
-            all={tasks}
+            lookups={lookups}
             empty="Tidak ada tugas untuk hari ini. Nikmati harimu, atau tarik sesuatu dari Upcoming."
           />
-          <Section title="7 hari ke depan" tasks={week} projects={projects} all={tasks} />
+          <Section title="7 hari ke depan" tasks={week} lookups={lookups} />
         </div>
         <aside className="space-y-4">
           <section className="rounded-2xl border bg-card p-4">
@@ -260,15 +246,13 @@ function Section({
   title,
   tasks,
   tone,
-  projects,
-  all,
+  lookups,
   empty,
 }: {
   title: string;
   tasks: Task[];
   tone?: string | undefined;
-  projects: Project[];
-  all: Task[];
+  lookups: TaskRowLookups;
   empty?: string | undefined;
 }) {
   if (tasks.length === 0 && !empty) return null;
@@ -282,11 +266,7 @@ function Section({
           {empty}
         </p>
       ) : (
-        <ul className="space-y-2">
-          {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} projects={projects} allTasks={all} />
-          ))}
-        </ul>
+        <TaskRows tasks={tasks} lookups={lookups} />
       )}
     </section>
   );

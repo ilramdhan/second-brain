@@ -420,6 +420,7 @@ function GoogleCalendarPanel() {
 }
 
 function BackupPanel() {
+  const qc = useQueryClient();
   async function download() {
     const tables: Record<string, unknown[]> = {};
     for (const table of BACKUP_TABLES) {
@@ -500,8 +501,10 @@ function BackupPanel() {
         }
         restored += plan.update.length + plan.insert.length;
       }
+      // Restored rows bypass the data hooks; drop the cached lists so every view refetches.
+      void qc.invalidateQueries();
       toast.success(
-        `Backup dipulihkan (${restored} baris${skipped ? `, ${skipped} milik orang lain dilewati` : ""}). Muat ulang halaman untuk melihat data.`,
+        `Backup dipulihkan (${restored} baris${skipped ? `, ${skipped} milik orang lain dilewati` : ""}).`,
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Backup gagal dipulihkan");

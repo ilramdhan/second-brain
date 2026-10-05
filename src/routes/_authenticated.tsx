@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
@@ -25,15 +25,13 @@ import {
   BarChart3,
   LayoutTemplate,
   Archive,
+  Loader2,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { TaskDialogProvider, useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { CommandMenu } from "@/components/CommandMenu";
-import { QuickCapture } from "@/components/QuickCapture";
-import { QuickTask } from "@/components/tasks/QuickTask";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +43,23 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/lib/preferences";
 import { logActivity } from "@/lib/activity";
+
+// Dialog bodies are loaded the first time they open, not with the app shell.
+const CommandMenu = lazy(() => import("@/components/CommandMenu"));
+const QuickCapture = lazy(() =>
+  import("@/components/QuickCapture").then((m) => ({ default: m.QuickCapture })),
+);
+const QuickTask = lazy(() =>
+  import("@/components/tasks/QuickTask").then((m) => ({ default: m.QuickTask })),
+);
+
+function DialogFallback() {
+  return (
+    <div className="flex justify-center py-8">
+      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -129,6 +144,17 @@ function Shell() {
       if (!e.metaKey && !e.ctrlKey && !e.altKey && (e.key === "q" || e.key === "Q")) {
         e.preventDefault();
         setQuick(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  // Ctrl/Cmd+K toggles the palette from anywhere (also inside inputs), like before.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmd((open) => !open);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -301,7 +327,9 @@ function Shell() {
               Ketik, rekam suara, atau foto catatan. Semuanya masuk Inbox untuk dirapikan AI.
             </DialogDescription>
           </DialogHeader>
-          <QuickCapture onCaptured={() => setCapture(false)} />
+          <Suspense fallback={<DialogFallback />}>
+            {capture && <QuickCapture onCaptured={() => setCapture(false)} />}
+          </Suspense>
           <button
             onClick={() => {
               setCapture(false);
@@ -331,11 +359,17 @@ function Shell() {
               Ketik seperti biasa — tanggal, jam, tag, orang, dan prioritas dikenali otomatis.
             </DialogDescription>
           </DialogHeader>
-          <QuickTask onDone={() => setQuick(false)} />
+          <Suspense fallback={<DialogFallback />}>
+            {quick && <QuickTask onDone={() => setQuick(false)} />}
+          </Suspense>
         </DialogContent>
       </Dialog>
 
-      <CommandMenu open={cmd} onOpenChange={setCmd} />
+      {cmd && (
+        <Suspense fallback={null}>
+          <CommandMenu open={cmd} onOpenChange={setCmd} />
+        </Suspense>
+      )}
     </div>
   );
 }

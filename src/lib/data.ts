@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { addDays, addMonths, addWeeks, format, startOfDay } from "date-fns";
 import { toast } from "sonner";
@@ -7,12 +7,62 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { notifyUnblocked, runAutomations } from "@/lib/automations.functions";
 import type { Trigger } from "@/lib/automation-types";
+import {
+  afterPinned,
+  ilikePattern,
+  insertRow,
+  omitKeys,
+  patchCached,
+  pickKeys,
+  removeRows,
+} from "@/lib/query-cache";
 
-export type Task = Tables<"tasks">;
-export type Project = Tables<"projects">;
+/* ---------- column lists (no `select *`) ---------- */
+// Columns the client never reads are left out: soft-delete/archive flags (always null in the
+// lists), reminder bookkeeping and the Google event id (server-side only).
+export const TASK_COLS =
+  "id,user_id,project_id,parent_id,milestone_id,title,description,status,priority,tags,assignee_id,assignee_name,start_date,due_date,time_block_end,estimate_minutes,recurrence,position,completed_at,created_at,updated_at";
+export const PROJECT_COLS =
+  "id,user_id,parent_id,name,description,color,para_type,status,start_date,due_date,launch_date,position,created_at,updated_at";
+export const MILESTONE_COLS = "id,user_id,project_id,title,description,due_date,done,created_at";
+export const DEP_COLS = "id,blocker_id,blocked_id";
+export const AUTOMATION_COLS =
+  "id,user_id,name,enabled,trigger,conditions,actions,run_count,last_run_at,created_at";
+// Notes list: everything except `blocks` (the jsonb source of truth, roughly the markdown
+// mirror again plus per-block JSON). `content` stays for card previews and search; a true
+// server-side excerpt needs a generated column (migration, out of scope for Phase 3).
+export const NOTE_LIST_COLS =
+  "id,title,content,tags,status,pinned,project_id,position,properties,created_at,updated_at";
+export const NOTE_DETAIL_COLS = `${NOTE_LIST_COLS},blocks`;
+/** Only what backlinks, the block index (transclusion/refs) and the graph need. */
+export const NOTE_BLOCK_COLS = "id,title,tags,project_id,blocks,content";
+
+export type Task = Omit<
+  Tables<"tasks">,
+  "deleted_at" | "archived_at" | "reminded" | "google_event_id"
+>;
+export type Project = Omit<Tables<"projects">, "deleted_at">;
+/** Full note row (editor, inserts). */
 export type Note = Tables<"notes">;
+/** Row in the notes list cache (`qk.notes`): no `blocks`. */
+export type NoteSummary = Pick<
+  Note,
+  | "id"
+  | "title"
+  | "content"
+  | "tags"
+  | "status"
+  | "pinned"
+  | "project_id"
+  | "position"
+  | "properties"
+  | "created_at"
+  | "updated_at"
+>;
+export type NoteDetail = NoteSummary & Pick<Note, "blocks">;
+export type NoteBlocks = Pick<Note, "id" | "title" | "tags" | "project_id" | "blocks" | "content">;
 export type Milestone = Tables<"milestones">;
-export type Dependency = Tables<"task_dependencies">;
+export type Dependency = Pick<Tables<"task_dependencies">, "id" | "blocker_id" | "blocked_id">;
 export type Automation = Tables<"automations">;
 export type Person = { user_id: string; display_name: string | null; email: string; role: string };
 
@@ -20,6 +70,8 @@ export const qk = {
   tasks: ["tasks"] as const,
   projects: ["projects"] as const,
   notes: ["notes"] as const,
+  note: (id: string) => ["notes", "detail", id] as const,
+  noteBlocks: ["notes", "blocks"] as const,
   milestones: ["milestones"] as const,
   deps: ["deps"] as const,
   automations: ["automations"] as const,
@@ -46,7 +98,7 @@ export function useTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("*")
+        .select(TASK_COLS)
         .is("deleted_at", null)
         .is("archived_at", null)
         .order("position")
@@ -62,7 +114,7 @@ export function useProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("*")
+        .select(PROJECT_COLS)
         .is("deleted_at", null)
         .order("position")
         .order("name");
@@ -74,14 +126,49 @@ export function useProjects() {
 export function useNotes() {
   return useQuery({
     queryKey: qk.notes,
-    queryFn: async () => {
+    queryFn: async (): Promise<NoteSummary[]> => {
       const { data, error } = await supabase
         .from("notes")
-        .select("*")
+        .select(NOTE_LIST_COLS)
         .is("deleted_at", null)
         .is("archived_at", null)
         .order("pinned", { ascending: false })
         .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+/** One note with its blocks, for the editor. `null` when missing, trashed or archived. */
+export function useNote(id: string) {
+  return useQuery({
+    queryKey: qk.note(id),
+    queryFn: async (): Promise<NoteDetail | null> => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select(NOTE_DETAIL_COLS)
+        .eq("id", id)
+        .is("deleted_at", null)
+        .is("archived_at", null)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+/**
+ * Blocks of every visible note, for backlinks, block refs/embeds and the graph. Only the note
+ * editor and graph routes subscribe to it, so other pages never download note bodies.
+ */
+export function useNoteBlocks() {
+  return useQuery({
+    queryKey: qk.noteBlocks,
+    queryFn: async (): Promise<NoteBlocks[]> => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select(NOTE_BLOCK_COLS)
+        .is("deleted_at", null)
+        .is("archived_at", null);
       if (error) throw error;
       return data;
     },
@@ -93,7 +180,7 @@ export function useMilestones() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("milestones")
-        .select("*")
+        .select(MILESTONE_COLS)
         .order("due_date", { nullsFirst: false });
       if (error) throw error;
       return data;
@@ -104,7 +191,7 @@ export function useDeps() {
   return useQuery({
     queryKey: qk.deps,
     queryFn: async () => {
-      const { data, error } = await supabase.from("task_dependencies").select("*");
+      const { data, error } = await supabase.from("task_dependencies").select(DEP_COLS);
       if (error) throw error;
       return data;
     },
@@ -114,9 +201,63 @@ export function useAutomations() {
   return useQuery({
     queryKey: qk.automations,
     queryFn: async () => {
-      const { data, error } = await supabase.from("automations").select("*").order("created_at");
+      const { data, error } = await supabase
+        .from("automations")
+        .select(AUTOMATION_COLS)
+        .order("created_at");
       if (error) throw error;
       return data;
+    },
+  });
+}
+
+export type SearchHit = { id: string; title: string };
+export type SearchResults = { tasks: SearchHit[]; projects: SearchHit[]; notes: SearchHit[] };
+const SEARCH_LIMIT = 20;
+
+/**
+ * Lightweight title search for the command menu: `id,title` only, capped per entity, filtered
+ * in Postgres (`ilike`). An empty term returns the most recently updated rows. Unlike
+ * useTasks/useNotes it never downloads whole tables (descriptions, note blocks/content).
+ */
+export function useSearch(term: string, enabled = true) {
+  const t = term.trim();
+  return useQuery({
+    queryKey: ["search", t],
+    enabled,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+    queryFn: async (): Promise<SearchResults> => {
+      const pattern = ilikePattern(t);
+      let tasks = supabase
+        .from("tasks")
+        .select("id,title")
+        .is("deleted_at", null)
+        .is("archived_at", null)
+        .is("parent_id", null);
+      let projects = supabase.from("projects").select("id,name").is("deleted_at", null);
+      let notes = supabase
+        .from("notes")
+        .select("id,title")
+        .is("deleted_at", null)
+        .is("archived_at", null);
+      if (t) {
+        tasks = tasks.ilike("title", pattern);
+        projects = projects.ilike("name", pattern);
+        notes = notes.ilike("title", pattern);
+      }
+      const [tr, pr, nr] = await Promise.all([
+        tasks.order("updated_at", { ascending: false }).limit(SEARCH_LIMIT),
+        projects.order("name").limit(SEARCH_LIMIT),
+        notes.order("updated_at", { ascending: false }).limit(SEARCH_LIMIT),
+      ]);
+      const error = tr.error ?? pr.error ?? nr.error;
+      if (error) throw error;
+      return {
+        tasks: tr.data ?? [],
+        projects: (pr.data ?? []).map((p) => ({ id: p.id, title: p.name })),
+        notes: nr.data ?? [],
+      };
     },
   });
 }
@@ -145,58 +286,143 @@ export function usePeople(projectId: string | null | undefined) {
 
 type TableName = "tasks" | "projects" | "notes" | "milestones" | "automations";
 
+const COLS: Record<TableName, string> = {
+  tasks: TASK_COLS,
+  projects: PROJECT_COLS,
+  notes: NOTE_LIST_COLS,
+  milestones: MILESTONE_COLS,
+  automations: AUTOMATION_COLS,
+};
+const NOTE_BLOCK_FIELDS = ["id", "title", "tags", "project_id", "blocks", "content"] as const;
+
+type Snapshot = [QueryKey, unknown][];
+/** Every cached query under `key` (list, detail, blocks...), for rollback. */
+const snapshot = (qc: QueryClient, key: readonly string[]): Snapshot =>
+  qc.getQueriesData({ queryKey: key });
+const restore = (qc: QueryClient, snap: Snapshot) =>
+  snap.forEach(([k, data]) => qc.setQueryData(k, data));
+
+/**
+ * What a patch looks like in a given cached query: the notes list (qk.notes) never holds
+ * `blocks`, the blocks cache only holds its own fields, everything else takes it whole.
+ */
+function patchFor(table: TableName, queryKey: QueryKey, patch: object): object {
+  if (table !== "notes") return patch;
+  if (queryKey.length === 1) return omitKeys(patch as Record<string, unknown>, ["blocks"]);
+  if (queryKey[1] === "blocks")
+    return pickKeys(patch as Record<string, unknown>, NOTE_BLOCK_FIELDS as unknown as string[]);
+  return patch;
+}
+
+/**
+ * Create/update/remove/archive for one entity. The cache is updated directly (optimistic for
+ * update/remove/archive, with the inserted row for create); on failure the snapshot is
+ * restored and the entity refetched. Successful writes never refetch whole lists.
+ */
 function useCrud<Row extends { id: string }, Ins, Upd>(table: TableName, key: readonly string[]) {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const from = () => supabase.from(table) as any;
 
+  /** Applies `fn` to every cached query under the entity key. */
+  function mapCached(fn: (data: unknown, queryKey: QueryKey) => unknown) {
+    for (const [k, data] of qc.getQueriesData({ queryKey: key })) {
+      const next = fn(data, k);
+      if (next !== data) qc.setQueryData(k, next);
+    }
+  }
+  function fail(snap: Snapshot, message: string) {
+    restore(qc, snap);
+    toast.error(message);
+    void invalidate();
+  }
+
   async function create(input: Omit<Ins, "user_id">): Promise<Row | null> {
     const user_id = await getUid();
     const { data, error } = await from()
       .insert({ ...input, user_id })
-      .select()
+      .select(COLS[table])
       .single();
     if (error) {
       toast.error(error.message);
       return null;
     }
-    await invalidate();
-    return data as Row;
+    const row = data as Row;
+    qc.setQueryData<Row[]>(key, (old) =>
+      insertRow(
+        old,
+        row,
+        table === "notes" ? afterPinned(old as unknown as { pinned: boolean }[]) : undefined,
+      ),
+    );
+    if (table === "notes" && qc.getQueryData(qk.noteBlocks)) {
+      const blocks = (input as { blocks?: unknown }).blocks ?? [];
+      qc.setQueryData<NoteBlocks[]>(qk.noteBlocks, (old) =>
+        insertRow(old, {
+          ...pickKeys(row as unknown as NoteSummary, [
+            "id",
+            "title",
+            "tags",
+            "project_id",
+            "content",
+          ]),
+          blocks,
+        } as NoteBlocks),
+      );
+    }
+    return row;
   }
   async function update(id: string, patch: Upd) {
-    qc.setQueryData<Row[]>(key, (old) =>
-      old?.map((r) => (r.id === id ? ({ ...r, ...patch } as Row) : r)),
-    );
     const withTs =
       table === "milestones" || table === "automations"
         ? patch
         : { ...patch, updated_at: new Date().toISOString() };
+    const snap = snapshot(qc, key);
+    mapCached((data, k) => patchCached(data, id, patchFor(table, k, withTs as object)));
     const { error } = await from().update(withTs).eq("id", id);
-    if (error) toast.error(error.message);
-    invalidate();
+    if (error) fail(snap, error.message);
+  }
+  async function hide(id: string, patch: Record<string, string>, done: string) {
+    const snap = snapshot(qc, key);
+    // Trashing a task trashes its subtasks too (archiving does not).
+    const cascade = table === "tasks" && "deleted_at" in patch;
+    mapCached((data) =>
+      Array.isArray(data)
+        ? removeRows(
+            data as { id: string; parent_id?: string | null }[],
+            (r) => r.id === id || (cascade && r.parent_id === id),
+          )
+        : data,
+    );
+    const { error } = await from().update(patch).eq("id", id);
+    if (!error && cascade) await from().update(patch).eq("parent_id", id).is("deleted_at", null);
+    if (error) fail(snap, error.message);
+    else {
+      toast.message(done);
+      // The open detail page navigates away itself; mark its cache stale for the next visit
+      // without refetching it now.
+      void qc.invalidateQueries({ queryKey: [...key, "detail", id], refetchType: "none" });
+    }
+    void qc.invalidateQueries({ queryKey: ["bin"] });
   }
   async function remove(id: string) {
-    qc.setQueryData<Row[]>(key, (old) => old?.filter((r) => r.id !== id));
     const soft = table === "tasks" || table === "notes" || table === "projects";
-    const now = new Date().toISOString();
-    const { error } = soft
-      ? await from().update({ deleted_at: now }).eq("id", id)
-      : await from().delete().eq("id", id);
-    if (!error && table === "tasks")
-      await from().update({ deleted_at: now }).eq("parent_id", id).is("deleted_at", null);
-    if (error) toast.error(error.message);
-    else if (soft) toast.message("Dipindah ke Tempat Sampah — bisa dikembalikan dalam 30 hari");
-    invalidate();
-    qc.invalidateQueries({ queryKey: ["bin"] });
+    if (soft)
+      return hide(
+        id,
+        { deleted_at: new Date().toISOString() },
+        "Dipindah ke Tempat Sampah — bisa dikembalikan dalam 30 hari",
+      );
+    const snap = snapshot(qc, key);
+    mapCached((data) =>
+      Array.isArray(data) ? removeRows(data as Row[], (r) => r.id === id) : data,
+    );
+    const { error } = await from().delete().eq("id", id);
+    if (error) fail(snap, error.message);
   }
   async function archive(id: string) {
-    qc.setQueryData<Row[]>(key, (old) => old?.filter((r) => r.id !== id));
-    const { error } = await from().update({ archived_at: new Date().toISOString() }).eq("id", id);
-    if (error) toast.error(error.message);
-    else toast.message("Diarsipkan");
-    invalidate();
-    qc.invalidateQueries({ queryKey: ["bin"] });
+    return hide(id, { archived_at: new Date().toISOString() }, "Diarsipkan");
   }
   return { create, update, remove, archive, invalidate };
 }
@@ -336,7 +562,6 @@ export function useTaskActions() {
 
 export function useDependencyActions() {
   const qc = useQueryClient();
-  const inv = () => qc.invalidateQueries({ queryKey: qk.deps });
   async function add(blocker_id: string, blocked_id: string) {
     const deps = qc.getQueryData<Dependency[]>(qk.deps) ?? [];
     // reject cycles: blocked_id must not (transitively) block blocker_id
@@ -353,17 +578,25 @@ export function useDependencyActions() {
       deps.filter((d) => d.blocker_id === cur).forEach((d) => stack.push(d.blocked_id));
     }
     const user_id = await getUid();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("task_dependencies")
-      .insert({ blocker_id, blocked_id, user_id });
-    if (error) toast.error(error.message);
-    inv();
+      .insert({ blocker_id, blocked_id, user_id })
+      .select(DEP_COLS)
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    qc.setQueryData<Dependency[]>(qk.deps, (o) => insertRow(o, data));
   }
   async function remove(id: string) {
-    qc.setQueryData<Dependency[]>(qk.deps, (o) => o?.filter((d) => d.id !== id));
+    const prev = qc.getQueryData<Dependency[]>(qk.deps);
+    qc.setQueryData<Dependency[]>(qk.deps, (o) => removeRows(o, (d) => d.id === id));
     const { error } = await supabase.from("task_dependencies").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    inv();
+    if (error) {
+      qc.setQueryData(qk.deps, prev);
+      toast.error(error.message);
+    }
   }
   return { add, remove };
 }
@@ -371,7 +604,7 @@ export function useDependencyActions() {
 export const useProjectActions = () =>
   useCrud<Project, TablesInsert<"projects">, TablesUpdate<"projects">>("projects", qk.projects);
 export const useNoteActions = () =>
-  useCrud<Note, TablesInsert<"notes">, TablesUpdate<"notes">>("notes", qk.notes);
+  useCrud<NoteSummary, TablesInsert<"notes">, TablesUpdate<"notes">>("notes", qk.notes);
 export const useMilestoneActions = () =>
   useCrud<Milestone, TablesInsert<"milestones">, TablesUpdate<"milestones">>(
     "milestones",

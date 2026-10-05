@@ -114,3 +114,39 @@ _Placeholder: needs a live deployment (Vercel preview)._
 | TBT                     | TBD   |
 | INP (field or Timespan) | TBD   |
 | CLS                     | TBD   |
+
+## After Phase 3
+
+**Build:** branch `phase-3/perf-quick-wins` (Phase 3.1–3.7, head `4ab6547`) against its base `origin/main` `9212630`, 2026-10-05, `vite build` (Vite 8, rolldown) with the default `vercel` Nitro preset and placeholder `VITE_SUPABASE_*` values. Sizes are raw bytes and gzip level 9 in KiB, measured the same way as above. The "before" column is a fresh build of the base commit, so it includes the dependency bumps merged after the Phase 0 baseline (entry 183.5 vs 175.6 gzip KiB).
+
+"Layout closure" is the entry plus the static-import closure of the `_authenticated` layout chunk: the JS every authenticated page waits for before its own route chunk loads.
+
+| Metric (gzip KiB unless noted)        | Before (`9212630`) | After (Phase 3) |                                Change |
+| ------------------------------------- | -----------------: | --------------: | ------------------------------------: |
+| Entry JS (`index-*` + static imports) |              183.5 |           184.0 |                         +0.5 (router) |
+| **Entry + `_authenticated` layout**   |          **269.7** |       **219.5** |                      **−50.2 (−19%)** |
+| Layout closure, raw                   |              863.1 |           718.1 |                         −145.0 (−17%) |
+| Layout closure, chunk count           |                 46 |              34 |                                   −12 |
+| `_authenticated-*` layout chunk       |               11.7 |             4.7 |                                  −7.0 |
+| `TaskDialogProvider-*`                |                5.4 |             1.3 |                                  −4.1 |
+| All JS (sum of every chunk)           |              402.0 |           409.9 | +7.9 (new lazy chunks, cache helpers) |
+| CSS                                   |               15.1 |            15.1 |                                     0 |
+
+Moved out of the layout into on-demand chunks: `TaskEditor` (4.9, first task open), `CommandMenu` + cmdk (5.6, first Ctrl+K), `QuickTask` (3.2), `QuickCapture` (2.2), and with them `data-*` (query hooks, 7.1), Radix `select` (16.5), `TagInput`, `date-fns/locale` and `googleCalendar.functions`. Route chunks were already split per file (TanStack Start forces `autoCodeSplitting`): `d3-force` lives only in `graph-*` (8.2) and Yjs + the block editor only in `notes._noteId-*` (37.4).
+
+### Supabase requests (expected, from code; confirm on the Vercel preview)
+
+Not measured against a live deployment yet; the numbers below follow from the code paths and replace the TBD rows of section 2 once confirmed in DevTools.
+
+| Scenario                                    | Before                                                                                      | After                                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Any page, shell only (e.g. Settings)        | tasks `*` + projects `*` + notes `*` (blocks + content) from the always-mounted CommandMenu | 0 list queries; the palette queries `id,title` (≤ 20 rows × 3) only when opened              |
+| Today → Settings → Tasks                    | every mount refetches tasks/projects/notes/milestones/deps/automations (`staleTime: 0`)     | first visit fetches what the page needs once; revisits within 60 s: 0                        |
+| Alt-tab back to the window                  | 4–6 parallel `select *` refetches                                                           | 0 (`refetchOnWindowFocus: false`)                                                            |
+| Tick a task done                            | 1 PATCH + full `tasks select *` refetch                                                     | 1 PATCH (optimistic cache update)                                                            |
+| Create a task                               | 1 INSERT + full tasks refetch awaited before the dialog closes                              | 1 INSERT (row returned by `.select()` goes straight into the cache)                          |
+| Push a blocker's deadline with N dependents | N+1 PATCH + N+1 full tasks refetches                                                        | N+1 PATCH, 0 refetches                                                                       |
+| Note autosave (every 700 ms while typing)   | 1 PATCH + full `notes select *` (all blocks + content)                                      | 1 PATCH, 0 refetches                                                                         |
+| Open the notes list                         | `notes select *` incl. `blocks` jsonb                                                       | notes without `blocks` (content kept for previews/search); ~half the payload for block notes |
+
+Per navigation this removes the repeated refetches entirely (target ≥ 80 % fewer Supabase requests per the plan's exit criteria). The remaining large payload is `useNoteBlocks()` (all notes' blocks), now requested only on note detail and graph pages; moving backlinks server-side is Phase 4.2.

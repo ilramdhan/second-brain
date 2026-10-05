@@ -33,7 +33,14 @@ import {
 import { summarizeMeeting } from "@/lib/ai.functions";
 import { indexBlocks, linksOf, loadBlocks, toMarkdown, type Block } from "@/lib/blocks";
 import { NOTE_STATUS } from "@/lib/constants";
-import { useNoteActions, useNotes, useProjects, type Note } from "@/lib/data";
+import {
+  useNote,
+  useNoteActions,
+  useNoteBlocks,
+  useProjects,
+  type NoteBlocks,
+  type NoteDetail,
+} from "@/lib/data";
 import type { Json } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,8 +73,7 @@ const NONE = "none";
 
 function NotePage() {
   const { noteId } = Route.useParams();
-  const { data: notes, isLoading } = useNotes();
-  const note = notes?.find((n) => n.id === noteId);
+  const { data: note, isLoading } = useNote(noteId);
   if (isLoading)
     return (
       <div className="flex justify-center py-20">
@@ -83,10 +89,12 @@ function NotePage() {
         </Button>
       </div>
     );
-  return <NoteEditor key={note.id} note={note} notes={notes ?? []} />;
+  return <NoteEditor key={note.id} note={note} />;
 }
 
-function NoteEditor({ note, notes }: { note: Note; notes: Note[] }) {
+function NoteEditor({ note }: { note: NoteDetail }) {
+  // Every note's blocks, for backlinks and block refs. Fetched on this route only.
+  const { data: notes = [] } = useNoteBlocks();
   const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
   const actions = useNoteActions();
@@ -154,8 +162,8 @@ function NoteEditor({ note, notes }: { note: Note; notes: Note[] }) {
   const { linked, unlinked } = useMemo(() => {
     const myTitle = note.title.trim().toLowerCase();
     const myBlocks = new Set(blocks.map((b) => b.id));
-    const linked: { note: Note; snippets: string[] }[] = [];
-    const unlinked: Note[] = [];
+    const linked: { note: NoteBlocks; snippets: string[] }[] = [];
+    const unlinked: NoteBlocks[] = [];
     for (const n of notes) {
       if (n.id === note.id) continue;
       const bl = loadBlocks(n);
@@ -466,7 +474,7 @@ function VersionHistory({
   onOpenChange,
   onRestore,
 }: {
-  note: Note;
+  note: NoteDetail;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRestore: (version: { title: string; blocks: Block[] }) => void;
@@ -474,6 +482,8 @@ function VersionHistory({
   const { data = [], isLoading } = useQuery({
     queryKey: ["note-versions", note.id],
     enabled: open,
+    // Snapshots are written by a DB trigger on save, so reload whenever the sheet opens.
+    staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("note_versions")

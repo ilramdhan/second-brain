@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   addDays,
   addMonths,
@@ -33,7 +33,8 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { TaskRow } from "@/components/tasks/TaskItem";
+import { TaskRows, useTaskRowLookups } from "@/components/tasks/TaskItem";
+import { byId, tasksByDay } from "@/lib/task-maps";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, priorityOf } from "@/lib/constants";
@@ -89,19 +90,9 @@ function CalendarPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
   );
 
-  const byDay = useMemo(() => {
-    const m = new Map<string, Task[]>();
-    for (const t of tasks) {
-      const r = taskRange(t);
-      if (!r) continue;
-      const days = differenceInCalendarDays(r.end, r.start);
-      for (let i = 0; i <= Math.min(days, 366); i++) {
-        const k = dayKey(addDays(r.start, i));
-        m.set(k, [...(m.get(k) ?? []), t]);
-      }
-    }
-    return m;
-  }, [tasks]);
+  // Computed once per tasks change; pushes in place (was a copy of the day's array per task).
+  const byDay = useMemo(() => tasksByDay(tasks), [tasks]);
+  const projectById = useMemo(() => byId(projects), [projects]);
 
   const markers = useMemo(() => {
     const m = new Map<
@@ -125,10 +116,13 @@ function CalendarPage() {
     return m;
   }, [milestones, projects]);
 
-  const colorFor = (t: Task) => {
-    const p = projects.find((x) => x.id === t.project_id);
-    return p ? color(p.color).soft : priorityOf(t.priority).className;
-  };
+  const colorFor = useCallback(
+    (t: Task) => {
+      const p = t.project_id ? projectById.get(t.project_id) : undefined;
+      return p ? color(p.color).soft : priorityOf(t.priority).className;
+    },
+    [projectById],
+  );
 
   function onDragEnd(e: DragEndEvent) {
     setDragging(null);
@@ -484,6 +478,7 @@ function DayView({
 }) {
   const { data: projects = [] } = useProjects();
   const { data: all = [] } = useTasks();
+  const lookups = useTaskRowLookups(all, projects);
   const { newTask } = useTaskDialog();
   const { setNodeRef } = useDroppable({ id: dayKey(day) });
   return (
@@ -498,11 +493,7 @@ function DayView({
           {m.label}
         </p>
       ))}
-      <ul className="space-y-2">
-        {tasks.map((t) => (
-          <TaskRow key={t.id} task={t} projects={projects} allTasks={all} />
-        ))}
-      </ul>
+      <TaskRows tasks={tasks} lookups={lookups} />
       {tasks.length === 0 && (
         <p className="py-6 text-center text-sm text-muted-foreground">
           Tidak ada tugas di hari ini.

@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 import { NotesBoard } from "@/components/notes/NotesBoard";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
-import { CheckCircle } from "@/components/tasks/TaskDialogProvider";
+import { CheckCircle } from "@/components/tasks/CheckCircle";
 import { TaskViews } from "@/components/tasks/TaskViews";
 import { Timeline } from "@/components/Timeline";
 import { Button } from "@/components/ui/button";

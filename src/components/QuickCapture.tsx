@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square, ImageIcon, SendHorizonal, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { transcribeVoice, ocrImage } from "@/lib/ai.functions";
@@ -15,6 +16,7 @@ function fileToBase64(blob: Blob): Promise<string> {
 }
 
 export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
+  const qc = useQueryClient();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -40,6 +42,7 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
     if (error) toast.error("Gagal menyimpan: " + error.message);
     else {
       toast.success("Masuk ke Inbox");
+      void qc.invalidateQueries({ queryKey: ["inbox-count"] });
       onCaptured?.();
     }
   }
