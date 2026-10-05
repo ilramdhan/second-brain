@@ -11,7 +11,9 @@ import { parseBrainDump, paraphrasePoint } from "@/lib/ai.functions";
 import { QuickCapture } from "@/components/QuickCapture";
 import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
+import { VirtualList } from "@/components/common/VirtualList";
 import { PageContainer } from "@/components/common/PageContainer";
+import { withNoteIndex } from "@/lib/blocks";
 import { qk, useProjects } from "@/lib/data";
 import { preloadQueries, projectsQuery } from "@/lib/data";
 
@@ -99,12 +101,14 @@ function InboxPage() {
 
       const noteRows = parsed
         .filter((t) => t.kind === "note")
-        .map((t) => ({
-          user_id: user.id,
-          title: t.title,
-          content: t.description ?? "",
-          project_id: t.project ? (projectMap.get(t.project.toLowerCase()) ?? null) : null,
-        }));
+        .map((t) =>
+          withNoteIndex({
+            user_id: user.id,
+            title: t.title,
+            content: t.description ?? "",
+            project_id: t.project ? (projectMap.get(t.project.toLowerCase()) ?? null) : null,
+          }),
+        );
       if (noteRows.length) {
         const { error } = await supabase.from("notes").insert(noteRows);
         if (error) throw error;
@@ -158,9 +162,14 @@ function InboxPage() {
 
       <QuickCapture onCaptured={load} />
 
-      <ul className="mt-6 space-y-3">
-        {paged.visible.map((item) => (
-          <li key={item.id} className="rounded-2xl border bg-card p-4">
+      <VirtualList
+        className="mt-6"
+        items={paged.visible}
+        getKey={(item) => item.id}
+        estimateSize={150}
+        gap={12}
+        renderItem={(item) => (
+          <div className="rounded-2xl border bg-card p-4">
             <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
               <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">
                 {SOURCE_LABEL[item.source] ?? item.source}
@@ -209,9 +218,9 @@ function InboxPage() {
                 Arsipkan
               </button>
             </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+        )}
+      />
       <LoadMore shown={paged.visible.length} total={paged.total} onMore={paged.more} />
 
       {items.length === 0 && (

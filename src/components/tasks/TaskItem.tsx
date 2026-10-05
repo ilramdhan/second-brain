@@ -3,6 +3,7 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { CalendarDays, ListChecks, Lock, Repeat, User } from "lucide-react";
 
+import { VirtualList } from "@/components/common/VirtualList";
 import { CheckCircle } from "@/components/tasks/CheckCircle";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { color, labelOf, priorityOf, TASK_STATUS } from "@/lib/constants";
@@ -148,7 +149,7 @@ export const TaskRow = memo(function TaskRow({
   const { openTask } = useTaskDialog();
   const done = task.status === "done";
   return (
-    <li
+    <div
       onClick={() => openTask(task.id)}
       className={cn(
         "flex cursor-pointer items-start gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/30",
@@ -177,7 +178,7 @@ export const TaskRow = memo(function TaskRow({
           blockers={blockers}
         />
       </div>
-    </li>
+    </div>
   );
 });
 
@@ -213,13 +214,20 @@ export const TaskCard = memo(function TaskCard({ task, project, subtasks, blocke
   );
 });
 
-/** A list of rows for callers that only have the visible tasks (Today, calendar day view). */
+/**
+ * A list of task rows (tasks list view, Today, calendar day view). Windowed above
+ * `VIRTUALIZE_THRESHOLD` rows; below it every row renders as before.
+ */
 export function TaskRows({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }) {
   return (
-    <ul className="space-y-2">
-      {tasks.map((t) => (
-        <TaskRow key={t.id} {...rowProps(t, lookups)} onToggle={lookups.toggle} />
-      ))}
-    </ul>
+    <VirtualList
+      items={tasks}
+      getKey={taskKey}
+      estimateSize={76}
+      gap={8}
+      renderItem={(t) => <TaskRow {...rowProps(t, lookups)} onToggle={lookups.toggle} />}
+    />
   );
 }
+
+const taskKey = (t: Task) => t.id;

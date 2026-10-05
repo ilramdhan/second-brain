@@ -3,14 +3,15 @@
 // rows that user could reach through RLS: own rows plus tasks/notes of projects they own or are a
 // member of. Soft-deleted and archived rows are excluded like the list hooks in src/lib/data.ts.
 // Task writes go through the same rules as `useTaskActions`: blocked check, dependent auto-shift,
-// recurrence, unblock notifications and `runAutomationRules`.
-import { addDays, addMonths, addWeeks } from "date-fns";
-
+// recurrence, unblock notifications and `runAutomationRules`. Auto-shift and completion
+// (blocked check + recurrence) are the Postgres RPCs from migration 0017, called by both sides.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
-import { loadBlocks, toMarkdown } from "@/lib/blocks";
+import { loadBlocks, noteIndexFields, toMarkdown } from "@/lib/blocks";
+import { parseCompleteResult } from "@/lib/task-rules";
 
-import { runAutomationRules } from "../automationEngine.server";
+import { runAutomationRules, type AutomationEvent } from "../automationEngine.server";
+import { appTimezone } from "./time.server";
 
 export type Task = Tables<"tasks">;
 const TASK_COLUMNS = "*";
@@ -192,24 +193,6 @@ export async function createTask(
   return data;
 }
 
-async function openBlockers(taskId: string) {
-  const { data: deps } = await supabaseAdmin
-    .from("task_dependencies")
-    .select("blocker_id")
-    .eq("blocked_id", taskId);
-  if (!deps?.length) return [];
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("id,title,status")
-    .in(
-      "id",
-      deps.map((d) => d.blocker_id),
-    )
-    .neq("status", "done")
-    .is("deleted_at", null);
-  return data ?? [];
-}
-
 function snapshotOf(t: Task) {
   return {
     status: t.status,
@@ -239,49 +222,18 @@ async function updateTaskRow(
   ).catch((e) => console.error("[n8n] automations failed", e));
 }
 
-/** Shifts not-done dependents (transitively) by `deltaMs`, like useTaskActions.update. */
-async function shiftDependents(rootId: string, deltaMs: number) {
-  const seen = new Set([rootId]);
-  const queue = [rootId];
-  let shifted = 0;
-  while (queue.length && seen.size < 500) {
-    const cur = queue.shift()!;
-    const { data: deps } = await supabaseAdmin
-      .from("task_dependencies")
-      .select("blocked_id")
-      .eq("blocker_id", cur);
-    for (const d of deps ?? []) {
-      if (seen.has(d.blocked_id)) continue;
-      seen.add(d.blocked_id);
-      queue.push(d.blocked_id);
-      const { data: t } = await supabaseAdmin
-        .from("tasks")
-        .select("id,status,start_date,due_date")
-        .eq("id", d.blocked_id)
-        .maybeSingle();
-      if (!t || t.status === "done" || (!t.due_date && !t.start_date)) continue;
-      const mv = (iso: string | null) =>
-        iso ? new Date(new Date(iso).getTime() + deltaMs).toISOString() : null;
-      await supabaseAdmin
-        .from("tasks")
-        .update({ start_date: mv(t.start_date), due_date: mv(t.due_date), reminded: false })
-        .eq("id", t.id);
-      shifted++;
-    }
-  }
-  return shifted;
-}
-
-export function nextRecurrence(iso: string | null, recurrence: string | null) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  const n =
-    recurrence === "daily"
-      ? addDays(d, 1)
-      : recurrence === "weekly"
-        ? addWeeks(d, 1)
-        : addMonths(d, 1);
-  return n.toISOString();
+/**
+ * Shifts not-done dependents (transitively) by `deltaMs` through the `shift_task_dependents`
+ * RPC (migration 0017), the same function `useTaskActions.update` calls. Scoped to `userId`.
+ */
+async function shiftDependents(userId: string, rootId: string, deltaMs: number) {
+  const { data, error } = await supabaseAdmin.rpc("shift_task_dependents", {
+    _task_id: rootId,
+    _delta_ms: deltaMs,
+    _user_id: userId,
+  });
+  if (error) throw new Error(`dependent shift failed: ${error.message}`);
+  return data?.length ?? 0;
 }
 
 export type CompleteResult =
@@ -296,46 +248,30 @@ export async function completeTask(
   origin: string | null,
 ): Promise<CompleteResult> {
   if (task.status === "done") return { ok: false, reason: "already_done", task };
-  const blockers = await openBlockers(task.id);
-  if (blockers.length) return { ok: false, reason: "blocked", blocker: blockers[0]!.title };
-  await updateTaskRow(
-    userId,
-    task,
-    { status: "done", completed_at: new Date().toISOString() },
-    origin,
-  );
+  // Blocked check, status update, unblocked dependents and the next recurring occurrence run in
+  // one transaction in `complete_task` (migration 0017), shared with useTaskActions.setStatus.
+  const { data, error } = await supabaseAdmin.rpc("complete_task", {
+    _task_id: task.id,
+    _tz: appTimezone(),
+    _user_id: userId,
+  });
+  if (error) throw new Error(`task complete failed: ${error.message}`);
+  const result = parseCompleteResult(data);
+  if (result.status === "blocked") return { ok: false, reason: "blocked", blocker: result.blocker };
+  if (result.status === "already_done") return { ok: false, reason: "already_done", task };
+
+  const runRules = (event: AutomationEvent) =>
+    runAutomationRules(supabaseAdmin, userId, event, origin).catch((e) =>
+      console.error("[n8n] automations failed", e),
+    );
+  await runRules({ event: "updated", taskId: task.id, before: snapshotOf(task) });
 
   // Unblocked dependents → Telegram notification (best effort).
-  const { data: deps } = await supabaseAdmin
-    .from("task_dependencies")
-    .select("blocked_id")
-    .eq("blocker_id", task.id);
-  const unblocked: string[] = [];
-  for (const d of deps ?? [])
-    if (!(await openBlockers(d.blocked_id)).length) unblocked.push(d.blocked_id);
+  const unblocked = result.unblocked.map((u) => u.id);
   if (unblocked.length) await notifyUnblockedServer(unblocked, task.title);
 
-  let recurring: Task | null = null;
-  if (task.recurrence && task.due_date) {
-    recurring = await createTask(
-      task.user_id,
-      {
-        title: task.title,
-        description: task.description,
-        priority: task.priority,
-        project_id: task.project_id,
-        milestone_id: task.milestone_id,
-        assignee_id: task.assignee_id,
-        assignee_name: task.assignee_name,
-        tags: task.tags,
-        recurrence: task.recurrence,
-        start_date: nextRecurrence(task.start_date, task.recurrence),
-        due_date: nextRecurrence(task.due_date, task.recurrence),
-      },
-      origin,
-    );
-  }
-  return { ok: true, task: { ...task, status: "done" }, recurring, unblocked };
+  if (result.recurring) await runRules({ event: "created", taskId: result.recurring.id });
+  return { ok: true, task: result.task, recurring: result.recurring, unblocked };
 }
 
 async function notifyUnblockedServer(taskIds: string[], blockerTitle: string) {
@@ -383,13 +319,16 @@ export async function snoozeTask(
     },
     origin,
   );
-  if (task.due_date && delta > 0) await shiftDependents(task.id, delta);
+  if (task.due_date && delta > 0) await shiftDependents(userId, task.id, delta);
   return due;
 }
 
 /* ---------------- notes & inbox ---------------- */
 
-/** Creates a note with `blocks` as source of truth and the mirrored markdown `content`. */
+/**
+ * Creates a note with `blocks` as source of truth, the mirrored markdown `content` and the
+ * derived `links`/`refs`/`excerpt` (migration 0018).
+ */
 export async function createNote(
   userId: string,
   title: string,
@@ -397,13 +336,15 @@ export async function createNote(
   extra: { tags?: string[]; project_id?: string | null } = {},
 ) {
   const blocks = loadBlocks({ blocks: [], content: body });
+  const content = toMarkdown(blocks);
   const { data, error } = await supabaseAdmin
     .from("notes")
     .insert({
       user_id: userId,
       title: title.slice(0, 300) || "Catatan",
       blocks: blocks as unknown as Json,
-      content: toMarkdown(blocks),
+      content,
+      ...noteIndexFields(blocks, content),
       tags: extra.tags ?? [],
       project_id: extra.project_id ?? null,
     })

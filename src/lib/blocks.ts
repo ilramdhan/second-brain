@@ -135,11 +135,52 @@ export function linksOf(blocks: Block[]) {
   return { titles, refs };
 }
 
+/** Length of `notes.excerpt`, in characters (code points, like Postgres `left()`). */
+export const EXCERPT_LENGTH = 200;
+
+/** First EXCERPT_LENGTH characters of the markdown mirror, for list previews. */
+export function excerptOf(content: string): string {
+  const chars = Array.from(content);
+  return chars.length <= EXCERPT_LENGTH ? content : chars.slice(0, EXCERPT_LENGTH).join("");
+}
+
+/**
+ * Derived columns stored next to `blocks` on every save (migration 0018): the lower-cased
+ * `[[titles]]` this note links to, the block ids it references or embeds, and the list excerpt.
+ * Backlinks are then a GIN-indexed `links @> {title}` / `refs && {ids}` query in Postgres.
+ */
+export function noteIndexFields(blocks: Block[], content = toMarkdown(blocks)) {
+  const { titles, refs } = linksOf(blocks);
+  return { links: [...titles], refs: [...refs], excerpt: excerptOf(content) };
+}
+
+/**
+ * Adds `content` (if missing), `links`, `refs` and `excerpt` to a note insert/update that
+ * writes `blocks` or `content`. Other patches (pin, status, tags...) are returned unchanged.
+ */
+export function withNoteIndex<T extends { blocks?: unknown; content?: string }>(
+  row: T,
+): T & { content?: string; links?: string[]; refs?: string[]; excerpt?: string } {
+  if (!("blocks" in row) && !("content" in row)) return row;
+  const blocks = loadBlocks({
+    blocks: (row.blocks ?? []) as Note["blocks"],
+    content: row.content ?? "",
+  });
+  const content = row.content ?? toMarkdown(blocks);
+  return { ...row, content, ...noteIndexFields(blocks, content) };
+}
+
 type IndexedNote = Pick<NoteBlocks, "id" | "title" | "blocks" | "content">;
 export type BlockIndex = Map<string, { note: IndexedNote; block: Block }>;
-export function indexBlocks(notes: IndexedNote[]): BlockIndex {
+// One index per notes array: the note page, the block editor and the graph all receive the same
+// `useNoteBlocks()` array, so the index is built once per fetch instead of once per component.
+const blockIndexCache = new WeakMap<readonly IndexedNote[], BlockIndex>();
+export function indexBlocks(notes: readonly IndexedNote[]): BlockIndex {
+  const cached = blockIndexCache.get(notes);
+  if (cached) return cached;
   const idx: BlockIndex = new Map();
   for (const n of notes) for (const b of loadBlocks(n)) idx.set(b.id, { note: n, block: b });
+  blockIndexCache.set(notes, idx);
   return idx;
 }
 

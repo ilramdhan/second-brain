@@ -6,6 +6,7 @@ import { Activity, Filter } from "lucide-react";
 import { useState } from "react";
 
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
+import { VirtualList } from "@/components/common/VirtualList";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
@@ -77,12 +78,13 @@ function ActivityPage() {
         {!isLoading && shown.length === 0 && (
           <p className="p-8 text-center text-sm text-muted-foreground">Belum ada aktivitas.</p>
         )}
-        <ul className="divide-y">
-          {paged.visible.map((row) => (
-            <li
-              key={row.id}
-              className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 px-4 py-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
-            >
+        <VirtualList
+          className="divide-y"
+          items={paged.visible}
+          getKey={(row) => row.id}
+          estimateSize={64}
+          renderItem={(row) => (
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 px-4 py-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
               <Activity className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium capitalize">
@@ -93,9 +95,9 @@ function ActivityPage() {
               <time className="col-start-2 text-xs text-muted-foreground sm:col-start-auto">
                 {formatDistanceToNow(new Date(row.created_at), { addSuffix: true, locale: id })}
               </time>
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+        />
       </div>
       <LoadMore shown={paged.visible.length} total={paged.total} onMore={paged.more} />
     </PageContainer>
