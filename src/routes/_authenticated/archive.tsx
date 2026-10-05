@@ -7,6 +7,7 @@ import { Archive, CheckSquare, FolderKanban, RotateCcw, StickyNote, Trash2 } fro
 import { toast } from "sonner";
 
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
+import { VirtualList } from "@/components/common/VirtualList";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -173,14 +174,15 @@ function ArchivePage() {
             {tab === "trash" ? "Tempat Sampah kosong." : "Belum ada yang diarsipkan."}
           </p>
         )}
-        <ul className="divide-y">
-          {paged.visible.map((it) => {
+        <VirtualList
+          className="divide-y"
+          items={paged.visible}
+          getKey={(it) => `${it.kind}-${it.id}`}
+          estimateSize={64}
+          renderItem={(it) => {
             const Icon = ICON[it.kind];
             return (
-              <li
-                key={`${it.kind}-${it.id}`}
-                className="flex flex-wrap items-center gap-3 px-4 py-3"
-              >
+              <div className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{it.title}</p>
@@ -206,10 +208,10 @@ function ArchivePage() {
                     </Button>
                   )}
                 </div>
-              </li>
+              </div>
             );
-          })}
-        </ul>
+          }}
+        />
       </div>
       <LoadMore shown={paged.visible.length} total={paged.total} onMore={paged.more} />
     </PageContainer>
