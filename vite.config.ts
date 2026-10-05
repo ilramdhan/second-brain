@@ -72,6 +72,7 @@ export default defineConfig(({ command, mode }) => {
         "react/jsx-runtime",
         "react/jsx-dev-runtime",
         "@dnd-kit/core",
+        "@tanstack/react-virtual",
         "cmdk",
         "@radix-ui/react-dialog",
         "@radix-ui/react-select",

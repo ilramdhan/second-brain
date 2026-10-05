@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -6,6 +6,8 @@ import { KanbanSquare, LayoutGrid, Pin, Plus, Search } from "lucide-react";
 
 import { Kanban } from "@/components/Kanban";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
+import { VirtualList } from "@/components/common/VirtualList";
+import { chunk, shouldVirtualize } from "@/components/common/virtual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -111,16 +113,20 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
 
       {view === "grid" ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {paged.visible.map((n) => (
-              <NoteCard key={n.id} note={n} projects={projects} onClick={() => open(n)} />
-            ))}
-            {filtered.length === 0 && (
-              <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
-                Belum ada catatan.
-              </p>
-            )}
-          </div>
+          {shouldVirtualize(paged.visible.length) ? (
+            <VirtualNoteGrid notes={paged.visible} projects={projects} onOpen={open} />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {paged.visible.map((n) => (
+                <NoteCard key={n.id} note={n} projects={projects} onClick={() => open(n)} />
+              ))}
+              {filtered.length === 0 && (
+                <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
+                  Belum ada catatan.
+                </p>
+              )}
+            </div>
+          )}
           <LoadMore shown={paged.visible.length} total={paged.total} onMore={paged.more} />
         </>
       ) : (
@@ -136,6 +142,58 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
         />
       )}
     </div>
+  );
+}
+
+/** Column count of the `sm:grid-cols-2 lg:grid-cols-3` note grid at the current width. */
+function useGridColumns() {
+  const query = () =>
+    typeof window === "undefined"
+      ? 1
+      : window.matchMedia("(min-width: 1024px)").matches
+        ? 3
+        : window.matchMedia("(min-width: 640px)").matches
+          ? 2
+          : 1;
+  const [cols, setCols] = useState(query);
+  useEffect(() => {
+    const update = () => setCols(query());
+    const mqs = ["(min-width: 640px)", "(min-width: 1024px)"].map((q) => window.matchMedia(q));
+    mqs.forEach((mq) => mq.addEventListener("change", update));
+    update();
+    return () => mqs.forEach((mq) => mq.removeEventListener("change", update));
+  }, []);
+  return cols;
+}
+
+/** The note grid windowed row by row; used only above `VIRTUALIZE_THRESHOLD` notes. */
+function VirtualNoteGrid({
+  notes,
+  projects,
+  onOpen,
+}: {
+  notes: Note[];
+  projects: Project[];
+  onOpen: (n: Note) => void;
+}) {
+  const cols = useGridColumns();
+  const rows = useMemo(() => chunk(notes, cols), [notes, cols]);
+  return (
+    <VirtualList
+      as="div"
+      items={rows}
+      getKey={(row) => row[0]?.id ?? ""}
+      estimateSize={170}
+      gap={12}
+      threshold={0}
+      renderItem={(row) => (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {row.map((n) => (
+            <NoteCard key={n.id} note={n} projects={projects} onClick={() => onOpen(n)} />
+          ))}
+        </div>
+      )}
+    />
   );
 }
 
