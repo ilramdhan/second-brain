@@ -1,6 +1,18 @@
 import type { Note, Task } from "@/lib/data";
 
-export type BlockType = "p" | "h1" | "h2" | "h3" | "todo" | "bullet" | "numbered" | "quote" | "code" | "divider" | "query" | "embed";
+export type BlockType =
+  | "p"
+  | "h1"
+  | "h2"
+  | "h3"
+  | "todo"
+  | "bullet"
+  | "numbered"
+  | "quote"
+  | "code"
+  | "divider"
+  | "query"
+  | "embed";
 export type Block = { id: string; type: BlockType; text: string; checked?: boolean };
 
 export const BLOCK_TYPES: { id: BlockType; label: string; hint: string; keys: string[] }[] = [
@@ -14,17 +26,37 @@ export const BLOCK_TYPES: { id: BlockType; label: string; hint: string; keys: st
   { id: "quote", label: "Kutipan", hint: ">", keys: ["quote", "kutipan"] },
   { id: "code", label: "Kode", hint: "```", keys: ["code", "kode"] },
   { id: "divider", label: "Pemisah", hint: "---", keys: ["divider", "garis", "hr"] },
-  { id: "query", label: "Query / tabel dinamis", hint: "TABLE … FROM #tag WHERE …", keys: ["query", "table", "database", "dataview"] },
-  { id: "embed", label: "Sematkan blok", hint: "cermin blok lain", keys: ["embed", "ref", "sematkan"] },
+  {
+    id: "query",
+    label: "Query / tabel dinamis",
+    hint: "TABLE … FROM #tag WHERE …",
+    keys: ["query", "table", "database", "dataview"],
+  },
+  {
+    id: "embed",
+    label: "Sematkan blok",
+    hint: "cermin blok lain",
+    keys: ["embed", "ref", "sematkan"],
+  },
 ];
 
 export const newId = () => Math.random().toString(36).slice(2, 10);
 
 /** Markdown-shortcut prefixes typed at the start of a block. */
-export function shortcut(text: string): { type: BlockType; text: string; checked?: boolean } | null {
+export function shortcut(
+  text: string,
+): { type: BlockType; text: string; checked?: boolean } | null {
   const rules: [RegExp, BlockType][] = [
-    [/^###\s/, "h3"], [/^##\s/, "h2"], [/^#\s/, "h1"], [/^\[\s?\]\s/, "todo"], [/^-\s\[\s?\]\s/, "todo"],
-    [/^[-*]\s/, "bullet"], [/^1[.)]\s/, "numbered"], [/^>\s/, "quote"], [/^```$/, "code"], [/^---$/, "divider"],
+    [/^###\s/, "h3"],
+    [/^##\s/, "h2"],
+    [/^#\s/, "h1"],
+    [/^\[\s?\]\s/, "todo"],
+    [/^-\s\[\s?\]\s/, "todo"],
+    [/^[-*]\s/, "bullet"],
+    [/^1[.)]\s/, "numbered"],
+    [/^>\s/, "quote"],
+    [/^```$/, "code"],
+    [/^---$/, "divider"],
   ];
   for (const [re, type] of rules) if (re.test(text)) return { type, text: text.replace(re, "") };
   const done = /^-?\s?\[x\]\s/i.exec(text);
@@ -59,18 +91,30 @@ export function toMarkdown(blocks: Block[]): string {
       n = b.type === "numbered" ? n + 1 : 0;
       const t = b.text;
       switch (b.type) {
-        case "h1": return `# ${t}`;
-        case "h2": return `## ${t}`;
-        case "h3": return `### ${t}`;
-        case "todo": return `- [${b.checked ? "x" : " "}] ${t}`;
-        case "bullet": return `- ${t}`;
-        case "numbered": return `${n}. ${t}`;
-        case "quote": return `> ${t}`;
-        case "code": return "```\n" + t + "\n```";
-        case "divider": return "---";
-        case "query": return `{{query ${t}}}`;
-        case "embed": return `{{embed ((${t}))}}`;
-        default: return t;
+        case "h1":
+          return `# ${t}`;
+        case "h2":
+          return `## ${t}`;
+        case "h3":
+          return `### ${t}`;
+        case "todo":
+          return `- [${b.checked ? "x" : " "}] ${t}`;
+        case "bullet":
+          return `- ${t}`;
+        case "numbered":
+          return `${n}. ${t}`;
+        case "quote":
+          return `> ${t}`;
+        case "code":
+          return "```\n" + t + "\n```";
+        case "divider":
+          return "---";
+        case "query":
+          return `{{query ${t}}}`;
+        case "embed":
+          return `{{embed ((${t}))}}`;
+        default:
+          return t;
       }
     })
     .join("\n");
@@ -106,7 +150,10 @@ export function noteGraph(notes: Note[]) {
   const seen = new Set<string>();
   for (const n of notes) {
     const { titles, refs } = linksOf(loadBlocks(n));
-    const targets = [...[...titles].map((t) => byTitle.get(t)?.id), ...[...refs].map((r) => idx.get(r)?.note.id)];
+    const targets = [
+      ...[...titles].map((t) => byTitle.get(t)?.id),
+      ...[...refs].map((r) => idx.get(r)?.note.id),
+    ];
     for (const t of targets) {
       if (!t || t === n.id) continue;
       const k = `${n.id}>${t}`;
@@ -119,11 +166,21 @@ export function noteGraph(notes: Note[]) {
 }
 
 /* ---------- inline query engine ---------- */
-export type QueryResult = { mode: "table" | "list"; source: "notes" | "tasks"; columns: string[]; rows: { id: string; title: string; values: Record<string, unknown> }[]; error?: string };
+export type QueryResult = {
+  mode: "table" | "list";
+  source: "notes" | "tasks";
+  columns: string[];
+  rows: { id: string; title: string; values: Record<string, unknown> }[];
+  error?: string;
+};
 
 type Cond = { field: string; op: string; value: string };
 
-function fieldOf(item: Record<string, unknown>, props: Record<string, unknown>, f: string): unknown {
+function fieldOf(
+  item: Record<string, unknown>,
+  props: Record<string, unknown>,
+  f: string,
+): unknown {
   if (f in props) return props[f];
   if (f === "created") return item["created_at"];
   if (f === "updated") return item["updated_at"];
@@ -136,17 +193,27 @@ function cmp(a: unknown, op: string, b: string) {
     const has = a.map((x) => String(x).toLowerCase()).includes(b.toLowerCase().replace(/^#/, ""));
     return op === "!=" ? !has : has;
   }
-  const na = Number(a), nb = Number(b);
-  const numeric = a !== null && a !== undefined && a !== "" && !Number.isNaN(na) && !Number.isNaN(nb);
-  const sa = String(a ?? "").toLowerCase(), sb = b.toLowerCase();
+  const na = Number(a),
+    nb = Number(b);
+  const numeric =
+    a !== null && a !== undefined && a !== "" && !Number.isNaN(na) && !Number.isNaN(nb);
+  const sa = String(a ?? "").toLowerCase(),
+    sb = b.toLowerCase();
   switch (op) {
-    case ">": return numeric ? na > nb : sa > sb;
-    case "<": return numeric ? na < nb : sa < sb;
-    case ">=": return numeric ? na >= nb : sa >= sb;
-    case "<=": return numeric ? na <= nb : sa <= sb;
-    case "!=": return numeric ? na !== nb : sa !== sb;
-    case "contains": return sa.includes(sb);
-    default: return numeric ? na === nb : sa === sb;
+    case ">":
+      return numeric ? na > nb : sa > sb;
+    case "<":
+      return numeric ? na < nb : sa < sb;
+    case ">=":
+      return numeric ? na >= nb : sa >= sb;
+    case "<=":
+      return numeric ? na <= nb : sa <= sb;
+    case "!=":
+      return numeric ? na !== nb : sa !== sb;
+    case "contains":
+      return sa.includes(sb);
+    default:
+      return numeric ? na === nb : sa === sb;
   }
 }
 
@@ -155,33 +222,77 @@ function cmp(a: unknown, op: string, b: string) {
  *   TABLE rating, genre FROM #buku WHERE rating > 4 AND genre = fiksi SORT rating DESC LIMIT 10
  *   LIST FROM "Nama Proyek" | FROM tasks WHERE status != done
  */
-export function runQuery(q: string, notes: Note[], tasks: Task[], projects: { id: string; name: string }[]): QueryResult {
+export function runQuery(
+  q: string,
+  notes: Note[],
+  tasks: Task[],
+  projects: { id: string; name: string }[],
+): QueryResult {
   const src = q.trim();
-  const m = /^(TABLE|LIST)\b\s*(.*?)\s*(?:\bFROM\s+(.+?))?\s*(?:\bWHERE\s+(.+?))?\s*(?:\bSORT\s+(\w+)(?:\s+(ASC|DESC))?)?\s*(?:\bLIMIT\s+(\d+))?\s*$/i.exec(src);
-  if (!m) return { mode: "list", source: "notes", columns: [], rows: [], error: "Format: TABLE kolom1, kolom2 FROM #tag WHERE kolom > 3 SORT kolom DESC" };
+  const m =
+    /^(TABLE|LIST)\b\s*(.*?)\s*(?:\bFROM\s+(.+?))?\s*(?:\bWHERE\s+(.+?))?\s*(?:\bSORT\s+(\w+)(?:\s+(ASC|DESC))?)?\s*(?:\bLIMIT\s+(\d+))?\s*$/i.exec(
+      src,
+    );
+  if (!m)
+    return {
+      mode: "list",
+      source: "notes",
+      columns: [],
+      rows: [],
+      error: "Format: TABLE kolom1, kolom2 FROM #tag WHERE kolom > 3 SORT kolom DESC",
+    };
   const mode = m[1]!.toLowerCase() as "table" | "list";
-  const columns = mode === "table" ? m[2]!.split(",").map((c) => c.trim()).filter(Boolean) : [];
+  const columns =
+    mode === "table"
+      ? m[2]!
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean)
+      : [];
   const from = (m[3] ?? "").trim();
   const where: Cond[] = (m[4] ?? "")
     .split(/\s+AND\s+/i)
     .filter(Boolean)
     .map((c) => {
       const x = /^(\w+)\s*(>=|<=|!=|>|<|=|contains)\s*"?(.*?)"?$/i.exec(c.trim());
-      return x ? { field: x[1]!, op: x[2]!.toLowerCase(), value: x[3]! } : { field: "", op: "", value: "" };
+      return x
+        ? { field: x[1]!, op: x[2]!.toLowerCase(), value: x[3]! }
+        : { field: "", op: "", value: "" };
     });
-  if (where.some((w) => !w.field)) return { mode, source: "notes", columns, rows: [], error: "Syarat WHERE tidak dikenali" };
+  if (where.some((w) => !w.field))
+    return { mode, source: "notes", columns, rows: [], error: "Syarat WHERE tidak dikenali" };
 
   const isTasks = /^tasks?$/i.test(from) || /^tugas$/i.test(from);
-  let items: { id: string; title: string; item: Record<string, unknown>; props: Record<string, unknown> }[] = isTasks
-    ? tasks.filter((t) => !t.parent_id).map((t) => ({ id: t.id, title: t.title, item: t as unknown as Record<string, unknown>, props: {} }))
-    : notes.map((n) => ({ id: n.id, title: n.title, item: n as unknown as Record<string, unknown>, props: (n.properties as Record<string, unknown>) ?? {} }));
+  let items: {
+    id: string;
+    title: string;
+    item: Record<string, unknown>;
+    props: Record<string, unknown>;
+  }[] = isTasks
+    ? tasks
+        .filter((t) => !t.parent_id)
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          item: t as unknown as Record<string, unknown>,
+          props: {},
+        }))
+    : notes.map((n) => ({
+        id: n.id,
+        title: n.title,
+        item: n as unknown as Record<string, unknown>,
+        props: (n.properties as Record<string, unknown>) ?? {},
+      }));
 
   if (!isTasks && from) {
     for (const part of from.split(/\s+OR\s+/i).length > 1 ? [from] : [from]) {
       const ors = part.split(/\s+OR\s+/i).map((s) => s.trim());
       items = items.filter(({ item }) =>
         ors.some((o) => {
-          if (o.startsWith("#")) return ((item["tags"] as string[]) ?? []).map((t) => t.toLowerCase()).includes(o.slice(1).toLowerCase());
+          if (o.startsWith("#"))
+            return ((item["tags"] as string[]) ?? [])
+              .map((t) => t.toLowerCase())
+              .includes(o.slice(1).toLowerCase());
           const name = o.replace(/^"|"$/g, "").toLowerCase();
           const p = projects.find((x) => x.name.toLowerCase() === name);
           return p ? item["project_id"] === p.id : false;
@@ -189,13 +300,17 @@ export function runQuery(q: string, notes: Note[], tasks: Task[], projects: { id
       );
     }
   }
-  items = items.filter(({ item, props }) => where.every((w) => cmp(fieldOf(item, props, w.field), w.op, w.value)));
+  items = items.filter(({ item, props }) =>
+    where.every((w) => cmp(fieldOf(item, props, w.field), w.op, w.value)),
+  );
   if (m[5]) {
     const f = m[5];
     const dir = (m[6] ?? "ASC").toUpperCase() === "DESC" ? -1 : 1;
     items.sort((a, b) => {
-      const va = fieldOf(a.item, a.props, f), vb = fieldOf(b.item, b.props, f);
-      const na = Number(va), nb = Number(vb);
+      const va = fieldOf(a.item, a.props, f),
+        vb = fieldOf(b.item, b.props, f);
+      const na = Number(va),
+        nb = Number(vb);
       if (!Number.isNaN(na) && !Number.isNaN(nb)) return (na - nb) * dir;
       return String(va ?? "").localeCompare(String(vb ?? "")) * dir;
     });
@@ -205,6 +320,10 @@ export function runQuery(q: string, notes: Note[], tasks: Task[], projects: { id
     mode,
     source: isTasks ? "tasks" : "notes",
     columns,
-    rows: items.map(({ id, title, item, props }) => ({ id, title, values: Object.fromEntries(columns.map((c) => [c, fieldOf(item, props, c)])) })),
+    rows: items.map(({ id, title, item, props }) => ({
+      id,
+      title,
+      values: Object.fromEntries(columns.map((c) => [c, fieldOf(item, props, c)])),
+    })),
   };
 }

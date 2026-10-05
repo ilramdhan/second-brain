@@ -7,7 +7,11 @@ export async function sendTelegram(chatId: string, text: string): Promise<string
   if (!lovableKey || !connectionKey) return "Bot Telegram belum dihubungkan";
   const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": connectionKey, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${lovableKey}`,
+      "X-Connection-Api-Key": connectionKey,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4000) }),
   });
   if (!res.ok) {

@@ -12,10 +12,7 @@
       "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -60,
-        -380
-      ]
+      "position": [-60, -380]
     },
     {
       "parameters": {
@@ -24,9 +21,7 @@
             {
               "field": "weeks",
               "weeksInterval": 1,
-              "triggerAtDay": [
-                0
-              ],
+              "triggerAtDay": [0],
               "triggerAtHour": 2
             }
           ]
@@ -36,10 +31,7 @@
       "name": "Tiap Minggu 02:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        0
-      ]
+      "position": [0, 0]
     },
     {
       "parameters": {
@@ -61,10 +53,7 @@
       "name": "Ambil backup",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        220,
-        0
-      ],
+      "position": [220, 0],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 10000,
@@ -95,10 +84,7 @@
       "name": "Upload ke Google Drive",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [
-        460,
-        -80
-      ],
+      "position": [460, -80],
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "REPLACE_ME",
@@ -120,21 +106,14 @@
           }
         },
         "options": {
-          "fields": [
-            "id",
-            "name",
-            "createdTime"
-          ]
+          "fields": ["id", "name", "createdTime"]
         }
       },
       "id": "21e9774b-9b45-4886-8d25-6c552c3048d0",
       "name": "Daftar backup",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [
-        700,
-        -80
-      ],
+      "position": [700, -80],
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "REPLACE_ME",
@@ -151,10 +130,7 @@
       "name": "Pilih yang kedaluwarsa",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        920,
-        -80
-      ]
+      "position": [920, -80]
     },
     {
       "parameters": {
@@ -170,10 +146,7 @@
       "name": "Hapus backup lama",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [
-        1140,
-        -80
-      ],
+      "position": [1140, -80],
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "REPLACE_ME",
@@ -197,10 +170,7 @@
       "name": "Kirim via email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [
-        460,
-        120
-      ],
+      "position": [460, 120],
       "credentials": {
         "smtp": {
           "id": "REPLACE_ME",

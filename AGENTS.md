@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,9 +8,11 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+
 - Client data access goes through hooks in `src/lib/data.ts` (TanStack Query keys `tasks/projects/notes/milestones`); why: one cache keeps list, kanban, calendar and timeline in sync with optimistic updates.
 - Task create/edit happens only via the global `TaskDialogProvider` (mounted in `_authenticated` layout); why: every view opens the same full editor.
 - Team access is enforced in RLS via security-definer `is_project_member`/`is_project_owner`; tasks/notes/milestones in a shared project are visible to members; why: avoids recursive policies and keeps sharing project-scoped.

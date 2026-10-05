@@ -11,17 +11,32 @@ function base64ToBytes(value: string) {
 async function getKey() {
   const secret = process.env["APP_USER_CONNECTION_KEY_SECRET"];
   if (!secret) throw new Error("Kunci enkripsi koneksi tidak tersedia.");
-  return crypto.subtle.importKey("raw", base64ToBytes(secret), "AES-GCM", false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", base64ToBytes(secret), "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+  ]);
 }
 
 export async function encryptConnectionKey(value: string) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await getKey(), new TextEncoder().encode(value)));
-  const stored = new Uint8Array(iv.length + encrypted.length); stored.set(iv); stored.set(encrypted, iv.length);
+  const encrypted = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      await getKey(),
+      new TextEncoder().encode(value),
+    ),
+  );
+  const stored = new Uint8Array(iv.length + encrypted.length);
+  stored.set(iv);
+  stored.set(encrypted, iv.length);
   return bytesToBase64(stored);
 }
 
 export async function decryptConnectionKey(value: string) {
-  const stored = base64ToBytes(value); const iv = stored.slice(0, 12); const encrypted = stored.slice(12);
-  return new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await getKey(), encrypted));
+  const stored = base64ToBytes(value);
+  const iv = stored.slice(0, 12);
+  const encrypted = stored.slice(12);
+  return new TextDecoder().decode(
+    await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await getKey(), encrypted),
+  );
 }

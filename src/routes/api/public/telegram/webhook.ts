@@ -13,8 +13,8 @@ interface TelegramUpdate {
 }
 
 async function sendTelegramMessage(chatId: number, text: string) {
-  const apiKey = process.env['LOVABLE_API_KEY'];
-  const connectionKey = process.env['TELEGRAM_API_KEY'];
+  const apiKey = process.env["LOVABLE_API_KEY"];
+  const connectionKey = process.env["TELEGRAM_API_KEY"];
   if (!apiKey || !connectionKey) return;
   await fetch(`${GATEWAY_URL}/sendMessage`, {
     method: "POST",
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
     handlers: {
       POST: async ({ request }) => {
         // Verifikasi header rahasia dari Telegram
-        const secret = process.env['TELEGRAM_WEBHOOK_SECRET'];
+        const secret = process.env["TELEGRAM_WEBHOOK_SECRET"];
         if (secret && request.headers.get("x-telegram-bot-api-secret-token") !== secret) {
           return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
         }
@@ -68,9 +68,15 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
               .from("profiles")
               .update({ telegram_chat_id: String(chatId), telegram_username: username })
               .eq("id", target.id);
-            await sendTelegramMessage(chatId, "Akun terhubung! Semua pesan Anda sekarang masuk ke Inbox Second Brain.");
+            await sendTelegramMessage(
+              chatId,
+              "Akun terhubung! Semua pesan Anda sekarang masuk ke Inbox Second Brain.",
+            );
           } else {
-            await sendTelegramMessage(chatId, "Email tidak ditemukan. Pastikan sama dengan email akun Second Brain Anda.");
+            await sendTelegramMessage(
+              chatId,
+              "Email tidak ditemukan. Pastikan sama dengan email akun Second Brain Anda.",
+            );
           }
           return new Response(JSON.stringify({ ok: true }));
         }

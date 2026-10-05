@@ -81,7 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Second Brain" },
-      { name: "description", content: "Asisten catatan dan tugas pribadi: tangkap pikiran cepat, AI yang merapikan." },
+      {
+        name: "description",
+        content: "Asisten catatan dan tugas pribadi: tangkap pikiran cepat, AI yang merapikan.",
+      },
       { name: "theme-color", content: "#1d6f6e" },
       { property: "og:title", content: "Second Brain" },
       { property: "og:description", content: "Asisten catatan dan tugas pribadi dengan AI." },
@@ -122,7 +125,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then((registration) => registration.update());
+    void navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((registration) => registration.update());
   }, []);
 
   return (

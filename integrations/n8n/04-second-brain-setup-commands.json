@@ -7,10 +7,7 @@
       "name": "Jalankan manual",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        0,
-        0
-      ]
+      "position": [0, 0]
     },
     {
       "parameters": {
@@ -27,10 +24,7 @@
       "name": "setMyCommands (id)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        220,
-        0
-      ]
+      "position": [220, 0]
     },
     {
       "parameters": {
@@ -47,10 +41,7 @@
       "name": "setMyCommands (default)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        440,
-        0
-      ]
+      "position": [440, 0]
     },
     {
       "parameters": {
@@ -64,10 +55,7 @@
       "name": "getMe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        660,
-        0
-      ]
+      "position": [660, 0]
     },
     {
       "parameters": {
@@ -81,10 +69,7 @@
       "name": "getWebhookInfo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        880,
-        0
-      ]
+      "position": [880, 0]
     },
     {
       "parameters": {
@@ -101,10 +86,7 @@
       "name": "setWebhook → app",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        220,
-        220
-      ],
+      "position": [220, 220],
       "disabled": true
     },
     {
@@ -122,10 +104,7 @@
       "name": "deleteWebhook",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        220,
-        400
-      ],
+      "position": [220, 400],
       "disabled": true
     },
     {
@@ -139,10 +118,7 @@
       "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -60,
-        -400
-      ]
+      "position": [-60, -400]
     }
   ],
   "connections": {

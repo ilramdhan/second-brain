@@ -12,10 +12,7 @@
       "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -60,
-        -400
-      ]
+      "position": [-60, -400]
     },
     {
       "parameters": {
@@ -30,10 +27,7 @@
       "name": "Email masuk (IMAP)",
       "type": "n8n-nodes-base.emailReadImap",
       "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ],
+      "position": [0, 0],
       "credentials": {
         "imap": {
           "id": "REPLACE_ME",
@@ -49,10 +43,7 @@
       "name": "Allow-list & normalisasi",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        240,
-        0
-      ]
+      "position": [240, 0]
     },
     {
       "parameters": {
@@ -71,10 +62,7 @@
       "name": "Capture",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        480,
-        0
-      ],
+      "position": [480, 0],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 5000,

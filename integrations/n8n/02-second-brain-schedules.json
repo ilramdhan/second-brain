@@ -12,10 +12,7 @@
       "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -60,
-        -480
-      ]
+      "position": [-60, -480]
     },
     {
       "parameters": {
@@ -32,10 +29,7 @@
       "name": "Tiap 15 menit",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        0
-      ]
+      "position": [0, 0]
     },
     {
       "parameters": {
@@ -54,10 +48,7 @@
       "name": "Pengingat jatuh tempo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        0
-      ],
+      "position": [240, 0],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
@@ -82,10 +73,7 @@
       "name": "Tiap hari 07:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        180
-      ]
+      "position": [0, 180]
     },
     {
       "parameters": {
@@ -101,10 +89,7 @@
       "name": "Digest pagi",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        180
-      ],
+      "position": [240, 180],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
@@ -130,10 +115,7 @@
       "name": "Sen–Jum 12:30",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        360
-      ]
+      "position": [0, 360]
     },
     {
       "parameters": {
@@ -149,10 +131,7 @@
       "name": "Digest overdue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        360
-      ],
+      "position": [240, 360],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
@@ -178,10 +157,7 @@
       "name": "Tiap hari 20:30",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        540
-      ]
+      "position": [0, 540]
     },
     {
       "parameters": {
@@ -197,10 +173,7 @@
       "name": "Digest malam",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        540
-      ],
+      "position": [240, 540],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
@@ -218,9 +191,7 @@
             {
               "field": "weeks",
               "weeksInterval": 1,
-              "triggerAtDay": [
-                0
-              ],
+              "triggerAtDay": [0],
               "triggerAtHour": 18
             }
           ]
@@ -230,10 +201,7 @@
       "name": "Minggu 18:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        720
-      ]
+      "position": [0, 720]
     },
     {
       "parameters": {
@@ -249,10 +217,7 @@
       "name": "Weekly review",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        720
-      ],
+      "position": [240, 720],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
@@ -271,10 +236,7 @@
       "name": "Pecah per chat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        520,
-        360
-      ]
+      "position": [520, 360]
     },
     {
       "parameters": {
@@ -291,10 +253,7 @@
       "name": "Kirim ke Telegram",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        760,
-        360
-      ],
+      "position": [760, 360],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 2000,
@@ -314,10 +273,7 @@
       "name": "Tiap hari 03:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        920
-      ]
+      "position": [0, 920]
     },
     {
       "parameters": {
@@ -336,10 +292,7 @@
       "name": "Maintenance",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        920
-      ],
+      "position": [240, 920],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
@@ -365,10 +318,7 @@
       "name": "Tiap jam (legacy)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        1120
-      ]
+      "position": [0, 1120]
     },
     {
       "parameters": {
@@ -391,10 +341,7 @@
       "name": "Legacy hooks/reminders",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        1120
-      ],
+      "position": [240, 1120],
       "disabled": true
     },
     {
@@ -408,10 +355,7 @@
       "name": "Note: Legacy",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        480,
-        1060
-      ]
+      "position": [480, 1060]
     }
   ],
   "connections": {

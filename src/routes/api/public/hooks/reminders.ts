@@ -3,8 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 
 async function sendTelegramMessage(chatId: string, text: string) {
-  const apiKey = process.env['LOVABLE_API_KEY'];
-  const connectionKey = process.env['TELEGRAM_API_KEY'];
+  const apiKey = process.env["LOVABLE_API_KEY"];
+  const connectionKey = process.env["TELEGRAM_API_KEY"];
   if (!apiKey || !connectionKey) return;
   await fetch(`${GATEWAY_URL}/sendMessage`, {
     method: "POST",
@@ -34,7 +34,6 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         if (!cfg?.value || auth !== `Bearer ${cfg.value}`) {
           return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
         }
-
 
         const now = new Date();
         const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);

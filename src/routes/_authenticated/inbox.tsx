@@ -16,7 +16,10 @@ export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
     meta: [
       { title: "Inbox — Second Brain" },
-      { name: "description", content: "Rapikan catatan mentah menjadi tugas dan catatan terstruktur dengan bantuan AI." },
+      {
+        name: "description",
+        content: "Rapikan catatan mentah menjadi tugas dan catatan terstruktur dengan bantuan AI.",
+      },
     ],
   }),
   component: InboxPage,
@@ -118,7 +121,10 @@ function InboxPage() {
     setExpandingId(item.id);
     try {
       const expanded = await paraphrasePoint({ data: { point: item.content } });
-      await supabase.from("inbox_items").update({ content: expanded, ai_summary: item.content }).eq("id", item.id);
+      await supabase
+        .from("inbox_items")
+        .update({ content: expanded, ai_summary: item.content })
+        .eq("id", item.id);
       toast.success("Poin diperjelas oleh AI");
       load();
     } catch (err) {
@@ -153,7 +159,10 @@ function InboxPage() {
                 {SOURCE_LABEL[item.source] ?? item.source}
               </span>
               <span>
-                {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: localeId })}
+                {formatDistanceToNow(new Date(item.created_at), {
+                  addSuffix: true,
+                  locale: localeId,
+                })}
               </span>
             </div>
             <p className="whitespace-pre-wrap text-sm">{item.content}</p>
@@ -166,7 +175,11 @@ function InboxPage() {
                 disabled={processingId === item.id}
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {processingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {processingId === item.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
                 Proses dengan AI
               </button>
               <button
@@ -174,7 +187,11 @@ function InboxPage() {
                 disabled={expandingId === item.id}
                 className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
               >
-                {expandingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                {expandingId === item.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <FileText className="h-3.5 w-3.5" />
+                )}
                 Perjelas poin
               </button>
               <button
@@ -202,9 +219,11 @@ function InboxPage() {
           <ListTodo className="h-3.5 w-3.5" /> Cara kerja AI
         </p>
         <p>
-          "Proses dengan AI" memecah catatan menjadi tugas (<ListTodo className="inline h-3 w-3" />), issue (
-          <Bug className="inline h-3 w-3" />), dan catatan — lengkap dengan prioritas, deadline, dan proyek. "Perjelas
-          poin" memparafrase poin singkat menjadi deskripsi lengkap sebelum Anda lupa konteksnya.
+          "Proses dengan AI" memecah catatan menjadi tugas (<ListTodo className="inline h-3 w-3" />
+          ), issue (
+          <Bug className="inline h-3 w-3" />
+          ), dan catatan — lengkap dengan prioritas, deadline, dan proyek. "Perjelas poin"
+          memparafrase poin singkat menjadi deskripsi lengkap sebelum Anda lupa konteksnya.
         </p>
       </div>
     </PageContainer>

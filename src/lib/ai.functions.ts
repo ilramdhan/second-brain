@@ -11,7 +11,11 @@ export const parseBrainDump = createServerFn({ method: "POST" })
     const request = getRequest();
     const { aiParseBrainDump } = await import("./ai.server");
     const { data: projects } = await context.supabase.from("projects").select("name");
-    return aiParseBrainDump(request, data.dump, (projects ?? []).map((p) => p.name));
+    return aiParseBrainDump(
+      request,
+      data.dump,
+      (projects ?? []).map((p) => p.name),
+    );
   });
 
 export const paraphrasePoint = createServerFn({ method: "POST" })

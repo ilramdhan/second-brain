@@ -12,10 +12,7 @@
       "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -60,
-        -460
-      ]
+      "position": [-60, -460]
     },
     {
       "parameters": {
@@ -32,10 +29,7 @@
       "name": "Tiap 30 menit",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        0
-      ]
+      "position": [0, 0]
     },
     {
       "parameters": {
@@ -54,10 +48,7 @@
       "name": "Sync app → Google",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        240,
-        0
-      ],
+      "position": [240, 0],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 10000,
@@ -76,10 +67,7 @@
       "name": "Ada yang gagal?",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        480,
-        0
-      ]
+      "position": [480, 0]
     },
     {
       "parameters": {
@@ -96,10 +84,7 @@
       "name": "Lapor admin",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        720,
-        0
-      ],
+      "position": [720, 0],
       "onError": "continueRegularOutput"
     },
     {
@@ -125,10 +110,7 @@
       "name": "Google Calendar Trigger",
       "type": "n8n-nodes-base.googleCalendarTrigger",
       "typeVersion": 1,
-      "position": [
-        0,
-        260
-      ],
+      "position": [0, 260],
       "credentials": {
         "googleCalendarOAuth2Api": {
           "id": "REPLACE_ME",
@@ -145,10 +127,7 @@
       "name": "Filter #task",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        240,
-        260
-      ]
+      "position": [240, 260]
     },
     {
       "parameters": {
@@ -167,10 +146,7 @@
       "name": "Capture → task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        480,
-        260
-      ],
+      "position": [480, 260],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 5000,

@@ -55,7 +55,12 @@ export function Kanban<T extends { id: string }>({
         {columns.map((c) => {
           const list = items.filter((i) => getColumn(i) === c.id);
           return (
-            <KanbanColumn key={c.id} column={c} count={list.length} onAdd={onAdd ? () => onAdd(c.id) : undefined}>
+            <KanbanColumn
+              key={c.id}
+              column={c}
+              count={list.length}
+              onAdd={onAdd ? () => onAdd(c.id) : undefined}
+            >
               {list.map((i) => (
                 <DraggableCard key={i.id} id={i.id}>
                   {renderCard(i)}
@@ -65,12 +70,24 @@ export function Kanban<T extends { id: string }>({
           );
         })}
       </div>
-      <DragOverlay dropAnimation={null}>{active ? <div className="rotate-1 shadow-lg">{renderCard(active)}</div> : null}</DragOverlay>
+      <DragOverlay dropAnimation={null}>
+        {active ? <div className="rotate-1 shadow-lg">{renderCard(active)}</div> : null}
+      </DragOverlay>
     </DndContext>
   );
 }
 
-function KanbanColumn({ column, count, onAdd, children }: { column: Column; count: number; onAdd?: (() => void) | undefined; children: React.ReactNode }) {
+function KanbanColumn({
+  column,
+  count,
+  onAdd,
+  children,
+}: {
+  column: Column;
+  count: number;
+  onAdd?: (() => void) | undefined;
+  children: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
     <section
@@ -85,7 +102,11 @@ function KanbanColumn({ column, count, onAdd, children }: { column: Column; coun
           {column.label} <span className="ml-1 font-normal text-muted-foreground">{count}</span>
         </h3>
         {onAdd && (
-          <button onClick={onAdd} className="rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground" aria-label={`Tambah di ${column.label}`}>
+          <button
+            onClick={onAdd}
+            className="rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground"
+            aria-label={`Tambah di ${column.label}`}
+          >
             <Plus className="h-4 w-4" />
           </button>
         )}
@@ -98,7 +119,12 @@ function KanbanColumn({ column, count, onAdd, children }: { column: Column; coun
 function DraggableCard({ id, children }: { id: string; children: React.ReactNode }) {
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({ id });
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners} className={cn("touch-manipulation", isDragging && "opacity-30")}>
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn("touch-manipulation", isDragging && "opacity-30")}
+    >
       {children}
     </div>
   );

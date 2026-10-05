@@ -6,7 +6,7 @@ const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1";
 const RUN_ID_HEADER = "X-Lovable-AIG-Run-ID";
 
 function getApiKey(): string {
-  const key = process.env['LOVABLE_API_KEY'];
+  const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new Error("LOVABLE_API_KEY is not configured");
   return key;
 }

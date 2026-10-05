@@ -46,15 +46,18 @@ Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgre
 ## Features
 
 ### Today dashboard (`/`)
+
 A daily agenda that shows overdue tasks, tasks due today and this week, upcoming milestones and pending inbox items.
 
 ### Inbox & AI brain-dump processing (`/inbox`)
+
 - Inbox items come from manual entry, Telegram, voice or OCR (`inbox_items.source`).
 - **AI → structure** (`parseBrainDump`): the AI splits an item into separate `task` / `issue` / `note` entries. Each entry gets a priority, an ISO due date (relative dates like "besok"/"Jumat" are resolved), 1–3 tags, a short paraphrased description and a project name. The parser matches existing projects by name and creates missing ones. Tasks and notes are then inserted, and the item is marked `processed`.
 - **Paraphrase** (`paraphrasePoint`): expands a terse point into a 2–4 sentence description. The original text is kept in `ai_summary`.
 - You can archive items.
 
 ### Quick capture (global)
+
 - A floating capture button (center of the mobile bottom nav) and a capture sheet in `QuickCapture.tsx`:
   - **Text**: saved straight to the Inbox.
   - **Voice**: records with `MediaRecorder`, then transcribes server-side (`transcribeVoice`, max 10 MB).
@@ -62,7 +65,9 @@ A daily agenda that shows overdue tasks, tasks due today and this week, upcoming
 - **Quick task** (press `Q` anywhere outside an input): one-line task entry with a live natural-language preview (see NLP below).
 
 ### Natural-language task parsing (`src/lib/nlp.ts`)
+
 A local regex parser for Indonesian and English. It makes no AI call and costs nothing. It extracts:
+
 - Dates: `hari ini/today`, `besok/tomorrow`, `lusa`, `minggu depan/next week`, `bulan depan`, `3 hari lagi`, `in 2 weeks`, weekdays (`senin`, `friday`, `jumat depan`), `12 agustus 2026`, `12/8`, `tgl 12`
 - Time: `jam 10 pagi`, `14:30`, `7pm`, `nanti malam`
 - `#tag`, `@assignee`, `+Project`, priority `!tinggi` / `!high` / `p1`
@@ -71,6 +76,7 @@ A local regex parser for Indonesian and English. It makes no AI call and costs n
 Example: `Meeting evaluasi besok jam 10 pagi #urgent @budi !tinggi +Website`
 
 ### Tasks (`/tasks`, project pages)
+
 - Fields: title, description, status (`todo` → `in_progress` → `review` → `done`), priority, start and due dates, tags, project, milestone, assignee (a project member or a free-text name), estimate in minutes, time-block end, recurrence (daily, weekly or monthly).
 - **Views**: list, kanban board (drag & drop with `@dnd-kit`), and upcoming. You can filter by search, status, priority, project, tag and assignee.
 - **Subtasks** (`parent_id`). Deleting a parent also soft-deletes its subtasks, and restoring the parent restores them.
@@ -79,6 +85,7 @@ Example: `Meeting evaluasi besok jam 10 pagi #urgent @budi !tinggi +Website`
 - **Single editor**: the global `TaskDialogProvider` handles all task creation and editing from every view. It also hosts dependencies, subtasks, comments, the focus timer and Google Calendar sync.
 
 ### Task dependencies
+
 - `task_dependencies` stores blocker → blocked pairs.
 - **Blocked check**: you cannot move a task out of `todo` while it still has an open blocker. The UI shows "Terkunci" (locked).
 - **Cycle rejection**: adding a dependency that would create a loop is rejected on the client.
@@ -86,20 +93,24 @@ Example: `Meeting evaluasi besok jam 10 pagi #urgent @budi !tinggi +Website`
 - **Unblock notifications**: when a blocker is completed, the assignees (or owners) of freed tasks get a Telegram message (`notifyUnblocked`).
 
 ### Calendar (`/calendar`)
+
 Day, week, month and year views. Drag a task to another day to move it, or drag its edge to change its duration (`@dnd-kit`).
 
 ### Timeline / Gantt (`/timeline`, project tab)
+
 A Gantt-style timeline of projects, tasks, milestones and launch dates, with a "today" marker. You can drag bars to move them and use pointer events to resize either end.
 
 ### Projects & teams (`/projects`, `/projects/$projectId`)
+
 - **PARA** classification (`project` / `area` / `resource` / `archive`), status, color, start, due and launch dates.
 - Nested projects (`parent_id`) with **grid, kanban and tree** views.
 - Each project page has tabs for overview, tasks, milestones, timeline, notes and team.
 - **Sharing**: the owner invites people by email (`project_invites`). When an invited user signs in, `accept_project_invites()` turns the invitation into a `project_members` row. Members see and edit the project's tasks, notes, milestones and canvases. `list_project_people()` resolves names and emails.
 
 ### Notes (`/notes`, `/notes/$noteId`)
+
 - Notes list in **grid or kanban** (by note status), with pinning and tags.
-- **Block editor** (`BlockEditor.tsx`): paragraph, H1–H3, to-do, bullet, numbered, quote, code, divider, query and embed blocks. It supports Markdown shortcuts (`#`, `-`, `[]`, `>`, ```` ``` ````, `---`) and a slash menu.
+- **Block editor** (`BlockEditor.tsx`): paragraph, H1–H3, to-do, bullet, numbered, quote, code, divider, query and embed blocks. It supports Markdown shortcuts (`#`, `-`, `[]`, `>`, ` ``` `, `---`) and a slash menu.
 - **Links**: `[[Note title]]` wiki links and `((blockId))` block references. **Embed blocks** transclude (mirror) another block.
 - **Backlinks**: shows the notes that link to the current note or reference its blocks.
 - **Properties**: key/value metadata (`notes.properties`) that queries can use.
@@ -111,16 +122,21 @@ A Gantt-style timeline of projects, tasks, milestones and launch dates, with a "
 - Storage: `notes.blocks` (jsonb) is the source of truth. Markdown is mirrored into `notes.content` for search and AI.
 
 ### Real-time collaboration
+
 When several users open the same note, edits sync through **Yjs** updates over a Supabase Realtime broadcast channel (`note-collab:<noteId>`). Presence shows how many people are active, and live cursors are rendered. Durable state is still saved to `notes.blocks`.
 
 ### Graph view (`/graph`)
+
 An interactive force-directed graph (`d3-force`) of notes, with edges from wiki links and block references.
 
 ### Canvas (`/canvas`)
+
 A basic visual board: add idea cards, edit their title and content, select two cards to connect them, and delete cards. Data lives in `canvas_boards`, `canvas_nodes` and `canvas_edges`. You can only edit your own nodes. (A richer infinite canvas with media embeds is still on the roadmap.)
 
 ### Automations (`/automations`)
+
 If-this-then-that rules for tasks, evaluated server-side in `runAutomations`:
+
 - **Triggers**: task created, status changed (optionally to a specific value), priority changed, assignee changed, due date changed.
 - **Conditions**: priority, status, project, tag or assignee, with `eq`, `neq` or `contains`.
 - **Actions**: set a field (priority, status or assignee), add a tag, shift the due date by N days, post a comment, send a Telegram message, or POST a JSON payload to an **HTTPS webhook** (payload `{ text, content, rule, event, project, task }`, compatible with Slack, Discord and n8n).
@@ -128,62 +144,71 @@ If-this-then-that rules for tasks, evaluated server-side in `runAutomations`:
 - Each run is logged to `automation_runs`, and `run_count` and `last_run_at` are updated. Actions write directly to the database, so they never trigger rules again.
 
 ### Focus timer & reports (`/reports`)
+
 - A Pomodoro timer inside the task dialog counts down from the task's `estimate_minutes` and saves sessions to `time_entries`.
 - Weekly report of focus time per project and per task (Recharts).
 
 ### Google Calendar (per user)
+
 In **Settings**, each user connects their own Google Calendar through a popup OAuth flow (the Lovable App User Connector). The connection handle is encrypted with AES-GCM and stored server-side in `app_user_connections`, so it never reaches the browser. From the task dialog, you can push a scheduled task to Google Calendar as an event. The event is created the first time and updated after that (`tasks.google_event_id`).
 
 ### Telegram bot
+
 - Users link their account by sending `/link <email>` to the bot. After that, any message they send goes to their Inbox.
 - The bot sends deadline reminders: a cron call to `/api/public/hooks/reminders` sends Telegram reminders for tasks due within 24 hours or overdue.
 - Automations and unblock notifications can also send Telegram messages.
 
 ### Templates, archive & trash
+
 - **Templates** (`/templates`): reusable task or note templates (`templates` table).
 - **Archive** (`archived_at`) and **Trash** (`deleted_at`, soft delete) for tasks and notes. Projects support trash only. The `/archive` page restores items, permanently deletes them, and purges trash items older than **30 days**.
 
 ### Activity log (`/activity`)
+
 A full audit trail. Database triggers on every main table log insert, update and delete actions, including the names of changed fields but never note or task content. The app also logs auth events (sign-in, sign-out, idle timeout).
 
 ### Settings (`/settings`)
+
 - Theme (light, dark or system) and language (Indonesian or English).
 - **Idle auto sign-out** after N minutes. Activity in any tab resets the timer.
 - Telegram link status and unlink, Google Calendar connect and disconnect.
 - **JSON backup and restore** (projects, tasks, notes, milestones, dependencies, automations). Restoring never deletes existing data.
 
 ### Command menu
+
 Press `Cmd/Ctrl + K` to search tasks, projects and notes and jump to them, or to create a new task.
 
 ### PWA
+
 `manifest.webmanifest` makes the app installable (standalone mode, maskable icons). `public/sw.js` caches the app shell and static images, fonts and the manifest, and falls back to the cached shell when a page is opened offline. Server function and `/api/` requests are never cached.
 
 ### Authentication
+
 Supabase email/password sign-up and sign-in (`/login`). Every page under the `_authenticated` layout redirects to `/login` when there is no session.
 
 ---
 
 ## Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| Framework | [TanStack Start](https://tanstack.com/start) 1.168 (SSR, file-based routing, server functions, server routes) |
-| UI | React 19, Tailwind CSS 4, shadcn/ui (Radix primitives), lucide-react, sonner, cmdk, vaul |
-| Data fetching | TanStack Query 5 (shared cache, optimistic updates) |
-| Routing | TanStack Router 1.170 (generated `routeTree.gen.ts`) |
-| Build | Vite 8 (rolldown) via `@lovable.dev/vite-tanstack-config`, Nitro 3 (server bundling and deploy presets) |
-| Backend / DB | Supabase: Postgres + RLS, Auth, Realtime (broadcast/presence), `pgvector` |
-| Migrations | Hand-written SQL in `drizzle/migrations` tracked by drizzle-kit |
-| Drag & drop | `@dnd-kit/core` / `sortable` |
-| Collaboration | Yjs over Supabase Realtime |
-| Graph | d3-force |
-| Charts | Recharts |
-| AI | Vercel AI SDK (`ai`, `@ai-sdk/openai`) through the Lovable AI Gateway |
-| Forms / validation | react-hook-form, zod |
-| Dates | date-fns 4 |
-| Testing | Vitest 4, Testing Library, jsdom |
-| Lint / format | ESLint 9 (typescript-eslint, react-hooks), Prettier |
-| Package manager | Bun (`bun.lock`, `bunfig.toml` with a 24 h minimum-release-age guard) |
+| Layer              | Technology                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Framework          | [TanStack Start](https://tanstack.com/start) 1.168 (SSR, file-based routing, server functions, server routes) |
+| UI                 | React 19, Tailwind CSS 4, shadcn/ui (Radix primitives), lucide-react, sonner, cmdk, vaul                      |
+| Data fetching      | TanStack Query 5 (shared cache, optimistic updates)                                                           |
+| Routing            | TanStack Router 1.170 (generated `routeTree.gen.ts`)                                                          |
+| Build              | Vite 8 (rolldown) via `@lovable.dev/vite-tanstack-config`, Nitro 3 (server bundling and deploy presets)       |
+| Backend / DB       | Supabase: Postgres + RLS, Auth, Realtime (broadcast/presence), `pgvector`                                     |
+| Migrations         | Hand-written SQL in `drizzle/migrations` tracked by drizzle-kit                                               |
+| Drag & drop        | `@dnd-kit/core` / `sortable`                                                                                  |
+| Collaboration      | Yjs over Supabase Realtime                                                                                    |
+| Graph              | d3-force                                                                                                      |
+| Charts             | Recharts                                                                                                      |
+| AI                 | Vercel AI SDK (`ai`, `@ai-sdk/openai`) through the Lovable AI Gateway                                         |
+| Forms / validation | react-hook-form, zod                                                                                          |
+| Dates              | date-fns 4                                                                                                    |
+| Testing            | Vitest 4, Testing Library, jsdom                                                                              |
+| Lint / format      | ESLint 9 (typescript-eslint, react-hooks), Prettier                                                           |
+| Package manager    | Bun (`bun.lock`, `bunfig.toml` with a 24 h minimum-release-age guard)                                         |
 
 ---
 
@@ -208,26 +233,31 @@ External: Lovable AI Gateway · Lovable connector gateway (Telegram, Google Cale
 ```
 
 ### Data flow
+
 - **Reads and writes from the client** go through hooks in `src/lib/data.ts` (`useTasks`, `useProjects`, `useNotes`, `useMilestones`, `useDeps`, `useAutomations`, plus `use*Actions`). They share TanStack Query keys (`tasks`, `projects`, `notes`, `milestones`, `deps`, `automations`), so list, kanban, calendar and timeline update together. Updates are optimistic (`setQueryData`) and then invalidated.
 - **Task mutations** all go through `useTaskActions()`. It handles blocked checks, auto-shifting dependents, recurring tasks, unblock notifications, and triggering `runAutomations` after create and update.
 - **List hooks exclude** soft-deleted (`deleted_at`) and archived (`archived_at`) rows. `/archive` queries them directly.
 - **Long lists** paginate on the client with `usePaged` / `LoadMore`.
 
 ### Server functions & auth
+
 - `attachSupabaseAuth` (a global function middleware) adds the user's access token to every server-function RPC.
 - `requireSupabaseAuth` validates the JWT (`auth.getClaims`) and gives handlers `context.supabase` (a client acting as the user, so RLS still applies) and `context.userId`.
 - `supabaseAdmin` (service role, `client.server.ts`) is used only where RLS must be bypassed: the Telegram webhook, the reminder cron, reading other users' Telegram chat IDs for unblock notifications, and the encrypted connection store.
 - CSRF middleware protects server functions.
 
 ### Row Level Security
+
 - Every table has RLS enabled. Owner policies use `auth.uid() = user_id`.
 - Team access uses the **security-definer** helpers `is_project_owner`, `is_project_member` and `can_access_task`. These avoid recursive policies. Tasks, notes, milestones, canvases, comments, dependencies and note versions in a shared project are visible to all members.
 - `app_config` and `app_user_connections` have no policies, so only the service role can read them.
 
 ### Realtime
+
 Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`, plus presence on `note-collab:<noteId>`. Other views stay in sync through the TanStack Query cache, not `postgres_changes`.
 
 ### Database-side automation
+
 - `handle_new_user` trigger creates a `profiles` row on sign-up.
 - `audit_row_change` triggers write to `activity_logs`.
 - `snapshot_note_change` writes `note_versions` (throttled to 10 minutes).
@@ -549,20 +579,20 @@ erDiagram
 
 Copy `.env.example` to `.env` locally (it is git-ignored) and set the same variables in your hosting provider.
 
-| Variable | Side | Required | Purpose |
-| --- | --- | --- | --- |
-| `VITE_SUPABASE_URL` | Client (build-time) | Yes | Supabase project URL for the browser client |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Client (build-time) | Yes | Supabase anon/publishable key for the browser client |
-| `SUPABASE_URL` | Server | Yes | Supabase URL for SSR, auth middleware and the admin client |
-| `SUPABASE_PUBLISHABLE_KEY` | Server | Yes | Publishable key used by `requireSupabaseAuth` to build a per-user client |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server (secret) | Yes | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store |
-| `LOVABLE_API_KEY` | Server (secret) | For AI / Telegram / Google | Bearer key for the Lovable AI Gateway (`ai.gateway.lovable.dev`) and the connector gateway (`connector-gateway.lovable.dev`) |
-| `TELEGRAM_API_KEY` | Server (secret) | For Telegram | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token |
-| `TELEGRAM_WEBHOOK_SECRET` | Server (secret) | Recommended | When set, the webhook rejects requests unless the `X-Telegram-Bot-Api-Secret-Token` header matches |
-| `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY` | Server (secret) | For Google Calendar | Client API key of the Lovable Google Calendar App User Connector |
-| `APP_USER_CONNECTION_KEY_SECRET` | Server (secret) | For Google Calendar | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`) |
-| `LOVABLE_DB_MIGRATION_URL` | Tooling | For migrations | Postgres connection string used by `drizzle-kit` |
-| `LOVABLE_CRON_SECRET` / `LOVABLE_CRON_SECRET_PREVIOUS` | Server | No (currently unused) | Read by the generated `cron-auth.ts` helper, which no route uses yet. The reminder endpoint authenticates against `app_config.cron_token` instead |
+| Variable                                               | Side                | Required                   | Purpose                                                                                                                                           |
+| ------------------------------------------------------ | ------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                                    | Client (build-time) | Yes                        | Supabase project URL for the browser client                                                                                                       |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`                        | Client (build-time) | Yes                        | Supabase anon/publishable key for the browser client                                                                                              |
+| `SUPABASE_URL`                                         | Server              | Yes                        | Supabase URL for SSR, auth middleware and the admin client                                                                                        |
+| `SUPABASE_PUBLISHABLE_KEY`                             | Server              | Yes                        | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                                          |
+| `SUPABASE_SERVICE_ROLE_KEY`                            | Server (secret)     | Yes                        | Service-role client (`supabaseAdmin`) for the Telegram webhook, reminders, unblock notifications and the encrypted connection store               |
+| `LOVABLE_API_KEY`                                      | Server (secret)     | For AI / Telegram / Google | Bearer key for the Lovable AI Gateway (`ai.gateway.lovable.dev`) and the connector gateway (`connector-gateway.lovable.dev`)                      |
+| `TELEGRAM_API_KEY`                                     | Server (secret)     | For Telegram               | Connection key for the Lovable Telegram connector (`X-Connection-Api-Key`), not a raw BotFather token                                             |
+| `TELEGRAM_WEBHOOK_SECRET`                              | Server (secret)     | Recommended                | When set, the webhook rejects requests unless the `X-Telegram-Bot-Api-Secret-Token` header matches                                                |
+| `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`    | Server (secret)     | For Google Calendar        | Client API key of the Lovable Google Calendar App User Connector                                                                                  |
+| `APP_USER_CONNECTION_KEY_SECRET`                       | Server (secret)     | For Google Calendar        | **Base64-encoded 32-byte key** for AES-GCM encryption of per-user connection handles (`openssl rand -base64 32`)                                  |
+| `LOVABLE_DB_MIGRATION_URL`                             | Tooling             | For migrations             | Postgres connection string used by `drizzle-kit`                                                                                                  |
+| `LOVABLE_CRON_SECRET` / `LOVABLE_CRON_SECRET_PREVIOUS` | Server              | No (currently unused)      | Read by the generated `cron-auth.ts` helper, which no route uses yet. The reminder endpoint authenticates against `app_config.cron_token` instead |
 
 `VITE_*` variables are inlined at build time. Rebuild after you change them.
 
@@ -600,16 +630,16 @@ In Supabase **Auth → URL Configuration**, add `http://localhost:<port>` (the d
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `bun run dev` | Start the Vite dev server (SSR + HMR) |
-| `bun run build` | Production build (client + Nitro server bundle) |
-| `bun run build:dev` | Build in development mode |
-| `bun run preview` | Preview the production build |
-| `bun run lint` | ESLint |
-| `bun run format` | Prettier write |
-| `bun run test` | Vitest (single run) |
-| `bun run test:watch` | Vitest watch mode |
+| Command              | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `bun run dev`        | Start the Vite dev server (SSR + HMR)           |
+| `bun run build`      | Production build (client + Nitro server bundle) |
+| `bun run build:dev`  | Build in development mode                       |
+| `bun run preview`    | Preview the production build                    |
+| `bun run lint`       | ESLint                                          |
+| `bun run format`     | Prettier write                                  |
+| `bun run test`       | Vitest (single run)                             |
+| `bun run test:watch` | Vitest watch mode                               |
 
 ---
 
@@ -617,16 +647,16 @@ In Supabase **Auth → URL Configuration**, add `http://localhost:<port>` (the d
 
 Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in `meta/_journal.json`:
 
-| # | File | Contents |
-| --- | --- | --- |
-| 0000 | `initial_second_brain_schema` | profiles (+ sign-up trigger), projects, inbox_items, tasks, notes, owner RLS |
-| 0001 | `app_config_cron_token` | `app_config` with a random `cron_token` (service role only) |
-| 0002 | `workspace_features` | project fields, milestones, task fields (subtasks, review status, assignee, recurrence), note fields, members, invites, comments, membership helpers and RLS |
-| 0003 | `deps_automations_blocks` | task_dependencies, automations, automation_runs, `notes.blocks` and `properties` (backfilled from content) |
+| #    | File                               | Contents                                                                                                                                                                         |
+| ---- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0000 | `initial_second_brain_schema`      | profiles (+ sign-up trigger), projects, inbox_items, tasks, notes, owner RLS                                                                                                     |
+| 0001 | `app_config_cron_token`            | `app_config` with a random `cron_token` (service role only)                                                                                                                      |
+| 0002 | `workspace_features`               | project fields, milestones, task fields (subtasks, review status, assignee, recurrence), note fields, members, invites, comments, membership helpers and RLS                     |
+| 0003 | `deps_automations_blocks`          | task_dependencies, automations, automation_runs, `notes.blocks` and `properties` (backfilled from content)                                                                       |
 | 0004 | `productivity_platform_extensions` | pgvector, task time-blocking and Google fields, activity_logs + audit trigger, note_versions, time_entries, canvas tables, calendar and app-user connections, semantic_documents |
-| 0005 | `throttle_note_version_snapshots` | Snapshot at most every 10 minutes |
-| 0006 | `complete_activity_audit_triggers` | Audit triggers on all main tables |
-| 0007 | `archive_trash_templates` | `deleted_at` / `archived_at`, templates table |
+| 0005 | `throttle_note_version_snapshots`  | Snapshot at most every 10 minutes                                                                                                                                                |
+| 0006 | `complete_activity_audit_triggers` | Audit triggers on all main tables                                                                                                                                                |
+| 0007 | `archive_trash_templates`          | `deleted_at` / `archived_at`, templates table                                                                                                                                    |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `LOVABLE_DB_MIGRATION_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
@@ -643,13 +673,13 @@ The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. Wi
    export default defineConfig({
      tanstackStart: { server: { entry: "server" } },
      nitro: { preset: "vercel" },
-     vite: { /* … unchanged … */ },
+     vite: {/* … unchanged … */},
    });
    ```
    Alternatively, set the env var `NITRO_PRESET=vercel` in the Vercel project.
-2. **Import the repo** in Vercel. Framework preset: *Other*. Install command: `bun install`. Build command: `bun run build`. Leave the output directory empty, because Nitro's Vercel preset writes `.vercel/output` (Build Output API).
+2. **Import the repo** in Vercel. Framework preset: _Other_. Install command: `bun install`. Build command: `bun run build`. Leave the output directory empty, because Nitro's Vercel preset writes `.vercel/output` (Build Output API).
 3. **Set the environment variables** from the table above for Production and Preview. Put `VITE_*` and the server-side Supabase variables in both. The `nitro` devDependency (≥ 3.0.260603-beta) is already in `package.json`.
-4. **Supabase Auth URLs:** in *Authentication → URL Configuration*, set the Site URL to `https://<your-app>.vercel.app` (or your custom domain), and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list.
+4. **Supabase Auth URLs:** in _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your custom domain), and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list.
 5. **Database:** run the migrations against the production database (`LOVABLE_DB_MIGRATION_URL=… bunx drizzle-kit migrate`).
 6. **Telegram webhook:** register the webhook URL with a secret:
    ```
@@ -660,6 +690,7 @@ The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. Wi
 8. **Google Calendar OAuth:** the flow runs through the Lovable App User Connector. The return URL is computed from the request origin: `https://<your-app>/oauth/google-calendar/return`. Make sure that URL is allowed for the connector, and set `GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY`, `APP_USER_CONNECTION_KEY_SECRET` and `LOVABLE_API_KEY`.
 
 **Caveats**
+
 - AI, Telegram and Google Calendar all call **Lovable gateways** (`ai.gateway.lovable.dev`, `connector-gateway.lovable.dev`). A Vercel deployment still needs a valid `LOVABLE_API_KEY` and connector keys, or those features fail and the rest of the app keeps working. Replacing them with direct OpenAI, Telegram Bot API or Google OAuth calls would require code changes.
 - `cron-auth.ts`, `auth-middleware.ts`, `auth-attacher.ts`, `client.ts` and `client.server.ts` are Lovable-generated. Avoid hand-editing them.
 - Do not commit the `.vercel` directory (it is already git-ignored).
@@ -669,18 +700,22 @@ The build uses Nitro, configured through `@lovable.dev/vite-tanstack-config`. Wi
 ## Integrations
 
 ### Telegram
+
 - Endpoint: `POST /api/public/telegram/webhook`
 - Commands: `/start` (instructions) and `/link <email>`, which binds the chat to the account with that email. Any other text is saved as an inbox item with `source = "telegram"`.
 - Outbound messages: deadline reminders, the automation `telegram` action, and unblock notifications.
 - Note: `/link` trusts the email the user sends. Set `TELEGRAM_WEBHOOK_SECRET`, and consider adding a verification code before you use this in production.
 
 ### Outgoing webhooks (automations)
+
 The `webhook` action sends `POST` with JSON `{ text, content, rule, event, project, task }` to any **HTTPS** URL. `text` and `content` make it work with Slack and Discord incoming webhooks out of the box, and with n8n Webhook nodes.
 
 ### n8n
+
 n8n workflow templates for this app will live in `integrations/n8n/`. Typical uses: receive automation webhooks, call the reminder endpoint on a schedule, or bridge other inputs into `inbox_items`. (`docs/n8n/` is reference material from another project and is not part of this app.)
 
 ### Google Calendar
+
 See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalendarStatus`, `startGoogleCalendarConnect`, `completeGoogleCalendarConnect`, `disconnectGoogleCalendar`, `syncTaskToGoogle`.
 
 ---
@@ -701,6 +736,7 @@ bun run lint
 ## Lovable sync caveat
 
 This repository is connected to Lovable:
+
 - **Never rewrite published history.** Do not force-push, and do not rebase, amend or squash commits that are already pushed. Lovable mirrors git history, and the project history would be lost.
 - Commits pushed to the connected branch (`main`) sync back into the Lovable editor. Keep the branch buildable.
 - Don't add Vite plugins that `@lovable.dev/vite-tanstack-config` already includes (TanStack Start, React, Tailwind, tsconfig paths, Nitro, and others), or the build breaks with duplicate plugins.

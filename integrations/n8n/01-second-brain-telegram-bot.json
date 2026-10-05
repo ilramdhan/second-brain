@@ -12,27 +12,18 @@
       "name": "Note: Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -60,
-        -460
-      ]
+      "position": [-60, -460]
     },
     {
       "parameters": {
-        "updates": [
-          "message",
-          "callback_query"
-        ],
+        "updates": ["message", "callback_query"],
         "additionalFields": {}
       },
       "id": "816dac13-b896-4657-b529-9e95b7fec12e",
       "name": "Telegram Trigger",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        200
-      ],
+      "position": [0, 200],
       "webhookId": "dfc3affe-356b-4231-89a1-6d50715a0021",
       "credentials": {
         "telegramApi": {
@@ -49,10 +40,7 @@
       "name": "Normalize & Guard",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        220,
-        200
-      ]
+      "position": [220, 200]
     },
     {
       "parameters": {
@@ -162,10 +150,7 @@
       "name": "Route",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [
-        440,
-        200
-      ]
+      "position": [440, 200]
     },
     {
       "parameters": {
@@ -182,10 +167,7 @@
       "name": "Typing…",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        700,
-        60
-      ],
+      "position": [700, 60],
       "onError": "continueRegularOutput"
     },
     {
@@ -203,10 +185,7 @@
       "name": "Uploading…",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        700,
-        380
-      ],
+      "position": [700, 380],
       "onError": "continueRegularOutput"
     },
     {
@@ -221,10 +200,7 @@
       "name": "Telegram getFile",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        700,
-        540
-      ],
+      "position": [700, 540],
       "onError": "continueErrorOutput"
     },
     {
@@ -245,10 +221,7 @@
       "name": "Download file",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        920,
-        540
-      ],
+      "position": [920, 540],
       "onError": "continueErrorOutput"
     },
     {
@@ -311,10 +284,7 @@
       "name": "Media kind",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [
-        1140,
-        540
-      ]
+      "position": [1140, 540]
     },
     {
       "parameters": {
@@ -325,10 +295,7 @@
       "name": "Prepare OCR request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1360,
-        460
-      ]
+      "position": [1360, 460]
     },
     {
       "parameters": {
@@ -347,10 +314,7 @@
       "name": "OpenAI OCR (vision)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1580,
-        460
-      ],
+      "position": [1580, 460],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 3000,
@@ -371,10 +335,7 @@
       "name": "OCR → payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1800,
-        460
-      ]
+      "position": [1800, 460]
     },
     {
       "parameters": {
@@ -385,10 +346,7 @@
       "name": "Fix audio filename",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1360,
-        640
-      ]
+      "position": [1360, 640]
     },
     {
       "parameters": {
@@ -427,10 +385,7 @@
       "name": "OpenAI Transcribe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1580,
-        640
-      ],
+      "position": [1580, 640],
       "credentials": {
         "openAiApi": {
           "id": "REPLACE_ME",
@@ -451,10 +406,7 @@
       "name": "Transcript → payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1800,
-        640
-      ]
+      "position": [1800, 640]
     },
     {
       "parameters": {
@@ -473,10 +425,7 @@
       "name": "Second Brain /bot",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        2020,
-        200
-      ],
+      "position": [2020, 200],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 3000,
@@ -548,10 +497,7 @@
       "name": "Reply method",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [
-        2240,
-        200
-      ]
+      "position": [2240, 200]
     },
     {
       "parameters": {
@@ -568,10 +514,7 @@
       "name": "Send message",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        2500,
-        300
-      ]
+      "position": [2500, 300]
     },
     {
       "parameters": {
@@ -588,10 +531,7 @@
       "name": "Answer callback",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        2500,
-        40
-      ],
+      "position": [2500, 40],
       "onError": "continueRegularOutput"
     },
     {
@@ -609,10 +549,7 @@
       "name": "Edit message",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        2720,
-        40
-      ],
+      "position": [2720, 40],
       "onError": "continueRegularOutput"
     },
     {
@@ -626,10 +563,7 @@
       "name": "Note: Flow",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        700,
-        760
-      ]
+      "position": [700, 760]
     }
   ],
   "connections": {

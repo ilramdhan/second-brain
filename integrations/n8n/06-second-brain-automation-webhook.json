@@ -12,10 +12,7 @@
       "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        -60,
-        -440
-      ]
+      "position": [-60, -440]
     },
     {
       "parameters": {
@@ -28,10 +25,7 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        0,
-        100
-      ],
+      "position": [0, 100],
       "webhookId": "8b02034a-6911-4364-b7b1-ca8757d41bfe"
     },
     {
@@ -42,10 +36,7 @@
       "name": "Validasi & format",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        220,
-        100
-      ]
+      "position": [220, 100]
     },
     {
       "parameters": {
@@ -76,10 +67,7 @@
       "name": "Token valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        440,
-        100
-      ]
+      "position": [440, 100]
     },
     {
       "parameters": {
@@ -91,10 +79,7 @@
       "name": "Balas 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [
-        660,
-        0
-      ]
+      "position": [660, 0]
     },
     {
       "parameters": {
@@ -108,10 +93,7 @@
       "name": "Balas 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [
-        660,
-        220
-      ]
+      "position": [660, 220]
     },
     {
       "parameters": {
@@ -202,10 +184,7 @@
       "name": "Channel",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [
-        880,
-        0
-      ]
+      "position": [880, 0]
     },
     {
       "parameters": {
@@ -222,10 +201,7 @@
       "name": "Telegram admin",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1120,
-        -140
-      ],
+      "position": [1120, -140],
       "onError": "continueRegularOutput"
     },
     {
@@ -262,10 +238,7 @@
       "name": "Log ke Google Sheets",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [
-        1120,
-        20
-      ],
+      "position": [1120, 20],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "REPLACE_ME",
@@ -290,10 +263,7 @@
       "name": "Discord / Slack",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1120,
-        180
-      ],
+      "position": [1120, 180],
       "disabled": true,
       "onError": "continueRegularOutput"
     }

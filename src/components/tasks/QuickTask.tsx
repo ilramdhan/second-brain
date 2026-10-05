@@ -11,13 +11,24 @@ import { useProjects, useTaskActions } from "@/lib/data";
 import { parseTaskText } from "@/lib/nlp";
 import { cn } from "@/lib/utils";
 
-export function QuickTask({ onDone, projectId }: { onDone?: () => void; projectId?: string | null | undefined }) {
+export function QuickTask({
+  onDone,
+  projectId,
+}: {
+  onDone?: () => void;
+  projectId?: string | null | undefined;
+}) {
   const [text, setText] = useState("");
   const { data: projects = [] } = useProjects();
   const { create } = useTaskActions();
   const parsed = useMemo(() => parseTaskText(text), [text]);
   const project = parsed.project
-    ? projects.find((p) => p.name.toLowerCase().startsWith(parsed.project!.toLowerCase()) || p.name.toLowerCase().replace(/\s+/g, "") === parsed.project!.toLowerCase().replace(/\s+/g, ""))
+    ? projects.find(
+        (p) =>
+          p.name.toLowerCase().startsWith(parsed.project!.toLowerCase()) ||
+          p.name.toLowerCase().replace(/\s+/g, "") ===
+            parsed.project!.toLowerCase().replace(/\s+/g, ""),
+      )
     : undefined;
 
   async function submit(e: React.FormEvent) {
@@ -39,8 +50,21 @@ export function QuickTask({ onDone, projectId }: { onDone?: () => void; projectI
     }
   }
 
-  const Chip = ({ icon: Icon, children, className }: { icon: typeof Hash; children: React.ReactNode; className?: string }) => (
-    <span className={cn("inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground", className)}>
+  const Chip = ({
+    icon: Icon,
+    children,
+    className,
+  }: {
+    icon: typeof Hash;
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground",
+        className,
+      )}
+    >
       <Icon className="h-3 w-3" />
       {children}
     </span>
@@ -57,23 +81,47 @@ export function QuickTask({ onDone, projectId }: { onDone?: () => void; projectI
           className="h-11"
           aria-label="Tugas cepat"
         />
-        <Button type="submit" className="h-11" disabled={!text.trim()}><Zap /> Buat</Button>
+        <Button type="submit" className="h-11" disabled={!text.trim()}>
+          <Zap /> Buat
+        </Button>
       </div>
       {text.trim() && (
         <div className="space-y-1.5 rounded-xl border bg-secondary/30 p-3">
           <p className="text-sm font-medium">{parsed.title}</p>
           <div className="flex flex-wrap gap-1.5">
-            {parsed.due && <Chip icon={CalendarDays}>{format(parsed.due, parsed.hasTime ? "EEE d MMM, HH:mm" : "EEE d MMM", { locale: localeId })}</Chip>}
-            {parsed.priority && <Chip icon={Flag} className={priorityOf(parsed.priority).className}>{priorityOf(parsed.priority).label}</Chip>}
-            {parsed.tags.map((t) => <Chip key={t} icon={Hash}>{t}</Chip>)}
+            {parsed.due && (
+              <Chip icon={CalendarDays}>
+                {format(parsed.due, parsed.hasTime ? "EEE d MMM, HH:mm" : "EEE d MMM", {
+                  locale: localeId,
+                })}
+              </Chip>
+            )}
+            {parsed.priority && (
+              <Chip icon={Flag} className={priorityOf(parsed.priority).className}>
+                {priorityOf(parsed.priority).label}
+              </Chip>
+            )}
+            {parsed.tags.map((t) => (
+              <Chip key={t} icon={Hash}>
+                {t}
+              </Chip>
+            ))}
             {parsed.assignee && <Chip icon={User}>{parsed.assignee}</Chip>}
-            {parsed.project && <Chip icon={FolderKanban} className={project ? "" : "line-through opacity-60"}>{project?.name ?? parsed.project}</Chip>}
-            {parsed.recurrence && <Chip icon={Repeat}>{labelOf(RECURRENCE, parsed.recurrence)}</Chip>}
+            {parsed.project && (
+              <Chip icon={FolderKanban} className={project ? "" : "line-through opacity-60"}>
+                {project?.name ?? parsed.project}
+              </Chip>
+            )}
+            {parsed.recurrence && (
+              <Chip icon={Repeat}>{labelOf(RECURRENCE, parsed.recurrence)}</Chip>
+            )}
           </div>
         </div>
       )}
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Kenali otomatis: <b>besok, lusa, senin, 12 okt, 12/10, jam 10 pagi, 14:30</b> · <b>#tag</b> · <b>@orang</b> · <b>+proyek</b> · <b>!tinggi / !1</b> · <b>setiap minggu</b>. Tekan <kbd className="rounded border px-1">Q</kbd> di mana saja untuk membuka.
+        Kenali otomatis: <b>besok, lusa, senin, 12 okt, 12/10, jam 10 pagi, 14:30</b> · <b>#tag</b>{" "}
+        · <b>@orang</b> · <b>+proyek</b> · <b>!tinggi / !1</b> · <b>setiap minggu</b>. Tekan{" "}
+        <kbd className="rounded border px-1">Q</kbd> di mana saja untuk membuka.
       </p>
     </form>
   );
