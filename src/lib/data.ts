@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { addDays, addMonths, addWeeks, format, startOfDay } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,12 @@ import {
   pickKeys,
   removeRows,
 } from "@/lib/query-cache";
+import {
+  dueShiftMs,
+  parseCompleteResult,
+  pickColumns,
+  type CompleteTaskOutcome,
+} from "@/lib/task-rules";
 
 /* ---------- column lists (no `select *`) ---------- */
 // Columns the client never reads are left out: soft-delete/archive flags (always null in the
@@ -469,45 +475,84 @@ export function useTaskActions() {
     return row;
   }
 
+  /** Patches every cached task query (list and detail) holding row `id`. */
+  function patchTaskCache(id: string, patch: object) {
+    for (const [k, data] of qc.getQueriesData({ queryKey: qk.tasks })) {
+      const next = patchCached(data, id, patch);
+      if (next !== data) qc.setQueryData(k, next);
+    }
+  }
+
   async function update(id: string, patch: TablesUpdate<"tasks">) {
-    const tasks = getTasks();
-    const before = tasks.find((t) => t.id === id);
+    const before = getTasks().find((t) => t.id === id);
     await crud.update(id, patch);
     if (!before) return;
-    // Auto-shift dependents when a blocker's deadline is pushed later.
-    if (patch.due_date && before.due_date) {
-      const delta = new Date(patch.due_date).getTime() - new Date(before.due_date).getTime();
-      if (delta > 0) {
-        const deps = getDeps();
-        const seen = new Set([id]);
-        const queue = [id];
-        let shifted = 0;
-        while (queue.length) {
-          const cur = queue.shift()!;
-          for (const d of deps.filter((x) => x.blocker_id === cur)) {
-            if (seen.has(d.blocked_id)) continue;
-            seen.add(d.blocked_id);
-            queue.push(d.blocked_id);
-            const t = tasks.find((x) => x.id === d.blocked_id);
-            if (!t || t.status === "done" || (!t.due_date && !t.start_date)) continue;
-            const mv = (iso: string | null) =>
-              iso ? new Date(new Date(iso).getTime() + delta).toISOString() : null;
-            await crud.update(t.id, {
-              start_date: mv(t.start_date),
-              due_date: mv(t.due_date),
-              reminded: false,
-            });
-            shifted++;
-          }
-        }
-        if (shifted) toast.message(`${shifted} tugas yang bergantung ikut digeser`);
+    // Auto-shift dependents when a blocker's deadline is pushed later: one transactional RPC
+    // (migration 0017) shared with the n8n service; the returned rows patch the cache.
+    const delta = dueShiftMs(before.due_date, patch.due_date);
+    if (delta > 0) {
+      const { data, error } = await supabase.rpc("shift_task_dependents", {
+        _task_id: id,
+        _delta_ms: delta,
+      });
+      if (error) {
+        toast.error(error.message);
+        void crud.invalidate();
+      } else if (data?.length) {
+        for (const row of data) patchTaskCache(row.id, row);
+        toast.message(`${data.length} tugas yang bergantung ikut digeser`);
       }
     }
     automate("updated", { ...before, ...patch } as Task, before);
   }
 
+  /**
+   * Marks a task done through the `complete_task` RPC (migration 0017): blocked check, status
+   * update, unblocked dependents and the next recurring occurrence in one transaction. The
+   * cache is patched optimistically and rolled back when the task turns out to be blocked.
+   */
+  async function complete(task: Task) {
+    const snap = snapshot(qc, qk.tasks);
+    const now = new Date().toISOString();
+    patchTaskCache(task.id, { status: "done", completed_at: now, updated_at: now });
+    const { data, error } = await supabase.rpc("complete_task", {
+      _task_id: task.id,
+      _tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
+    let result: CompleteTaskOutcome;
+    try {
+      if (error) throw new Error(error.message);
+      result = parseCompleteResult(data);
+    } catch (e) {
+      restore(qc, snap);
+      toast.error(e instanceof Error ? e.message : String(e));
+      void crud.invalidate();
+      return;
+    }
+    if (result.status === "blocked") {
+      restore(qc, snap);
+      toast.error(`Terkunci: tunggu "${result.blocker}" selesai dulu`);
+      return;
+    }
+    patchTaskCache(task.id, pickColumns(result.task, TASK_COLS));
+    if (result.status === "already_done") return;
+    automate("updated", { ...task, status: "done" }, task);
+    if (result.unblocked.length) {
+      toast.success(`Tidak terkunci lagi: ${result.unblocked.map((u) => u.title).join(", ")}`);
+      notify({
+        data: { taskIds: result.unblocked.map((u) => u.id), blockerTitle: task.title },
+      }).catch(() => {});
+    }
+    if (result.recurring) {
+      const next = pickColumns(result.recurring, TASK_COLS) as Task;
+      qc.setQueryData<Task[]>(qk.tasks, (old) => insertRow(old, next));
+      automate("created", next);
+      toast.success("Tugas berulang berikutnya dibuat");
+    }
+  }
+
   async function setStatus(task: Task, status: string) {
-    const done = status === "done";
+    if (status === "done" && task.status !== "done") return complete(task);
     if (status !== "todo") {
       const blockers = openBlockers(task.id, getDeps(), getTasks());
       if (blockers.length) {
@@ -515,47 +560,10 @@ export function useTaskActions() {
         return;
       }
     }
-    await update(task.id, { status, completed_at: done ? new Date().toISOString() : null });
-    if (done && task.status !== "done") {
-      const tasks = getTasks().map((t) => (t.id === task.id ? { ...t, status: "done" } : t));
-      const deps = getDeps();
-      const freed = deps
-        .filter((d) => d.blocker_id === task.id)
-        .map((d) => d.blocked_id)
-        .filter((bid) => openBlockers(bid, deps, tasks).length === 0);
-      if (freed.length) {
-        const names = freed.map((f) => tasks.find((t) => t.id === f)?.title).filter(Boolean);
-        toast.success(`Tidak terkunci lagi: ${names.join(", ")}`);
-        notify({ data: { taskIds: freed, blockerTitle: task.title } }).catch(() => {});
-      }
-    }
-    if (done && task.status !== "done" && task.recurrence && task.due_date) {
-      const shift = (d: string | null) => {
-        if (!d) return null;
-        const x = new Date(d);
-        const n =
-          task.recurrence === "daily"
-            ? addDays(x, 1)
-            : task.recurrence === "weekly"
-              ? addWeeks(x, 1)
-              : addMonths(x, 1);
-        return n.toISOString();
-      };
-      await create({
-        title: task.title,
-        description: task.description,
-        priority: task.priority,
-        project_id: task.project_id,
-        milestone_id: task.milestone_id,
-        assignee_id: task.assignee_id,
-        assignee_name: task.assignee_name,
-        tags: task.tags,
-        recurrence: task.recurrence,
-        start_date: shift(task.start_date),
-        due_date: shift(task.due_date),
-      });
-      toast.success("Tugas berulang berikutnya dibuat");
-    }
+    await update(task.id, {
+      status,
+      completed_at: status === "done" ? new Date().toISOString() : null,
+    });
   }
   return { ...crud, create, update, setStatus };
 }

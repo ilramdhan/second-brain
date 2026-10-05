@@ -120,6 +120,13 @@
       "when": 1791207289653,
       "tag": "0016_user_fks_and_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791207290653,
+      "tag": "0017_task_rules_rpc",
+      "breakpoints": true
     }
   ]
 }

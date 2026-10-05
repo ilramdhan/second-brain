@@ -1042,6 +1042,10 @@ export type Database = {
         Args: { _task_id: string; _user_id: string };
         Returns: boolean;
       };
+      complete_task: {
+        Args: { _task_id: string; _tz?: string; _user_id?: string };
+        Returns: Json;
+      };
       consume_rate_limit: {
         Args: { _bucket: string; _max: number; _window_seconds: number };
         Returns: boolean;
@@ -1085,6 +1089,15 @@ export type Database = {
           entity_type: string;
           search_text: string;
           similarity: number;
+        }[];
+      };
+      shift_task_dependents: {
+        Args: { _delta_ms: number; _task_id: string; _user_id?: string };
+        Returns: {
+          due_date: string;
+          id: string;
+          start_date: string;
+          updated_at: string;
         }[];
       };
     };
