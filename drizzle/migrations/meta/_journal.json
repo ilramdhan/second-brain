@@ -71,6 +71,13 @@
       "when": 1791207282653,
       "tag": "0009_private_note_collab_channels",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791207283653,
+      "tag": "0010_member_ownership_guards",
+      "breakpoints": true
     }
   ]
 }

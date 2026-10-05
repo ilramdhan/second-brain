@@ -63,6 +63,7 @@ function ProjectDetail() {
   const { data: tasks = [] } = useTasks();
   const { data: milestones = [] } = useMilestones();
   const [editing, setEditing] = useState(false);
+  const { data: me } = useMe();
   const project = projects.find((p) => p.id === projectId);
 
   if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Memuat…</div>;
@@ -118,9 +119,12 @@ function ProjectDetail() {
             )}
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-          <Pencil /> Ubah
-        </Button>
+        {/* Only the project owner may edit project settings (enforced by RLS, migration 0010). */}
+        {project.user_id === me?.id && (
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Pencil /> Ubah
+          </Button>
+        )}
       </header>
 
       <Tabs defaultValue="overview">
