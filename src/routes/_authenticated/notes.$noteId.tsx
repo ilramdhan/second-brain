@@ -474,6 +474,8 @@ function VersionHistory({
   const { data = [], isLoading } = useQuery({
     queryKey: ["note-versions", note.id],
     enabled: open,
+    // Snapshots are written by a DB trigger on save, so reload whenever the sheet opens.
+    staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("note_versions")

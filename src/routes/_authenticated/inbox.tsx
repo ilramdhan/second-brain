@@ -4,6 +4,7 @@ import { Sparkles, Loader2, Archive, Check, FileText, Bug, ListTodo } from "luci
 import { formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { parseBrainDump, paraphrasePoint } from "@/lib/ai.functions";
@@ -11,6 +12,7 @@ import { QuickCapture } from "@/components/QuickCapture";
 import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { PageContainer } from "@/components/common/PageContainer";
+import { qk } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
@@ -36,6 +38,7 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 function InboxPage() {
+  const qc = useQueryClient();
   const [items, setItems] = useState<InboxItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -108,6 +111,9 @@ function InboxPage() {
       }
 
       await supabase.from("inbox_items").update({ status: "processed" }).eq("id", item.id);
+      // Rows were inserted outside the data hooks; refresh the lists they belong to.
+      for (const key of [qk.tasks, qk.notes, qk.projects, ["inbox-count"]])
+        void qc.invalidateQueries({ queryKey: key });
       toast.success(`Diproses menjadi ${taskRows.length} tugas & ${noteRows.length} catatan`);
       load();
     } catch (err) {
@@ -136,6 +142,7 @@ function InboxPage() {
 
   async function handleArchive(item: InboxItem) {
     await supabase.from("inbox_items").update({ status: "archived" }).eq("id", item.id);
+    void qc.invalidateQueries({ queryKey: ["inbox-count"] });
     load();
   }
 

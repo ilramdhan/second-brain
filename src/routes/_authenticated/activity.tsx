@@ -35,6 +35,8 @@ function ActivityPage() {
   const [type, setType] = useState("all");
   const { data = [], isLoading } = useQuery({
     queryKey: ["activity-logs"],
+    // Audit rows are written by DB triggers, never through the cache: always reload on visit.
+    staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("activity_logs")

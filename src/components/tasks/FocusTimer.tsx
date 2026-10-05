@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, Timer } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getUid, type Task } from "@/lib/data";
 
 export function FocusTimer({ task }: { task: Task }) {
+  const qc = useQueryClient();
   const total = Math.max(1, task.estimate_minutes) * 60;
   const [seconds, setSeconds] = useState(total);
   const [running, setRunning] = useState(false);
@@ -40,7 +42,10 @@ export function FocusTimer({ task }: { task: Task }) {
       duration_seconds: duration,
     });
     if (error) toast.error(error.message);
-    else toast.success("Sesi fokus tersimpan");
+    else {
+      toast.success("Sesi fokus tersimpan");
+      void qc.invalidateQueries({ queryKey: ["time-entries"] });
+    }
     startedAt.current = null;
   }
 
