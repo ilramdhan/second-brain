@@ -30,8 +30,8 @@ describe("cronSecretsFromEnv / matchesAnySecret", () => {
   it("collects only non-empty secrets", () => {
     expect(
       cronSecretsFromEnv({
-        LOVABLE_CRON_SECRET: "a",
-        LOVABLE_CRON_SECRET_PREVIOUS: "",
+        SECOND_BRAIN_CRON_SECRET: "a",
+        SECOND_BRAIN_CRON_SECRET_PREVIOUS: "",
         CRON_SECRET: " c ",
       }),
     ).toEqual(["a", "c"]);
@@ -47,8 +47,8 @@ describe("cronSecretsFromEnv / matchesAnySecret", () => {
 
 describe("authorizeCronRequest", () => {
   const env = {
-    LOVABLE_CRON_SECRET: "current",
-    LOVABLE_CRON_SECRET_PREVIOUS: "previous",
+    SECOND_BRAIN_CRON_SECRET: "current",
+    SECOND_BRAIN_CRON_SECRET_PREVIOUS: "previous",
     CRON_SECRET: "vercel",
   };
 

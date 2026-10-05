@@ -1,13 +1,11 @@
 // Authentication for cron-triggered endpoints (e.g. /api/public/hooks/reminders).
 //
 // Accepted credentials, all compared in constant time (sha256 + timingSafeEqual):
-//   * `LOVABLE_CRON_SECRET` and `LOVABLE_CRON_SECRET_PREVIOUS` (Lovable cron, rotation)
-//   * `CRON_SECRET` (Vercel Cron sends `Authorization: Bearer $CRON_SECRET`; also n8n etc.)
+//   * `SECOND_BRAIN_CRON_SECRET` and `SECOND_BRAIN_CRON_SECRET_PREVIOUS` (n8n, GitHub Actions or
+//     any external scheduler; the previous value allows zero-downtime rotation)
+//   * `CRON_SECRET` (Vercel Cron sends `Authorization: Bearer $CRON_SECRET`)
 //   * legacy `app_config.cron_token` (service-role table) — looked up only when a bearer token
 //     is present and no env secret matched, so unauthenticated requests never hit the database.
-//
-// The generated `src/integrations/supabase/cron-auth.ts` only knows the Lovable secrets and
-// returns 500 when they are unset, so this module generalizes it without editing generated code.
 import { secretsMatch } from "./telegramSecurity.server";
 
 /** Extracts the token from `Authorization: Bearer <token>`; null when absent or malformed. */
@@ -18,7 +16,11 @@ export function bearerToken(header: string | null | undefined): string | null {
 
 /** Non-empty configured secrets from the environment, current before previous. */
 export function cronSecretsFromEnv(env: Record<string, string | undefined> = process.env) {
-  return [env["LOVABLE_CRON_SECRET"], env["LOVABLE_CRON_SECRET_PREVIOUS"], env["CRON_SECRET"]]
+  return [
+    env["SECOND_BRAIN_CRON_SECRET"],
+    env["SECOND_BRAIN_CRON_SECRET_PREVIOUS"],
+    env["CRON_SECRET"],
+  ]
     .map((s) => s?.trim())
     .filter((s): s is string => Boolean(s));
 }

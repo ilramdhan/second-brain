@@ -7,7 +7,7 @@ const json = (body: unknown, status = 200) =>
   });
 
 // Dipanggil berkala oleh cron: kirim pengingat deadline via Telegram.
-// Auth: `Authorization: Bearer <secret>` dengan LOVABLE_CRON_SECRET(_PREVIOUS), CRON_SECRET
+// Auth: `Authorization: Bearer <secret>` dengan SECOND_BRAIN_CRON_SECRET(_PREVIOUS), CRON_SECRET
 // (Vercel Cron) atau token lama app_config.cron_token. GET didukung untuk Vercel Cron.
 async function handle(request: Request) {
   const { authorizeCronRequest } = await import("@/server/cronAuth.server");

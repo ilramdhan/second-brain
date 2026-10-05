@@ -2,9 +2,9 @@
 //   * vercel.json `headers` (static assets + SSR on Vercel) — kept in sync by
 //     src/server/securityHeaders.test.ts, and
 //   * src/server.ts, which adds them to every SSR/API response in production builds on any host
-//     (Lovable/Cloudflare, Vercel, Node). On Vercel the static-asset responses get them from
-//     vercel.json; values are identical, so a header present twice is harmless. Dev is skipped
-//     because the Lovable editor preview embeds the dev server in an iframe.
+//     (Vercel, Node, Cloudflare). On Vercel the static-asset responses get them from
+//     vercel.json; values are identical, so a header present twice is harmless. `vite dev` is
+//     skipped so HSTS is never pinned on localhost and dev tooling is not blocked by the CSP.
 //
 // CSP is split in two:
 //   * `Content-Security-Policy` (ENFORCED) only contains directives that cannot break the app:
