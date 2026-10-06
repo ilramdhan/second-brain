@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Brain } from "lucide-react";
 import { toast } from "sonner";
 
+import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
 import { DemoNotice } from "@/components/demo/DemoBanner";
@@ -45,7 +46,7 @@ function LoginPage() {
   const demoAccount = demoCredentials();
   // Self-service sign-up is hidden unless VITE_ALLOW_SIGNUP=true (see signupAllowed()).
   const allowSignup = !demo && signupAllowed();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -158,61 +159,93 @@ function LoginPage() {
           </section>
         ) : null}
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-3 rounded-2xl border bg-card p-6 shadow-sm"
-        >
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              placeholder="anda@email.com"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="password">
-              Kata sandi
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Minimal 6 karakter"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        {/* Password reset: emails a link to /auth/set-password. Off in the demo (shared account). */}
+        {mode === "forgot" && !demo ? (
+          <section
+            aria-labelledby="forgot-title"
+            className="space-y-3 rounded-2xl border bg-card p-6 shadow-sm"
           >
-            {loading ? "Memproses…" : mode === "login" ? "Masuk" : "Daftar"}
-          </button>
-          {allowSignup ? (
+            <h2 id="forgot-title" className="text-base font-semibold">
+              {t("authForgotTitle")}
+            </h2>
+            <p className="text-sm text-muted-foreground">{t("authForgotIntro")}</p>
+            <ForgotPasswordForm initialEmail={email} />
             <button
               type="button"
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
+              onClick={() => setMode("login")}
               className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
-              {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
+              {t("authForgotBack")}
             </button>
-          ) : demo ? null : (
-            <p className="text-center text-xs text-muted-foreground">
-              Pendaftaran ditutup. Akun dibuat oleh pemilik instance; minta undangan untuk
-              bergabung.
-            </p>
-          )}
-        </form>
+          </section>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-3 rounded-2xl border bg-card p-6 shadow-sm"
+          >
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="email">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                placeholder="anda@email.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-medium" htmlFor="password">
+                  Kata sandi
+                </label>
+                {mode === "login" && !demo ? (
+                  <button
+                    type="button"
+                    onClick={() => setMode("forgot")}
+                    className="rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    {t("authForgotLink")}
+                  </button>
+                ) : null}
+              </div>
+              <input
+                id="password"
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Minimal 6 karakter"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {loading ? "Memproses…" : mode === "login" ? "Masuk" : "Daftar"}
+            </button>
+            {allowSignup ? (
+              <button
+                type="button"
+                onClick={() => setMode(mode === "login" ? "signup" : "login")}
+                className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
+              </button>
+            ) : demo ? null : (
+              <p className="text-center text-xs text-muted-foreground">
+                Pendaftaran ditutup. Akun dibuat oleh pemilik instance; minta undangan untuk
+                bergabung.
+              </p>
+            )}
+          </form>
+        )}
       </div>
     </main>
   );

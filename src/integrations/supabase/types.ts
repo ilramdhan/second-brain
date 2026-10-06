@@ -728,30 +728,36 @@ export type Database = {
       };
       semantic_documents: {
         Row: {
+          content_hash: string | null;
           embedding: string | null;
           entity_id: string;
           entity_type: string;
           id: string;
+          model: string | null;
           project_id: string | null;
           search_text: string;
           updated_at: string;
           user_id: string;
         };
         Insert: {
+          content_hash?: string | null;
           embedding?: string | null;
           entity_id: string;
           entity_type: string;
           id?: string;
+          model?: string | null;
           project_id?: string | null;
           search_text?: string;
           updated_at?: string;
           user_id: string;
         };
         Update: {
+          content_hash?: string | null;
           embedding?: string | null;
           entity_id?: string;
           entity_type?: string;
           id?: string;
+          model?: string | null;
           project_id?: string | null;
           search_text?: string;
           updated_at?: string;
@@ -1100,6 +1106,22 @@ export type Database = {
         };
         Returns: string;
       };
+      match_semantic_documents: {
+        Args: {
+          _limit?: number;
+          _min_similarity?: number;
+          _model: string;
+          _query_embedding: string;
+        };
+        Returns: {
+          entity_id: string;
+          entity_type: string;
+          project_id: string | null;
+          similarity: number;
+          snippet: string;
+          title: string;
+        }[];
+      };
       my_project_ids: { Args: never; Returns: string[] };
       n8n_user_id_by_email: { Args: { _email: string }; Returns: string };
       note_backlinks: {
@@ -1113,15 +1135,25 @@ export type Database = {
         }[];
       };
       note_collab_topic_note_id: { Args: { _topic: string }; Returns: string };
-      search_semantic_documents: {
-        Args: { _limit?: number; _query_embedding: string };
+      semantic_note_text: {
+        Args: { _content: string; _tags: string[]; _title: string };
+        Returns: string;
+      };
+      semantic_pending: {
+        Args: { _limit?: number; _model: string; _user_id?: string };
         Returns: {
+          body: string;
+          content_hash: string;
           entity_id: string;
           entity_type: string;
-          search_text: string;
-          similarity: number;
+          user_id: string;
         }[];
       };
+      semantic_task_text: {
+        Args: { _description: string; _tags: string[]; _title: string };
+        Returns: string;
+      };
+      semantic_upsert: { Args: { _docs: Json; _model: string }; Returns: number };
       shift_task_dependents: {
         Args: { _delta_ms: number; _task_id: string; _user_id?: string };
         Returns: {

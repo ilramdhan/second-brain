@@ -27,6 +27,7 @@ import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticated/timeline'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
+import { Route as AuthSetPasswordRouteImport } from './routes/auth/set-password'
 import { Route as AuthenticatedNotesIndexRouteImport } from './routes/_authenticated/notes.index'
 import { Route as AuthenticatedNotesNoteIdRouteImport } from './routes/_authenticated/notes.$noteId'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
@@ -134,6 +135,11 @@ const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
   path: '/today',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
+  id: '/auth/set-password',
+  path: '/auth/set-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedNotesIndexRoute = AuthenticatedNotesIndexRouteImport.update({
   id: '/notes/',
   path: '/notes/',
@@ -239,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByTo {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -311,6 +319,7 @@ export interface FileRoutesById {
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/timeline': typeof AuthenticatedTimelineRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/_authenticated/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -348,6 +357,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/timeline'
     | '/today'
+    | '/auth/set-password'
     | '/notes/$noteId'
     | '/projects/$projectId'
     | '/oauth/google-calendar/return'
@@ -383,6 +393,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/timeline'
     | '/today'
+    | '/auth/set-password'
     | '/notes/$noteId'
     | '/projects/$projectId'
     | '/oauth/google-calendar/return'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/_authenticated/templates'
     | '/_authenticated/timeline'
     | '/_authenticated/today'
+    | '/auth/set-password'
     | '/_authenticated/notes/$noteId'
     | '/_authenticated/projects/$projectId'
     | '/oauth/google-calendar/return'
@@ -443,6 +455,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  AuthSetPasswordRoute: typeof AuthSetPasswordRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicHooksRemindersRoute: typeof ApiPublicHooksRemindersRoute
   ApiPublicN8nBackupRoute: typeof ApiPublicN8nBackupRoute
@@ -584,6 +597,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/today'
       preLoaderRoute: typeof AuthenticatedTodayRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/auth/set-password': {
+      id: '/auth/set-password'
+      path: '/auth/set-password'
+      fullPath: '/auth/set-password'
+      preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/notes/': {
       id: '/_authenticated/notes/'
@@ -750,6 +770,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  AuthSetPasswordRoute: AuthSetPasswordRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicHooksRemindersRoute: ApiPublicHooksRemindersRoute,
   ApiPublicN8nBackupRoute: ApiPublicN8nBackupRoute,

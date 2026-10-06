@@ -14,7 +14,14 @@ export { useTaskActions, useTasks } from "@/features/tasks/hooks";
 
 export type { Person, Project } from "@/features/projects/types";
 export { PROJECT_COLS, projectsQuery } from "@/features/projects/api";
-export { usePeople, useProjectActions, useProjects } from "@/features/projects/hooks";
+export {
+  invitesKey,
+  useInviteActions,
+  usePeople,
+  useProjectActions,
+  useProjectInvites,
+  useProjects,
+} from "@/features/projects/hooks";
 
 export type { Backlink, Note, NoteBlocks, NoteDetail, NoteSummary } from "@/features/notes/types";
 export {
@@ -48,5 +55,5 @@ export type { Automation } from "@/features/automations/types";
 export { AUTOMATION_COLS, automationsQuery } from "@/features/automations/api";
 export { useAutomationActions, useAutomations } from "@/features/automations/hooks";
 
-export type { SearchHit, SearchResults } from "@/features/search/hooks";
-export { useSearch } from "@/features/search/hooks";
+export type { SearchHit, SearchResults, SemanticHit } from "@/features/search/hooks";
+export { useSearch, useSemanticSearch, useSemanticStatus } from "@/features/search/hooks";

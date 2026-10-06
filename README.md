@@ -114,7 +114,7 @@ A Gantt-style timeline of projects, tasks, milestones and launch dates, with a "
 - **PARA** classification (`project` / `area` / `resource` / `archive`), status, color, start, due and launch dates.
 - Nested projects (`parent_id`) with **grid, kanban and tree** views.
 - Each project page has tabs for overview, tasks, milestones, timeline, notes and team.
-- **Sharing**: the owner invites people by email (`project_invites`). When an invited user signs in, `accept_project_invites()` turns the invitation into a `project_members` row. Members see and edit the project's tasks, notes, milestones and canvases; only the owner edits or deletes the project itself, and only a row's creator or the project owner can trash or delete it. `list_project_people()` resolves names and emails.
+- **Sharing**: the owner invites people by email from the project's team tab (`inviteProjectMember` server function, owner only, rate limited to 20 invites per hour). The invite is stored in `project_invites`; for an address without an account Supabase Auth also creates the user and emails an invite link to `/auth/set-password`, where they choose a password and land in the project. Existing accounts get no extra email and simply join on their next sign-in. The owner sees pending invites with **Kirim ulang** (resend a fresh link) and **Batalkan** (revoke); members see them as "Menunggu". `accept_project_invites()` turns an invitation into a `project_members` row. Members see and edit the project's tasks, notes, milestones and canvases; only the owner edits or deletes the project itself, and only a row's creator or the project owner can trash or delete it. `list_project_people()` resolves names and emails.
 
 ### Notes (`/notes`, `/notes/$noteId`)
 
@@ -184,10 +184,14 @@ A full audit trail. Database triggers on every main table log insert, update and
 - **Idle auto sign-out** after N minutes. Activity in any tab resets the timer.
 - Telegram link status and unlink, Google Calendar connect and disconnect.
 - **JSON backup and restore** (projects, tasks, notes, milestones, dependencies, automations). Restoring never deletes existing data.
+- **Meaning search (AI)**: index status and an "Indeks ulang" (re-index) button that embeds every task and note whose embedding is missing or outdated.
 
 ### Command menu
 
 Press `Cmd/Ctrl + K` to search tasks, projects and notes and jump to them, or to create a new task.
+
+- **Keyword mode** (default): title search in Postgres.
+- **Meaning mode** ("Makna (AI)", semantic search): finds tasks and notes by meaning ("persiapan rapat klien" also finds "siapkan materi meeting dengan client"), with a similarity score per result. It searches everything you can read, including shared projects. Embeddings (title, tags and the first 2000 characters of the description or note) are stored in `semantic_documents` (pgvector, 1536-d HNSW) and kept in sync incrementally: a save never waits for the AI; the app embeds stale rows (content hash) a few seconds later and before each search. Without an AI provider the mode is disabled and the palette uses keywords; if a semantic request fails it falls back to keyword results. In the demo, embeddings are a deterministic hashed bag of words (no AI call).
 
 ### PWA
 
@@ -195,9 +199,9 @@ Press `Cmd/Ctrl + K` to search tasks, projects and notes and jump to them, or to
 
 ### Authentication
 
-Supabase email/password sign-in (`/login`). Every page under the `_authenticated` layout redirects to `/login` when there is no session, and opening `/login` (or `/`) with an active session goes straight to `/today` (or the `redirect` target). The login page links back to the landing page.
+Supabase email/password sign-in (`/login`), with **Lupa kata sandi?** (password reset by email; the answer is the same whether or not the address has an account) and `/auth/set-password` (noindex), which handles invite and recovery links (implicit `#access_token…&type=invite|recovery`, or PKCE `?code=`), asks for the new password twice with strength hints, accepts pending project invites and opens the invited project or `/today`. Expired or reused links show a clear message with a "request a new link" form. Every page under the `_authenticated` layout redirects to `/login` when there is no session, and opening `/login` (or `/`) with an active session goes straight to `/today` (or the `redirect` target). The login page links back to the landing page.
 
-**Sign-up is closed by default.** The "Belum punya akun? Daftar" option only appears when the build sets `VITE_ALLOW_SIGNUP=true`. Hiding the UI is not a security boundary, because anyone can call `auth.signUp` with the public anon key, so also turn off **Supabase → Authentication → Sign In / Providers → "Allow new users to sign up"**. Create accounts with _Authentication → Users → Invite user / Add user_ (or the admin API). Team members are then added through project invites: the owner invites an email in the project, and `accept_project_invites()` turns the invite into a membership the first time that user signs in, whichever way the account was created.
+**Sign-up is closed by default.** The "Belum punya akun? Daftar" option only appears when the build sets `VITE_ALLOW_SIGNUP=true`. Hiding the UI is not a security boundary, because anyone can call `auth.signUp` with the public anon key, so also turn off **Supabase → Authentication → Sign In / Providers → "Allow new users to sign up"**. Team members never have to be created by hand: the project owner invites their email in the project's team tab, Supabase emails them a link to set a password, and the invite becomes a membership on their first sign-in. (_Authentication → Users → Invite user / Add user_ still works for accounts outside a project.) See "Supabase Auth URLs and emails" in the deployment steps for the required Supabase settings.
 
 ---
 
@@ -316,7 +320,8 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     ├── routes/
     │   ├── __root.tsx         # HTML shell, meta, manifest, SW registration, providers
     │   ├── index.tsx          # Public landing page (SSR bento grid; signed-in visitors → /today)
-    │   ├── login.tsx          # Email/password sign-in & sign-up
+    │   ├── login.tsx          # Email/password sign-in, sign-up, "Lupa kata sandi?"
+    │   ├── auth/set-password.tsx              # Invite / reset email links → choose a password
     │   ├── _authenticated.tsx # Auth guard + app shell (sidebar, mobile nav, command menu, quick capture, idle logout)
     │   ├── _authenticated/    # today, inbox, tasks, calendar, timeline, projects.*, notes.*,
     │   │                      # graph, canvas, automations, reports, templates, archive, activity, settings
@@ -593,6 +598,8 @@ erDiagram
         uuid entity_id
         text search_text
         vector embedding "1536"
+        text model
+        text content_hash
     }
     APP_CONFIG {
         text key PK
@@ -600,10 +607,10 @@ erDiagram
     }
 ```
 
-**Database functions (RPC / security definer):** `is_project_owner`, `is_project_member`, `can_access_task`, `accept_project_invites`, `list_project_people`, `log_activity`, `search_semantic_documents`.
+**Database functions (RPC / security definer):** `is_project_owner`, `is_project_member`, `can_access_task`, `accept_project_invites`, `list_project_people`, `log_activity`, `semantic_upsert`. **Semantic search (security invoker):** `semantic_pending`, `match_semantic_documents`.
 **Triggers:** `handle_new_user` (auth.users), `audit_row_change` (all main tables), `snapshot_note_change` (notes).
 
-> `semantic_documents` / `search_semantic_documents` (pgvector) exist in the schema, but the UI does not use them yet. Semantic search is still on the roadmap.
+> `semantic_documents` holds one embedding per task/note (migration 0020). Authenticated users can only read it (RLS: owner or project member); writes go through `semantic_upsert`, which re-checks access and skips rows whose text changed since they were read.
 
 ---
 
@@ -632,12 +639,13 @@ Copy `.env.example` to `.env` locally (it is git-ignored) and set the same varia
 | `AI_MODEL`                                  | Server              | No                    | Text model (default `gpt-4o-mini`)                                                                                                                               |
 | `AI_VISION_MODEL`                           | Server              | No                    | Model for photo OCR (defaults to `AI_MODEL`; must accept images)                                                                                                 |
 | `AI_TRANSCRIBE_MODEL`                       | Server              | No                    | Voice capture model for `/audio/transcriptions` (default `whisper-1`; Groq: `whisper-large-v3`)                                                                  |
+| `AI_EMBEDDING_MODEL`                        | Server              | No                    | Embedding model for semantic search (`/embeddings`). Default `gemini-embedding-001` on Gemini, else `text-embedding-3-small`. Changing it re-indexes everything  |
 | `SECOND_BRAIN_CRON_SECRET` / `..._PREVIOUS` | Server (secret)     | For the reminder cron | Bearer secret for `/api/public/hooks/reminders` from n8n or other schedulers; keep the old value in `_PREVIOUS` while rotating                                   |
 | `CRON_SECRET`                               | Server (secret)     | For Vercel Cron       | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`. On the demo it authenticates the daily reset |
 | `DATABASE_URL`                              | Tooling             | For migrations        | Postgres connection string used by `drizzle-kit`                                                                                                                 |
 | `NITRO_PRESET`                              | Build               | No                    | Nitro deploy preset (default `vercel`; e.g. `node-server` to self-host)                                                                                          |
 | `SECURITY_HEADERS`                          | Server              | No                    | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                                                     |
-| `APP_URL`                                   | Server              | Recommended           | Public base URL (`https://<app>.vercel.app`); used for the Google redirect URI                                                                                   |
+| `APP_URL`                                   | Server              | Recommended           | Public base URL (`https://<app>.vercel.app`); used for the Google redirect URI and the `/auth/set-password` link in invite emails                                |
 | `APP_TIMEZONE`                              | Server              | No                    | IANA zone for "today" in digests, reminders and bot dates (default `Asia/Jakarta`; Vercel runs in UTC)                                                           |
 | `TELEGRAM_BOT_TOKEN`                        | Server (secret)     | For Telegram          | BotFather token; the app calls `https://api.telegram.org/bot<token>/…` directly                                                                                  |
 | `TELEGRAM_BOT_USERNAME`                     | Server              | No                    | Bot username (without `@`) for the one-tap `t.me/<bot>?start=<code>` link in Settings                                                                            |
@@ -724,6 +732,7 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0017 | `task_rules_rpc`                   | `shift_task_dependents` and `complete_task` RPCs (dependent auto-shift, recurrence)                                                                                              |
 | 0018 | `note_links_refs_excerpt`          | `notes.links` / `refs` / `excerpt` (GIN-indexed, backfilled) and the `note_backlinks` RPC                                                                                        |
 | 0019 | `demo_limits`                      | Demo mode only (`app_config.demo_mode = 'on'`, off by default): per-user row limits, text-size caps, `demo_write` quota and demo account protection on `auth.users`              |
+| 0020 | `semantic_search`                  | `semantic_documents` per task/note (`model`, `content_hash`, read-only RLS for members), `semantic_pending` / `semantic_upsert` / `match_semantic_documents`, cleanup trigger    |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
@@ -740,7 +749,12 @@ Target: **Vercel Hobby (free) + Supabase Free**. `vite build` uses Nitro with th
 3. **Import the repo in Vercel.** Framework preset: _Other_. Install command: `bun install`. Build command: `bun run build`. Leave the output directory empty (Nitro writes `.vercel/output`).
 4. **Environment variables** (Production and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, plus the optional groups below. `VITE_*` values are inlined at build time, so redeploy after changing them.
 5. **AI (optional).** Set `AI_API_KEY`. For a free tier, use an OpenAI-compatible provider: for example `AI_PROVIDER=openai-compatible`, `AI_BASE_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.3-70b-versatile`, `AI_TRANSCRIBE_MODEL=whisper-large-v3`, and an image-capable `AI_VISION_MODEL` for OCR. OpenRouter (`https://openrouter.ai/api/v1`, `:free` models) and Gemini (`https://generativelanguage.googleapis.com/v1beta/openai`, `gemini-2.0-flash`) work the same way. Without a key the AI buttons show "AI belum dikonfigurasi".
-6. **Supabase Auth URLs.** In _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your domain) and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list. In _Authentication → Sign In / Providers_, turn off **Allow new users to sign up** (unless the instance should be open, in which case also set `VITE_ALLOW_SIGNUP=true`), then create your own account under _Authentication → Users → Add user_ or _Invite user_.
+6. **Supabase Auth URLs and emails.** Member invites and password resets are emailed by Supabase Auth and land on `/auth/set-password`:
+   - _Authentication → URL Configuration_: set the **Site URL** to `https://<your-app>` (your domain or `https://<your-app>.vercel.app`). Under **Redirect URLs** add `https://<your-app>/auth/set-password` (or `https://<your-app>/**`), plus `http://localhost:<port>/auth/set-password` for dev and `https://*-<team>.vercel.app/**` for previews. A redirect that is not on the list falls back to the Site URL, and the link then lands on the landing page instead of the password form.
+   - Set `APP_URL` in Vercel to the same origin; invite emails link to `$APP_URL/auth/set-password`.
+   - _Authentication → Emails → Templates_: **Invite user** and **Reset Password** must keep the link `{{ .ConfirmationURL }}` (the default). Translate the text if you like, but do not hard-code a URL; `{{ .ConfirmationURL }}` carries the token and the `redirect_to` the app asks for.
+   - _Authentication → Emails → SMTP Settings_: the built-in Supabase mailer only sends a few emails per hour and is meant for testing. For production enable **custom SMTP**, for example [Resend](https://resend.com) (host `smtp.resend.com`, port 465, user `resend`, password = a Resend API key, sender on a verified domain). When the limit is hit the invite is still saved and the owner sees "email belum terkirim" with a **Kirim ulang** button.
+   - _Authentication → Sign In / Providers_: turn off **Allow new users to sign up** (unless the instance should be open, in which case also set `VITE_ALLOW_SIGNUP=true`). Invites keep working, because they use the admin API. Create your own first account under _Authentication → Users → Add user_ or _Invite user_ (with the redirect URL above).
 7. **Schedules (n8n first).** Vercel Hobby allows only one cron run per day and Supabase Free gives no scheduler guarantees, so reminders (every 15 min), digests, maintenance (trash purge, expired link codes, rate-limit rows) and backups run from n8n (see [Integrations → n8n](#n8n)). Fallbacks only:
    - **Vercel Cron** (daily): set `CRON_SECRET` (`openssl rand -hex 32`) and add `{ "crons": [{ "path": "/api/public/hooks/reminders", "schedule": "0 0 * * *" }] }` to `vercel.json` (UTC; 07:00 WIB).
    - **pg_cron + pg_net** in Supabase, or any scheduler: `GET`/`POST /api/public/hooks/reminders` with `Authorization: Bearer $SECOND_BRAIN_CRON_SECRET`. Do not run it together with the n8n reminders.
@@ -804,7 +818,7 @@ See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalen
 
 - Vitest + jsdom + Testing Library (`vitest.config.ts`, setup in `src/test/setup.ts`). Test files match `src/**/*.{test,spec}.{ts,tsx}`.
 - Unit tests cover pure server helpers (cron/n8n auth, Telegram link codes and Bot API client, Google OAuth state/PKCE/token crypto, n8n zod schemas, digest/reminder builders, time zones, SSRF guard, rate limits, security headers, backup validation) plus a routing smoke test.
-- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers, demo limits). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
+- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers, demo limits, semantic search). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
 
 ```bash
 bun run test

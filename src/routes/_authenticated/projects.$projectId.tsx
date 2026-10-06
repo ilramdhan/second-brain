@@ -6,13 +6,16 @@ import { id as localeId } from "date-fns/locale";
 import {
   ArrowLeft,
   CalendarDays,
+  Clock,
   Diamond,
   Mail,
   Pencil,
   Plus,
+  RefreshCw,
   Rocket,
   Trash2,
   UserMinus,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,11 +30,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { color, labelOf, PARA, PROJECT_STATUS } from "@/lib/constants";
 import {
-  getUid,
+  useInviteActions,
   useMe,
   useMilestoneActions,
   useMilestones,
   usePeople,
+  useProjectInvites,
   useProjects,
   useTasks,
   type Project,
@@ -43,6 +47,8 @@ import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { DemoDisabled } from "@/components/demo/DemoDisabled";
 import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
+import { normalizeEmail } from "@/lib/password";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
@@ -398,35 +404,45 @@ function Milestones({ project }: { project: Project }) {
 
 function Team({ project }: { project: Project }) {
   const qc = useQueryClient();
+  const { t } = usePreferences();
   const { data: me } = useMe();
   const { data: people = [] } = usePeople(project.id);
+  const { data: invites = [] } = useProjectInvites(project.id);
+  const { invite, revoke } = useInviteActions(project.id);
   const [email, setEmail] = useState("");
   const isOwner = project.user_id === me?.id;
 
-  async function invite(e: React.FormEvent) {
-    e.preventDefault();
-    // Enter in the email field still submits; the database also rejects demo invites (0019).
+  async function send(address: string, resend = false) {
+    // The server refuses in the demo as well (assertNotDemo + the 0019 row limit of 0).
     if (isDemo()) {
       toast.error(DEMO_DISABLED_MESSAGE);
       return;
     }
-    const v = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || v.length > 255) {
-      toast.error("Email tidak valid");
+    const value = normalizeEmail(address);
+    if (!value) {
+      toast.error(t("authEmailInvalid"));
       return;
     }
-    const { error } = await supabase
-      .from("project_invites")
-      .insert({ project_id: project.id, email: v, invited_by: await getUid() });
-    if (error) {
-      if (error.code === "23505") toast.error("Email ini sudah diundang");
-      else toastError(error);
-      return;
+    try {
+      const result = await invite.mutateAsync(value);
+      if (result.status === "member") toast.info(t("teamInviteAlreadyMember"));
+      else if (result.emailError === "rate_limited") toast.warning(t("teamInviteEmailLimited"));
+      else if (result.emailError) toast.warning(t("teamInviteEmailFailed"));
+      else toast.success(resend ? t("teamResent") : t("teamInviteSent"));
+      if (!resend) setEmail("");
+    } catch (err) {
+      toastError(err);
     }
-    toast.success(
-      "Undangan dibuat. Orang tersebut otomatis bergabung saat masuk dengan email itu.",
-    );
-    setEmail("");
+  }
+
+  async function revokeInvite(id: string) {
+    if (!confirm(t("teamRevokeConfirm"))) return;
+    try {
+      await revoke.mutateAsync(id);
+      toast.success(t("teamRevoked"));
+    } catch (err) {
+      toastError(err);
+    }
   }
 
   async function removeMember(userId: string) {
@@ -447,25 +463,29 @@ function Team({ project }: { project: Project }) {
     <div className="max-w-2xl space-y-4">
       {isOwner ? (
         <form
-          onSubmit={invite}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send(email);
+          }}
           className="flex flex-col gap-2 rounded-2xl border bg-card p-3 sm:flex-row"
         >
           <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email anggota tim"
+            placeholder={t("teamInvitePlaceholder")}
+            aria-label={t("teamInviteLabel")}
+            autoComplete="off"
+            maxLength={320}
           />
           <DemoDisabled>
-            <Button type="submit">
-              <Mail /> Undang
+            <Button type="submit" disabled={invite.isPending}>
+              <Mail /> {t("teamInvite")}
             </Button>
           </DemoDisabled>
         </form>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          Anda anggota proyek ini. Hanya pemilik yang bisa mengundang orang.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("teamMemberNote")}</p>
       )}
       <ul className="divide-y rounded-2xl border bg-card">
         {people.map((p) => (
@@ -495,6 +515,52 @@ function Team({ project }: { project: Project }) {
           </li>
         ))}
       </ul>
+      {invites.length > 0 && (
+        <section aria-labelledby="pending-invites" className="space-y-2">
+          <h3 id="pending-invites" className="text-sm font-semibold">
+            {t("teamPendingHeading")}
+          </h3>
+          <ul className="divide-y rounded-2xl border border-dashed bg-card">
+            {invites.map((inv) => (
+              <li key={inv.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Clock className="h-4 w-4" aria-hidden />
+                </span>
+                <p className="min-w-0 flex-1 truncate text-sm">{inv.email}</p>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                  {t("teamPending")}
+                </span>
+                {isOwner && (
+                  <span className="flex items-center gap-1">
+                    <DemoDisabled>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={invite.isPending}
+                        onClick={() => void send(inv.email, true)}
+                      >
+                        <RefreshCw /> {t("teamResend")}
+                      </Button>
+                    </DemoDisabled>
+                    <button
+                      type="button"
+                      onClick={() => void revokeInvite(inv.id)}
+                      disabled={revoke.isPending}
+                      className="rounded p-1 text-muted-foreground hover:text-destructive"
+                      aria-label={`${t("teamRevoke")}: ${inv.email}`}
+                      title={t("teamRevoke")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {isOwner && <p className="text-xs text-muted-foreground">{t("teamInviteHint")}</p>}
+        </section>
+      )}
       <p className="text-xs text-muted-foreground">
         Anggota bisa melihat dan mengubah tugas, milestone, dan catatan di proyek ini, serta bisa
         ditugaskan ke tugas.

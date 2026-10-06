@@ -1,7 +1,13 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, Output, NoObjectGeneratedError, type ModelMessage } from "ai";
+import { embedMany, streamText, Output, NoObjectGeneratedError, type ModelMessage } from "ai";
 import { z } from "zod";
 
+import {
+  DEMO_EMBEDDING_MODEL,
+  EMBEDDING_DIMENSIONS,
+  fitEmbedding,
+  hashEmbedding,
+} from "@/lib/semantic";
 import type { DemoTextKind } from "@/server/demo/ai-fixtures.server";
 
 // Direct AI provider access through the Vercel AI SDK (no vendor gateway).
@@ -21,6 +27,10 @@ import type { DemoTextKind } from "@/server/demo/ai-fixtures.server";
 //   AI_TRANSCRIBE_BASE_URL / AI_TRANSCRIBE_API_KEY
 //                         optional separate host for voice (e.g. Groq whisper-large-v3 while Gemini
 //                         handles text); the key defaults to AI_API_KEY
+//   AI_EMBEDDING_MODEL    embedding model for semantic search (POST {base}/embeddings). Default
+//                         gemini-embedding-001 when AI_BASE_URL is Gemini, else
+//                         text-embedding-3-small. Changing it re-embeds everything (the stored
+//                         model id no longer matches).
 
 export const AI_NOT_CONFIGURED_MESSAGE =
   "AI belum dikonfigurasi. Admin perlu mengisi AI_API_KEY (lihat .env.example).";
@@ -45,12 +55,15 @@ export type AiConfig = {
   /** Host for voice transcription (AI_TRANSCRIBE_BASE_URL, else AI_BASE_URL, else OpenAI). */
   transcribeBaseURL: string;
   transcribeApiKey: string;
+  embeddingModel: string;
 };
 
 export type AiTranscribeMode = "transcriptions" | "chat";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_TRANSCRIBE_MODEL = "whisper-1";
+const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
+const GEMINI_EMBEDDING_MODEL = "gemini-embedding-001";
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 const GEMINI_HOST = "generativelanguage.googleapis.com";
 
@@ -102,6 +115,9 @@ export function aiConfigFromEnv(env: Record<string, string | undefined> = proces
     transcribeMode,
     transcribeBaseURL,
     transcribeApiKey: read("AI_TRANSCRIBE_API_KEY") ?? apiKey,
+    embeddingModel:
+      read("AI_EMBEDDING_MODEL") ??
+      (baseURL && isGeminiHost(baseURL) ? GEMINI_EMBEDDING_MODEL : DEFAULT_EMBEDDING_MODEL),
   };
 }
 
@@ -114,12 +130,16 @@ export function hasImageContent(messages: ModelMessage[]): boolean {
   );
 }
 
-function languageModel(config: AiConfig, modelId: string) {
-  const provider = createOpenAI({
+function openaiProvider(config: AiConfig) {
+  return createOpenAI({
     apiKey: config.apiKey,
     ...(config.baseURL ? { baseURL: config.baseURL } : {}),
     ...(config.provider === "openai-compatible" ? { name: "openai-compatible" } : {}),
   });
+}
+
+function languageModel(config: AiConfig, modelId: string) {
+  const provider = openaiProvider(config);
   // OpenAI-compatible hosts implement Chat Completions, not OpenAI's Responses API.
   return config.provider === "openai" ? provider.responses(modelId) : provider.chat(modelId);
 }
@@ -337,4 +357,38 @@ export async function aiTranscribe(
   }
   const data = (await res.json()) as { text?: string };
   return data.text ?? "";
+}
+
+/**
+ * Model id stored next to every embedding: the demo's hashed bag of words, else
+ * AI_EMBEDDING_MODEL (or its provider default). Throws AiNotConfiguredError when AI cannot run.
+ */
+export async function embeddingModelId(): Promise<string> {
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  return isDemoMode() ? DEMO_EMBEDDING_MODEL : aiConfigFromEnv().embeddingModel;
+}
+
+/**
+ * Embeds `texts` in one provider call (the SDK splits very large batches) and returns
+ * {@link EMBEDDING_DIMENSIONS}-wide, L2-normalised vectors in the same order. In the demo
+ * (APP_MODE=demo) it never calls a provider: {@link hashEmbedding} is deterministic and free.
+ * OpenAI text-embedding-3 models are asked for 1536 dimensions; longer vectors (Gemini 3072-d)
+ * are truncated Matryoshka-style by fitEmbedding.
+ */
+export async function aiEmbed(texts: string[], signal?: AbortSignal): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) return texts.map(hashEmbedding);
+  const config = aiConfigFromEnv();
+  const supportsDimensions = config.embeddingModel.startsWith("text-embedding-3");
+  const { embeddings } = await embedMany({
+    model: openaiProvider(config).embedding(config.embeddingModel),
+    values: texts,
+    maxRetries: 1,
+    ...(signal ? { abortSignal: signal } : {}),
+    ...(supportsDimensions
+      ? { providerOptions: { openai: { dimensions: EMBEDDING_DIMENSIONS } } }
+      : {}),
+  });
+  return embeddings.map(fitEmbedding);
 }

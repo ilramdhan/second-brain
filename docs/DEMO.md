@@ -42,6 +42,9 @@ Shared login (shown on `/login`): `demo@ilramdhan.dev` / `demo2ndbrain`.
    - turn **off** _Allow new users to sign up_ (visitors use the shared account; the reset creates it
      through the admin API, which is not affected by this switch);
    - leave _Confirm email_ as it is: the reset creates the account already confirmed.
+   - no SMTP or email templates are needed: the demo never sends auth emails. Member invites are
+     refused by the server (`assertNotDemo`) and the database (row limit 0), and "Lupa kata
+     sandi?" and `/auth/set-password` are switched off because the demo account is shared.
 3. **Authentication → URL Configuration**:
    - _Site URL_: `https://demo-2ndbrain.ilramdhan.dev`
    - _Redirect URLs_: add `https://demo-2ndbrain.ilramdhan.dev/**`. Add your Vercel preview pattern
