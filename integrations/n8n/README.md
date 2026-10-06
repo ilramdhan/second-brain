@@ -4,7 +4,7 @@ Workflow [n8n](https://n8n.io) siap-impor untuk Second Brain: bot Telegram (teks
 
 **Prinsip:** n8n hanya _relay tipis_. Semua logika domain (NLP tanggal `src/lib/nlp.ts`, AI ringkasan `src/lib/ai.server.ts`, aturan task/note/inbox, soft delete, akses proyek bersama, automations) tetap di web app, di belakang endpoint `/api/public/n8n/*` yang dilindungi header `x-api-key` = `N8N_API_KEY`. n8n menambah hal yang memang berbasis file/jadwal: unduh file Telegram, OCR/transkripsi, jadwal, Google Drive, Gmail/IMAP, SMTP.
 
-**Kenapa jadwal di n8n:** Vercel Hobby hanya mengizinkan cron 1×/hari dan fungsi berdurasi pendek; Supabase Free tidak menyediakan backup yang bisa diunduh dan tidak menjamin pg_cron. Karena itu pengingat (15 menit), digest, maintenance dan backup dipicu dari n8n self-hosted. Vercel Cron dan pg_cron hanya fallback (lihat [Fallback tanpa n8n](#fallback-tanpa-n8n)).
+**Kenapa jadwal di n8n:** Vercel Hobby hanya mengizinkan cron 1×/hari dan fungsi berdurasi pendek; Supabase Free tidak menyediakan backup yang bisa diunduh dan tidak menjamin pg_cron. Karena itu pengingat (15 menit), digest, maintenance, backup dan **otomasi terjadwal** (tick 5 menit) dipicu dari n8n self-hosted. Vercel Cron dan pg_cron hanya fallback (lihat [Fallback tanpa n8n](#fallback-tanpa-n8n)).
 
 ## Daftar workflow
 
@@ -20,6 +20,7 @@ Workflow [n8n](https://n8n.io) siap-impor untuk Second Brain: bot Telegram (teks
 | `08-second-brain-email-to-inbox.json`       | Email (**Gmail Trigger** OAuth2, tiap menit, `in:inbox is:unread`, pengirim di allow-list) → Inbox / tugas (`task: …`) / catatan (`note: …`), ringkasan AI untuk email panjang; lalu tandai dibaca + label `SecondBrain/Processed` | `SB_APP_URL`, `SB_EMAIL_ALLOWED_SENDERS`, `SB_GMAIL_PROCESSED_LABEL`\*                                                           | Gmail (capture), x-api-key               |
 | `08b-second-brain-email-to-inbox-imap.json` | Alternatif 08 untuk penyedia **non-Gmail** (IMAP, format Resolved, tandai dibaca); payload & allow-list sama. Aktifkan salah satu saja                                                                                             | `SB_APP_URL`, `SB_EMAIL_ALLOWED_SENDERS`                                                                                         | IMAP Inbox, x-api-key                    |
 | `09-second-brain-demo-reset.json`           | **Hanya deployment demo** (opsional; Vercel Cron demo sudah melakukannya): tiap hari 00:00 WIB `POST /n8n/demo/reset` → akun demo dibuat bila belum ada, data akun demo dihapus permanen dan diisi ulang. Lihat `docs/DEMO.md`     | `SB_DEMO_APP_URL`                                                                                                                | Demo API                                 |
+| `10-second-brain-automation-tick.json`      | Tiap 5 mnt `POST /n8n/automations/tick`: aturan **Terjadwal** (cron per aturan) yang jatuh tempo dijalankan sekali per jendela, `next_run_at` dihitung ulang; lapor admin bila ada yang gagal                                      | `SB_APP_URL`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`                                                               | x-api-key                                |
 
 \* opsional. Nama node berbahasa Indonesia, sticky note menjelaskan alur di dalam tiap workflow.
 
@@ -138,8 +139,8 @@ Alur: email belum dibaca dari pengirim di allow-list → `POST /n8n/capture` →
 
 1. Set env di atas pada n8n (Docker: `environment:` / `.env`), termasuk `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` dan `GENERIC_TIMEZONE`, lalu restart n8n. n8n harus bisa diakses via HTTPS publik (`WEBHOOK_URL`).
 2. Buat credential (tabel di atas, semua bernama "Second Brain …").
-3. **Workflows → Import from File** dengan urutan: **03** (error handler) → **04** → **01** → **02** → **05** → **06** → **07** → **08** (atau **08b** untuk non-Gmail). **09** hanya bila Anda menjalankan deployment demo.
-4. Di tiap workflow 01, 02, 05, 06, 07, 08/08b: **Settings → Error workflow = "Second Brain – Error Handler"**.
+3. **Workflows → Import from File** dengan urutan: **03** (error handler) → **04** → **01** → **02** → **05** → **06** → **07** → **08** (atau **08b** untuk non-Gmail) → **10** (otomasi terjadwal). **09** hanya bila Anda menjalankan deployment demo.
+4. Di tiap workflow 01, 02, 05, 06, 07, 08/08b, 10: **Settings → Error workflow = "Second Brain – Error Handler"**.
 5. Ganti credential `REPLACE_ME`, simpan, jalankan **04** secara manual, lalu **Activate** workflow lain.
 6. Uji: kirim `/help` ke bot (01), _Execute workflow_ manual di 05 (pakai trigger **Jalankan manual**) dan cek file di Drive + email.
 
@@ -234,6 +235,7 @@ Semua endpoint ada di `src/routes/api/public/n8n/*` (logika di `src/server/n8n/*
 | `GET /api/public/n8n/backup`             | `x-api-key`                                                       | 05                   |
 | `POST /api/public/n8n/calendar/sync`     | `x-api-key`                                                       | 07                   |
 | `POST /api/public/n8n/events`            | `x-api-key`                                                       | 03                   |
+| `POST /api/public/n8n/automations/tick`  | `x-api-key`                                                       | 10                   |
 | `GET`/`POST /api/public/n8n/demo/reset`  | `x-api-key` (POST) atau `Authorization: Bearer <CRON_SECRET>`     | 09, Vercel Cron demo |
 | `POST /api/public/telegram/webhook`      | `x-telegram-bot-api-secret-token`                                 | mode app             |
 | `GET`/`POST /api/public/hooks/reminders` | `Authorization: Bearer <SECOND_BRAIN_CRON_SECRET \| CRON_SECRET>` | fallback             |
@@ -425,6 +427,16 @@ Body `{ "since_minutes": 45, "limit": 200, "mode": "linked", "direction": "both"
 **Google → app (pull):** per user, `events.list` inkremental dengan `syncToken` yang disimpan di koneksi (tanpa token = full sync; `410 GONE` → token dibuang dan full sync sekali). Event yang tertaut ke tugas (`tasks.google_event_id`) memperbarui judul dan jadwal tugas lewat aturan server (auto-shift dependen, reset pengingat, `runAutomationRules`); event yang dihapus di Google hanya melepas tautan (tanggal tugas tetap). Konflik: _last write wins_ (`updated` Google vs `updated_at` tugas). Anti-gema: etag hasil push disimpan di `tasks.google_etag` dan event dengan etag sama dilewati; perubahan dari Google menandai tugas sudah sinkron (`google_synced_at`) sehingga tidak didorong balik. Event yang belum tertaut hanya diimpor sebagai tugas bila user mengaktifkan **Impor acara Google sebagai tugas** di Pengaturan (default mati). Token sync hanya maju bila semua event berhasil diterapkan.
 
 **App → Google (push):** tugas yang `updated_at` dalam jendela → buat/perbarui event (`mode=linked`: hanya tugas yang sudah punya `google_event_id`; `mode=all`: semua tugas bertanggal), event tugas yang dihapus/diarsip/tanpa tanggal dihapus. Event diberi `extendedProperties.private.second_brain_task_id`. Akses yang dicabut di akun Google menghapus koneksi (user menghubungkan ulang). Tugas yang tidak berubah sejak sinkron terakhir (`updated_at` ≤ `google_synced_at`) dilewati. Response `{ "direction": "both", "synced": 12, "failed": 1, "users": 2, "results": [ { "task_id": "…", "title": "…", "ok": false, "action": "upsert", "error": "Google Calendar gagal [403]" } ], "pull": { "applied": 3, "failed": 0, "users": [ { "user_id": "…", "ok": true, "full_sync": false, "resynced": false, "events": 4, "echoes": 1 } ], "results": [ { "event_id": "…", "task_id": "…", "title": "…", "ok": true, "action": "updated" } ] } }` (`pull.results[].action`: `updated`, `imported`, `unlinked`, `pushed`, `skipped`). Watch channel (push notification Google) tidak dipakai; jadwal 30 menit cukup.
+
+### `POST /api/public/n8n/automations/tick`
+
+Body `{ "limit": 100, "user_id": null }`. Menjalankan setiap aturan otomasi **Terjadwal** (`trigger.type = "schedule"`) yang aktif dan `next_run_at <= now()`, paling lama dulu, maksimal `limit` per panggilan (sisanya di tick berikutnya). Untuk tiap aturan:
+
+1. **Klaim jendela** dengan compare-and-swap: `UPDATE automations SET next_run_at = <berikutnya>, last_run_at = now() WHERE id = … AND next_run_at = <nilai yang dibaca>`. Hanya satu tick yang bisa menang, jadi tick yang tumpang tindih, retry n8n atau eksekusi lambat tidak pernah menjalankan jendela yang sama dua kali. Jendela yang terlewat (n8n mati sehari) dijalankan **sekali**, lalu `next_run_at` melompat ke jendela pertama setelah sekarang.
+2. Menjalankan aksi **untuk pemilik aturan** (setiap query dibatasi ke user itu, proyek harus miliknya atau ia anggota): `create_task` (judul dengan `{{date}} {{weekday}} {{rule}}`, prioritas, proyek, tenggat +N hari pukul 17:00), `move_overdue` (tugas terbuka yang terlambat milik user atau satu proyek → `todo`/`in_progress`/`review`, tidak pernah `done`; maks. 200), `digest` (ringkasan pagi/terlambat/sore/mingguan yang sama dengan workflow 02, ke Telegram user atau webhook HTTPS lewat guard SSRF). Aksi menulis langsung dan tidak memicu aturan lain.
+3. Mencatat `automation_runs` dan menaikkan `run_count`. Cron tersimpan yang tidak valid menghentikan jadwal (`next_run_at = null`) dan dicatat gagal.
+
+Cron 5 bagian (`menit jam tanggal bulan hari`, `*`, `a-b`, `*/n`, daftar, nama `MON`/`JAN`, makro `@daily`…) diparse oleh parser lokal `src/lib/cron.ts` (tanpa dependency) di form dan di server (`scheduleAutomation` memvalidasi dan menyimpan `next_run_at` setiap aturan disimpan). Zona waktu per aturan (`schedule_tz`, default `APP_TIMEZONE`); jam yang tidak ada karena DST dilewati, jam yang terulang dijalankan sekali. Response `{ "now": "…", "due": 2, "ran": 2, "skipped": 0, "failed": 0, "results": [ { "rule_id": "…", "user_id": "…", "ok": true, "next_run_at": "…", "detail": "⏰ Pagi → tugas \"Weekly review 7 Okt 2026\"" } ] }`. **Demo:** 404 (seperti endpoint n8n lain), jadi aturan terjadwal di demo tidak pernah jalan.
 
 ### `POST /api/public/n8n/events`
 

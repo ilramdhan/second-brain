@@ -43,6 +43,7 @@ import { Route as ApiPublicN8nEventsRouteImport } from './routes/api/public/n8n/
 import { Route as ApiPublicN8nMaintenanceRouteImport } from './routes/api/public/n8n/maintenance'
 import { Route as ApiPublicN8nRemindersRouteImport } from './routes/api/public/n8n/reminders'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicN8nAutomationsTickRouteImport } from './routes/api/public/n8n/automations/tick'
 import { Route as ApiPublicN8nCalendarSyncRouteImport } from './routes/api/public/n8n/calendar/sync'
 import { Route as ApiPublicN8nDemoResetRouteImport } from './routes/api/public/n8n/demo/reset'
 
@@ -221,6 +222,12 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicN8nAutomationsTickRoute =
+  ApiPublicN8nAutomationsTickRouteImport.update({
+    id: '/api/public/n8n/automations/tick',
+    path: '/api/public/n8n/automations/tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicN8nCalendarSyncRoute =
   ApiPublicN8nCalendarSyncRouteImport.update({
     id: '/api/public/n8n/calendar/sync',
@@ -267,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/api/public/n8n/maintenance': typeof ApiPublicN8nMaintenanceRoute
   '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/n8n/automations/tick': typeof ApiPublicN8nAutomationsTickRoute
   '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
   '/api/public/n8n/demo/reset': typeof ApiPublicN8nDemoResetRoute
 }
@@ -304,6 +312,7 @@ export interface FileRoutesByTo {
   '/api/public/n8n/maintenance': typeof ApiPublicN8nMaintenanceRoute
   '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/n8n/automations/tick': typeof ApiPublicN8nAutomationsTickRoute
   '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
   '/api/public/n8n/demo/reset': typeof ApiPublicN8nDemoResetRoute
 }
@@ -343,6 +352,7 @@ export interface FileRoutesById {
   '/api/public/n8n/maintenance': typeof ApiPublicN8nMaintenanceRoute
   '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/n8n/automations/tick': typeof ApiPublicN8nAutomationsTickRoute
   '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
   '/api/public/n8n/demo/reset': typeof ApiPublicN8nDemoResetRoute
 }
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/api/public/n8n/maintenance'
     | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
+    | '/api/public/n8n/automations/tick'
     | '/api/public/n8n/calendar/sync'
     | '/api/public/n8n/demo/reset'
   fileRoutesByTo: FileRoutesByTo
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/api/public/n8n/maintenance'
     | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
+    | '/api/public/n8n/automations/tick'
     | '/api/public/n8n/calendar/sync'
     | '/api/public/n8n/demo/reset'
   id:
@@ -457,6 +469,7 @@ export interface FileRouteTypes {
     | '/api/public/n8n/maintenance'
     | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
+    | '/api/public/n8n/automations/tick'
     | '/api/public/n8n/calendar/sync'
     | '/api/public/n8n/demo/reset'
   fileRoutesById: FileRoutesById
@@ -479,6 +492,7 @@ export interface RootRouteChildren {
   ApiPublicN8nMaintenanceRoute: typeof ApiPublicN8nMaintenanceRoute
   ApiPublicN8nRemindersRoute: typeof ApiPublicN8nRemindersRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  ApiPublicN8nAutomationsTickRoute: typeof ApiPublicN8nAutomationsTickRoute
   ApiPublicN8nCalendarSyncRoute: typeof ApiPublicN8nCalendarSyncRoute
   ApiPublicN8nDemoResetRoute: typeof ApiPublicN8nDemoResetRoute
 }
@@ -723,6 +737,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/n8n/automations/tick': {
+      id: '/api/public/n8n/automations/tick'
+      path: '/api/public/n8n/automations/tick'
+      fullPath: '/api/public/n8n/automations/tick'
+      preLoaderRoute: typeof ApiPublicN8nAutomationsTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/n8n/calendar/sync': {
       id: '/api/public/n8n/calendar/sync'
       path: '/api/public/n8n/calendar/sync'
@@ -802,6 +823,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicN8nMaintenanceRoute: ApiPublicN8nMaintenanceRoute,
   ApiPublicN8nRemindersRoute: ApiPublicN8nRemindersRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  ApiPublicN8nAutomationsTickRoute: ApiPublicN8nAutomationsTickRoute,
   ApiPublicN8nCalendarSyncRoute: ApiPublicN8nCalendarSyncRoute,
   ApiPublicN8nDemoResetRoute: ApiPublicN8nDemoResetRoute,
 }
