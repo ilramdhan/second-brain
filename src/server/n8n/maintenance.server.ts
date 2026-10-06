@@ -1,6 +1,8 @@
 // POST /api/public/n8n/maintenance — housekeeping that Supabase Free / Vercel Hobby cannot
 // schedule themselves (no pg_cron guarantee, one Vercel cron per day): purge old trash, expired
-// Telegram link codes, stale rate-limit windows and old idempotency keys.
+// Telegram link codes, stale rate-limit windows and old idempotency keys. `semantic_index`
+// (opt-in) embeds tasks/notes whose semantic search embedding is missing or outdated, for every
+// user (service role), so the index catches up even for rows written by n8n or other devices.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 import type { z } from "zod";
@@ -27,6 +29,7 @@ export async function runMaintenance(input: z.infer<typeof maintenanceSchema>, n
     rate_limits_deleted?: number;
     n8n_events_deleted?: number;
     recurring_created?: number;
+    semantic?: { embedded: number; remaining: number; model: string } | { skipped: string };
   } = { ok: true };
   const tasks = new Set(input.tasks);
 
@@ -70,5 +73,16 @@ export async function runMaintenance(input: z.infer<typeof maintenanceSchema>, n
   // The next instance of a recurring task is created when it is completed (useTaskActions /
   // completeTask), so there is nothing to backfill; accepted for older workflow versions.
   if (tasks.has("recurring")) result.recurring_created = 0;
+  if (tasks.has("semantic_index")) {
+    const { AiNotConfiguredError } = await import("@/lib/ai.server");
+    const { syncSemanticIndex } = await import("@/server/semantic.server");
+    try {
+      result.semantic = await syncSemanticIndex(supabaseAdmin, { batches: input.semantic_batches });
+    } catch (error) {
+      // No AI configured is not a maintenance failure: the other tasks still succeeded.
+      if (!(error instanceof AiNotConfiguredError)) throw error;
+      result.semantic = { skipped: "ai_not_configured" };
+    }
+  }
   return result;
 }

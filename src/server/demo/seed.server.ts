@@ -13,6 +13,8 @@
 import { randomBytes } from "node:crypto";
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { DEMO_EMBEDDING_MODEL, hashEmbedding } from "@/lib/semantic";
+import { syncSemanticIndex, type SemanticClient } from "@/server/semantic.server";
 import { appTimezone, zonedIsoDate } from "@/server/n8n/time.server";
 
 import {
@@ -204,6 +206,21 @@ export async function resetDemo(opts: { now?: Date; env?: Env } = {}): Promise<D
     await insertRows(table, seed[table]);
     inserted[table] = seed[table].length;
   }
+
+  // Semantic search index for the seed: the deterministic hashed bag-of-words embedding (no AI
+  // provider, no key), the same one aiEmbed() uses in demo mode, so search works right after
+  // the reset.
+  let embedded = 0;
+  for (const id of allIds) {
+    const result = await syncSemanticIndex(supabaseAdmin as unknown as SemanticClient, {
+      userId: id,
+      batches: 20,
+      model: DEMO_EMBEDDING_MODEL,
+      embed: async (texts) => texts.map(hashEmbedding),
+    });
+    embedded += result.embedded;
+  }
+  inserted["semantic_documents"] = embedded;
 
   return {
     ok: true,
