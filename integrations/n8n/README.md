@@ -23,34 +23,38 @@ Workflow [n8n](https://n8n.io) siap-impor untuk Second Brain: bot Telegram (teks
 
 ## Variabel lingkungan n8n
 
-| Variabel                       | Contoh / default                     | Keterangan                                                                           |
-| ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------ |
-| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | `false`                              | **Wajib** agar `$env.*` bisa dibaca di node                                          |
-| `GENERIC_TIMEZONE`             | `Asia/Jakarta`                       | Zona waktu jadwal (samakan dengan `APP_TIMEZONE` di app)                             |
-| `SECOND_BRAIN_URL`             | `https://second-brain.ilramdhan.dev` | Base URL app, tanpa `/` di akhir                                                     |
-| `TELEGRAM_BOT_TOKEN`           | `123456:ABC…`                        | Dari @BotFather (sama dengan env app)                                                |
-| `TELEGRAM_ALLOWED_CHAT_IDS`    | `11111111,22222222`                  | Allow-list chat; **kosong = tolak semua** (fail-closed)                              |
-| `TELEGRAM_ADMIN_CHAT_ID`       | `11111111`                           | Penerima alert error/automation/backup                                               |
-| `TELEGRAM_WEBHOOK_SECRET`      | string acak 32+ karakter             | Hanya untuk mode app (node `setWebhook → app` di 04)                                 |
-| `OPENAI_VISION_MODEL`          | `gpt-4.1-mini`                       | Model OCR                                                                            |
-| `OPENAI_TRANSCRIBE_MODEL`      | `gpt-4o-mini-transcribe`             | Model transkripsi (alternatif `whisper-1`)                                           |
-| `REMINDER_LEAD_MINUTES`        | `60`                                 | Pengingat dikirim N menit sebelum tenggat                                            |
-| `TRASH_RETENTION_DAYS`         | `30`                                 | Maintenance: hapus permanen sampah lebih tua dari N hari                             |
-| `SECOND_BRAIN_CRON_SECRET`     | nilai env app yang sama              | Hanya untuk node fallback `hooks/reminders` (02, disabled)                           |
-| `BACKUP_FREQUENCY`             | `daily`                              | `daily` atau `weekly`                                                                |
-| `BACKUP_HOUR`                  | `2`                                  | Jam backup (0–23, zona `GENERIC_TIMEZONE`)                                           |
-| `BACKUP_WEEKDAY`               | `0`                                  | Hari backup bila `weekly` (0 = Minggu … 6 = Sabtu)                                   |
-| `BACKUP_DRIVE_FOLDER_ID`       | `1AbC…`                              | **Wajib** untuk 05: ID folder Google Drive (dari URL folder)                         |
-| `BACKUP_RETENTION`             | `14`                                 | Jumlah file backup terbaru yang disimpan                                             |
-| `BACKUP_EMAIL_FROM`            | `Second Brain <backup@domain.com>`   | Pengirim (domain terverifikasi di Resend)                                            |
-| `BACKUP_EMAIL_TO`              | `anda@email.com`                     | Penerima ringkasan & alert                                                           |
-| `BACKUP_EMAIL_ATTACH_MAX_MB`   | `5`                                  | Lampirkan `.json.gz` bila ≤ N MB (`0` = tanpa lampiran; batas Resend 40 MB total)    |
-| `BACKUP_INCLUDE_VERSIONS`      | `0`                                  | `1` = sertakan `note_versions` (file lebih besar)                                    |
-| `CALENDAR_SYNC_MODE`           | `linked`                             | `linked` = hanya tugas yang pernah dikirim ke Google; `all` = semua tugas bertanggal |
-| `AUTOMATION_WEBHOOK_TOKEN`     | string acak 32+ karakter             | Token `?token=` di URL webhook automation (06)                                       |
-| `DISCORD_WEBHOOK_URL`          |                                      | Opsional, cabang Discord/Slack (06)                                                  |
-| `SECOND_BRAIN_OWNER_EMAIL`     | `anda@email.com`                     | Akun pemilik untuk Google → app (07)                                                 |
-| `EMAIL_ALLOWED_SENDERS`        | `anda@email.com,kantor@email.com`    | Allow-list pengirim email (08); kosong = tolak semua                                 |
+| Variabel                       | Contoh / default                     | Keterangan                                                                                      |
+| ------------------------------ | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | `false`                              | **Wajib** agar `$env.*` bisa dibaca di node                                                     |
+| `GENERIC_TIMEZONE`             | `Asia/Jakarta`                       | Zona waktu jadwal (samakan dengan `APP_TIMEZONE` di app)                                        |
+| `SECOND_BRAIN_URL`             | `https://second-brain.ilramdhan.dev` | Base URL app, tanpa `/` di akhir                                                                |
+| `TELEGRAM_BOT_TOKEN`           | `123456:ABC…`                        | Dari @BotFather (sama dengan env app)                                                           |
+| `TELEGRAM_ALLOWED_CHAT_IDS`    | `11111111,22222222`                  | Allow-list chat; **kosong = tolak semua** (fail-closed)                                         |
+| `TELEGRAM_ADMIN_CHAT_ID`       | `11111111`                           | Penerima alert error/automation/backup                                                          |
+| `TELEGRAM_WEBHOOK_SECRET`      | string acak 32+ karakter             | Hanya untuk mode app (node `setWebhook → app` di 04)                                            |
+| `OPENAI_VISION_MODEL`          | `gpt-4.1-mini`                       | Model OCR                                                                                       |
+| `OPENAI_TRANSCRIBE_MODEL`      | `gpt-4o-mini-transcribe`             | Model transkripsi (alternatif `whisper-1`; Gemini: `gemini-3.8-flash`)                          |
+| `OPENAI_BASE_URL`              | `https://api.openai.com/v1`          | Opsional: host OCR/transkripsi (Gemini → lihat _Memakai Google Gemini_)                         |
+| `OPENAI_TRANSCRIBE_BASE_URL`   | = `OPENAI_BASE_URL`                  | Opsional: host khusus transkripsi, mis. Groq `https://api.groq.com/openai/v1`                   |
+| `N8N_OCR_MODE`                 | `responses`                          | `responses` (OpenAI Responses API) atau `chat` (Chat Completions); otomatis `chat` untuk Gemini |
+| `N8N_TRANSCRIBE_MODE`          | `transcriptions`                     | `transcriptions` atau `chat` (`input_audio`); otomatis `chat` bila host = Gemini                |
+| `REMINDER_LEAD_MINUTES`        | `60`                                 | Pengingat dikirim N menit sebelum tenggat                                                       |
+| `TRASH_RETENTION_DAYS`         | `30`                                 | Maintenance: hapus permanen sampah lebih tua dari N hari                                        |
+| `SECOND_BRAIN_CRON_SECRET`     | nilai env app yang sama              | Hanya untuk node fallback `hooks/reminders` (02, disabled)                                      |
+| `BACKUP_FREQUENCY`             | `daily`                              | `daily` atau `weekly`                                                                           |
+| `BACKUP_HOUR`                  | `2`                                  | Jam backup (0–23, zona `GENERIC_TIMEZONE`)                                                      |
+| `BACKUP_WEEKDAY`               | `0`                                  | Hari backup bila `weekly` (0 = Minggu … 6 = Sabtu)                                              |
+| `BACKUP_DRIVE_FOLDER_ID`       | `1AbC…`                              | **Wajib** untuk 05: ID folder Google Drive (dari URL folder)                                    |
+| `BACKUP_RETENTION`             | `14`                                 | Jumlah file backup terbaru yang disimpan                                                        |
+| `BACKUP_EMAIL_FROM`            | `Second Brain <backup@domain.com>`   | Pengirim (domain terverifikasi di Resend)                                                       |
+| `BACKUP_EMAIL_TO`              | `anda@email.com`                     | Penerima ringkasan & alert                                                                      |
+| `BACKUP_EMAIL_ATTACH_MAX_MB`   | `5`                                  | Lampirkan `.json.gz` bila ≤ N MB (`0` = tanpa lampiran; batas Resend 40 MB total)               |
+| `BACKUP_INCLUDE_VERSIONS`      | `0`                                  | `1` = sertakan `note_versions` (file lebih besar)                                               |
+| `CALENDAR_SYNC_MODE`           | `linked`                             | `linked` = hanya tugas yang pernah dikirim ke Google; `all` = semua tugas bertanggal            |
+| `AUTOMATION_WEBHOOK_TOKEN`     | string acak 32+ karakter             | Token `?token=` di URL webhook automation (06)                                                  |
+| `DISCORD_WEBHOOK_URL`          |                                      | Opsional, cabang Discord/Slack (06)                                                             |
+| `SECOND_BRAIN_OWNER_EMAIL`     | `anda@email.com`                     | Akun pemilik untuk Google → app (07)                                                            |
+| `EMAIL_ALLOWED_SENDERS`        | `anda@email.com,kantor@email.com`    | Allow-list pengirim email (08); kosong = tolak semua                                            |
 
 Di sisi **web app** (Vercel → Environment Variables) set `N8N_API_KEY` (`openssl rand -hex 32`; `N8N_API_KEY_PREVIOUS` saat rotasi), `TELEGRAM_BOT_TOKEN`, `APP_TIMEZONE`, dan bila memakai mode app `TELEGRAM_WEBHOOK_SECRET`. Daftar lengkap: `.env.example`.
 
@@ -131,10 +135,20 @@ Workflow 01 memakai **OpenAI** via HTTP Request (bisa diganti tanpa mengubah kon
 | ---------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | OCR foto/gambar        | `POST /v1/responses` + `input_image` (`gpt-4.1-mini`, detail high)        | Mistral OCR (`POST https://api.mistral.ai/v1/ocr`, `mistral-ocr-latest`, ±$1/1000 halaman, sangat bagus untuk dokumen/PDF), Google Cloud Vision `DOCUMENT_TEXT_DETECTION` (1000 unit gratis/bulan), node **OpenAI → Analyze Image** bawaan n8n, Tesseract self-hosted (gratis, akurasi tulisan tangan rendah) |
 | OCR PDF                | `input_file` (PDF base64) di Responses API                                | Mistral OCR (native PDF, multi-halaman)                                                                                                                                                                                                                                                                       |
-| Transkripsi            | `POST /v1/audio/transcriptions` (`gpt-4o-mini-transcribe`, `language=id`) | `whisper-1`, Groq Whisper (`whisper-large-v3-turbo`, sangat murah/cepat), Deepgram                                                                                                                                                                                                                            |
+| Transkripsi            | `POST /v1/audio/transcriptions` (`gpt-4o-mini-transcribe`, `language=id`) | Gemini via Chat Completions + `input_audio` (`N8N_TRANSCRIBE_MODE=chat`), `whisper-1`, Groq Whisper (`whisper-large-v3-turbo`, sangat murah/cepat), Deepgram                                                                                                                                                  |
 | Ringkasan / capture AI | Di server (provider `AI_*`, `ai.server.ts`) — **bukan** di n8n            | —                                                                                                                                                                                                                                                                                                             |
 
 Perkiraan biaya (cek harga terbaru provider): satu foto ±1–3 ribu token input pada `gpt-4.1-mini` ≈ < $0,002; voice 1 menit `gpt-4o-mini-transcribe` ≈ $0,003. OCR tidak dijalankan untuk teks biasa, sehingga biaya hanya muncul saat mengirim file. Batasi dengan allow-list dan batas ukuran file (19 MB, batas `getFile` Telegram). Endpoint `/n8n/bot` sengaja hanya menerima teks (body ≤ 1 MB); kirim file ke provider OCR/transkripsi dari n8n, bukan ke app (batas body serverless ±4,5 MB).
+
+### Memakai Google Gemini (AI Studio)
+
+Gemini punya API kompatibel OpenAI di `https://generativelanguage.googleapis.com/v1beta/openai` yang mendukung Chat Completions (termasuk `image_url` data URL dan `input_audio`), **tetapi tidak** `/responses` maupun `/audio/transcriptions`. Workflow 01 menangani ini otomatis:
+
+1. Credential **OpenAI API** "OpenAI Second Brain": API Key = key AI Studio, **Base URL** = `https://generativelanguage.googleapis.com/v1beta/openai` (agar uji credential lolos). Node HTTP Request hanya memakai credential untuk header `Authorization`; URL diambil dari env berikut.
+2. Env n8n: `OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `OPENAI_VISION_MODEL=gemini-3.8-flash`, `OPENAI_TRANSCRIBE_MODEL=gemini-3.8-flash`. Dengan host Gemini, `N8N_OCR_MODE` dan `N8N_TRANSCRIBE_MODE` otomatis `chat` (boleh diset eksplisit).
+3. OCR → `POST {base}/chat/completions` dengan `image_url` (data URL). Voice → node _Transcribe via chat?_ → _Prepare transcribe (chat)_ → `POST {base}/chat/completions` dengan `input_audio` (`format: ogg` untuk voice note Telegram; Gemini menerima ogg/webm/mp3/wav/m4a/aac/flac/opus) dan prompt "Transcribe this audio verbatim; reply with the transcript only."
+
+**Alternatif voice: Groq Whisper** (free tier, cepat) sementara Gemini menangani OCR: set `OPENAI_TRANSCRIBE_BASE_URL=https://api.groq.com/openai/v1`, `OPENAI_TRANSCRIBE_MODEL=whisper-large-v3` (atau `whisper-large-v3-turbo`), `N8N_TRANSCRIBE_MODE=transcriptions`, lalu buat credential OpenAI kedua berisi key Groq dan pilih di node **OpenAI Transcribe**. Di web app padanannya `AI_TRANSCRIBE_MODE`, `AI_TRANSCRIBE_BASE_URL`, `AI_TRANSCRIBE_API_KEY` (lihat `.env.example`).
 
 ## Endpoint backend
 
@@ -376,6 +390,7 @@ Body `{ "type": "n8n_error", "workflow": "…", "node": "…", "message": "…",
 | "Akun belum terhubung"                                  | Buat kode di Pengaturan → Bot Telegram, lalu kirim `/link <kode>` di bot                                                                    |
 | OCR kosong / `400` dari OpenAI                          | Model tidak mendukung vision/PDF → ganti `OPENAI_VISION_MODEL`; file > 15 MB; PDF terenkripsi                                               |
 | Voice gagal                                             | Node _Fix audio filename_ mengganti `.oga` → `.ogg`; bila masih ditolak, ganti `OPENAI_TRANSCRIBE_MODEL` ke `whisper-1`                     |
+| Voice `404` dengan Gemini                               | Gemini tidak punya `/audio/transcriptions` → `N8N_TRANSCRIBE_MODE=chat` (otomatis bila host = Gemini) atau pakai Groq                       |
 | Jadwal meleset 7 jam                                    | Set `GENERIC_TIMEZONE=Asia/Jakarta` di n8n, `APP_TIMEZONE` di app, dan cek Settings → Timezone workflow                                     |
 | Backup tidak jalan                                      | 05 hanya lanjut pada `BACKUP_HOUR` (dan `BACKUP_WEEKDAY` untuk weekly); jalankan manual untuk uji. `BACKUP_DRIVE_FOLDER_ID` wajib           |
 | Google Drive `File not found` / `insufficient scope`    | `BACKUP_DRIVE_FOLDER_ID` salah atau credential tidak punya akses folder (pakai scope `drive` untuk folder yang sudah ada)                   |

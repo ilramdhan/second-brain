@@ -11,7 +11,14 @@ import { z } from "zod";
 //                         `openai-compatible`, optional for `openai`)
 //   AI_MODEL              text model (default gpt-4o-mini)
 //   AI_VISION_MODEL       model for image input / OCR (default AI_MODEL)
-//   AI_TRANSCRIBE_MODEL   speech-to-text model for /audio/transcriptions (default whisper-1)
+//   AI_TRANSCRIBE_MODE    `transcriptions` (OpenAI-style /audio/transcriptions, default) or `chat`
+//                         (Chat Completions with an `input_audio` part; Gemini has no
+//                         /audio/transcriptions). Defaults to `chat` when the transcription host is
+//                         generativelanguage.googleapis.com.
+//   AI_TRANSCRIBE_MODEL   speech-to-text model (default whisper-1; AI_MODEL in `chat` mode)
+//   AI_TRANSCRIBE_BASE_URL / AI_TRANSCRIBE_API_KEY
+//                         optional separate host for voice (e.g. Groq whisper-large-v3 while Gemini
+//                         handles text); the key defaults to AI_API_KEY
 
 export const AI_NOT_CONFIGURED_MESSAGE =
   "AI belum dikonfigurasi. Admin perlu mengisi AI_API_KEY (lihat .env.example).";
@@ -32,11 +39,26 @@ export type AiConfig = {
   model: string;
   visionModel: string;
   transcribeModel: string;
+  transcribeMode: AiTranscribeMode;
+  /** Host for voice transcription (AI_TRANSCRIBE_BASE_URL, else AI_BASE_URL, else OpenAI). */
+  transcribeBaseURL: string;
+  transcribeApiKey: string;
 };
+
+export type AiTranscribeMode = "transcriptions" | "chat";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_TRANSCRIBE_MODEL = "whisper-1";
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
+const GEMINI_HOST = "generativelanguage.googleapis.com";
+
+function isGeminiHost(url: string): boolean {
+  try {
+    return new URL(url).hostname.toLowerCase() === GEMINI_HOST;
+  } catch {
+    return false;
+  }
+}
 
 /** Reads and validates the AI settings. Throws AiNotConfiguredError when unusable. */
 export function aiConfigFromEnv(env: Record<string, string | undefined> = process.env): AiConfig {
@@ -57,13 +79,27 @@ export function aiConfigFromEnv(env: Record<string, string | undefined> = proces
   }
 
   const model = read("AI_MODEL") ?? DEFAULT_MODEL;
+  const transcribeBaseURL =
+    read("AI_TRANSCRIBE_BASE_URL")?.replace(/\/+$/, "") ?? baseURL ?? OPENAI_BASE_URL;
+  const rawMode = read("AI_TRANSCRIBE_MODE")?.toLowerCase();
+  if (rawMode !== undefined && rawMode !== "transcriptions" && rawMode !== "chat") {
+    throw new AiNotConfiguredError(
+      `AI_TRANSCRIBE_MODE "${rawMode}" tidak dikenal (pakai transcriptions atau chat).`,
+    );
+  }
+  const transcribeMode: AiTranscribeMode =
+    rawMode ?? (isGeminiHost(transcribeBaseURL) ? "chat" : "transcriptions");
   return {
     provider,
     apiKey,
     baseURL,
     model,
     visionModel: read("AI_VISION_MODEL") ?? model,
-    transcribeModel: read("AI_TRANSCRIBE_MODEL") ?? DEFAULT_TRANSCRIBE_MODEL,
+    transcribeModel:
+      read("AI_TRANSCRIBE_MODEL") ?? (transcribeMode === "chat" ? model : DEFAULT_TRANSCRIBE_MODEL),
+    transcribeMode,
+    transcribeBaseURL,
+    transcribeApiKey: read("AI_TRANSCRIBE_API_KEY") ?? apiKey,
   };
 }
 
@@ -164,21 +200,89 @@ Proyek yang sudah ada: ${existingProjects.length ? existingProjects.join(", ") :
   }
 }
 
-export async function aiTranscribe(audio: Blob, mimeType: string): Promise<string> {
-  const config = aiConfigFromEnv();
-  const ext = mimeType.includes("mp4") ? "mp4" : mimeType.includes("ogg") ? "ogg" : "webm";
+/**
+ * `input_audio.format` for a recorder MIME type. Browsers record audio/webm (Chrome, Edge,
+ * Firefox), audio/ogg (older Firefox) or audio/mp4 (Safari); Gemini accepts webm, ogg, m4a/aac,
+ * mp3, wav, flac, aiff and opus. (OpenAI's own chat audio models only accept wav and mp3, so use
+ * `transcriptions` mode there.)
+ */
+export function audioFormat(mimeType: string): string {
+  const sub = (mimeType.split(";")[0]?.split("/")[1] ?? "").trim().toLowerCase();
+  if (sub === "mpeg" || sub === "mp3" || sub === "mpga") return "mp3";
+  if (sub === "wav" || sub === "x-wav" || sub === "wave" || sub === "vnd.wave") return "wav";
+  if (sub === "mp4" || sub === "m4a" || sub === "x-m4a") return "m4a";
+  if (sub === "ogg" || sub === "oga" || sub === "x-ogg") return "ogg";
+  if (["aac", "flac", "opus", "webm", "aiff"].includes(sub)) return sub;
+  return "webm";
+}
+
+/** File extension for the multipart upload. */
+function audioExtension(mimeType: string): string {
+  const fmt = audioFormat(mimeType);
+  return fmt === "m4a" ? "mp4" : fmt;
+}
+
+export const TRANSCRIBE_PROMPT = "Transcribe this audio verbatim; reply with the transcript only.";
+
+/** Builds the HTTP request for the configured transcription mode. */
+export async function buildTranscribeRequest(
+  config: AiConfig,
+  audio: Blob,
+  mimeType: string,
+): Promise<{ url: string; init: RequestInit }> {
+  const headers: Record<string, string> = { Authorization: `Bearer ${config.transcribeApiKey}` };
+  if (config.transcribeMode === "chat") {
+    const data = Buffer.from(await audio.arrayBuffer()).toString("base64");
+    headers["Content-Type"] = "application/json";
+    return {
+      url: `${config.transcribeBaseURL}/chat/completions`,
+      init: {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: config.transcribeModel,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: TRANSCRIBE_PROMPT },
+                { type: "input_audio", input_audio: { data, format: audioFormat(mimeType) } },
+              ],
+            },
+          ],
+        }),
+      },
+    };
+  }
   const form = new FormData();
-  form.append("file", new File([audio], `voice.${ext}`, { type: mimeType }));
+  form.append("file", new File([audio], `voice.${audioExtension(mimeType)}`, { type: mimeType }));
   form.append("model", config.transcribeModel);
   // OpenAI-style endpoint, also offered by Groq and other OpenAI-compatible hosts.
-  const res = await fetch(`${config.baseURL ?? OPENAI_BASE_URL}/audio/transcriptions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${config.apiKey}` },
-    body: form,
-  });
+  return {
+    url: `${config.transcribeBaseURL}/audio/transcriptions`,
+    init: { method: "POST", headers, body: form },
+  };
+}
+
+type ChatCompletion = {
+  choices?: { message?: { content?: string | { text?: string }[] | null } }[];
+};
+
+export async function aiTranscribe(audio: Blob, mimeType: string): Promise<string> {
+  const config = aiConfigFromEnv();
+  const { url, init } = await buildTranscribeRequest(config, audio, mimeType);
+  const res = await fetch(url, init);
   if (!res.ok) {
     const detail = (await res.text()).slice(0, 300);
     throw new Error(`Transkripsi gagal [${res.status}]: ${detail}`);
+  }
+  if (config.transcribeMode === "chat") {
+    const data = (await res.json()) as ChatCompletion;
+    const content = data.choices?.[0]?.message?.content;
+    const text = Array.isArray(content)
+      ? content.map((p) => p.text ?? "").join("")
+      : (content ?? "");
+    return text.trim();
   }
   const data = (await res.json()) as { text?: string };
   return data.text ?? "";

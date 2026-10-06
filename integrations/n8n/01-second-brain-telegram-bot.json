@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🧠 Second Brain — Telegram Bot (mode n8n)\n\nn8n hanya **relay tipis**: parsing perintah, NLP tanggal, AI ringkasan, pembuatan task/note/inbox, `/link`, dan tombol inline semuanya ada di web app (`POST /api/public/n8n/bot`, idempoten per `update_id`). n8n menambah 2 kemampuan berbasis file: **OCR** (foto/gambar/PDF → OpenAI vision) dan **transkripsi** (voice → OpenAI audio).\n\n**Env n8n:** `SECOND_BRAIN_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS` (kosong = tolak semua), `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIBE_MODEL` (opsional) + `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`\n**Credentials:** Telegram API (token BotFather, trigger), Header Auth `x-api-key` = `N8N_API_KEY` web app, OpenAI API. Ganti semua `REPLACE_ME`.\n\n⚠️ Satu bot = satu webhook. Mengaktifkan workflow ini menimpa webhook mode app (`/api/public/telegram/webhook`). Lihat README → *Mode bot*.\n🔒 Chat di luar allow-list diabaikan diam-diam. Eksekusi sukses tidak disimpan (privasi).",
+        "content": "## 🧠 Second Brain — Telegram Bot (mode n8n)\n\nn8n hanya **relay tipis**: parsing perintah, NLP tanggal, AI ringkasan, pembuatan task/note/inbox, `/link`, dan tombol inline semuanya ada di web app (`POST /api/public/n8n/bot`, idempoten per `update_id`). n8n menambah 2 kemampuan berbasis file: **OCR** (foto/gambar/PDF → OpenAI vision / Gemini) dan **transkripsi** (voice → OpenAI audio / Groq Whisper / Gemini `input_audio`).\n\n**Env n8n:** `SECOND_BRAIN_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS` (kosong = tolak semua), `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIBE_MODEL`, `OPENAI_BASE_URL`, `OPENAI_TRANSCRIBE_BASE_URL`, `N8N_OCR_MODE`, `N8N_TRANSCRIBE_MODE` (opsional; Gemini → README) + `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`\n**Credentials:** Telegram API (token BotFather, trigger), Header Auth `x-api-key` = `N8N_API_KEY` web app, OpenAI API. Ganti semua `REPLACE_ME`.\n\n⚠️ Satu bot = satu webhook. Mengaktifkan workflow ini menimpa webhook mode app (`/api/public/telegram/webhook`). Lihat README → *Mode bot*.\n🔒 Chat di luar allow-list diabaikan diam-diam. Eksekusi sukses tidak disimpan (privasi).",
         "height": 400,
         "width": 820,
         "color": "6"
@@ -288,7 +288,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Bangun request OpenAI Responses API (vision) dari file Telegram yang sudah diunduh.\nconst src = $('Normalize & Guard').item.json;\nconst buf = await this.helpers.getBinaryDataBuffer($itemIndex, 'data');\nif (buf.length > 15_000_000) throw new Error('File terlalu besar untuk OCR');\nconst b64 = buf.toString('base64');\nconst prompt = 'Ekstrak SEMUA teks dari file ini (foto papan tulis, tulisan tangan, dokumen, screenshot, struk). ' +\n  'Tulis dalam bahasa aslinya, rapikan menjadi markdown terstruktur (judul, daftar, tabel bila ada). ' +\n  'Tandai bagian yang tidak terbaca dengan [?]. Jangan menambah informasi yang tidak ada. Balas hanya dengan hasil ekstraksi.';\nconst filePart = src.mime_type === 'application/pdf'\n  ? { type: 'input_file', filename: src.file_name || 'document.pdf', file_data: `data:application/pdf;base64,${b64}` }\n  : { type: 'input_image', image_url: `data:${src.mime_type};base64,${b64}`, detail: 'high' };\nreturn {\n  json: {\n    openai_body: {\n      model: $env.OPENAI_VISION_MODEL || 'gpt-4.1-mini',\n      max_output_tokens: 4000,\n      input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }, filePart] }],\n    },\n  },\n};",
+        "jsCode": "// Bangun request OCR dari file Telegram yang sudah diunduh.\n// N8N_OCR_MODE: responses (OpenAI Responses API, default) | chat (Chat Completions + image_url,\n// untuk Gemini/OpenAI-compatible). Otomatis chat bila OPENAI_BASE_URL = Gemini.\n// Basis URL provider (OpenAI default; Gemini: https://generativelanguage.googleapis.com/v1beta/openai).\nconst base = String($env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '');\nconst isGemini = /^https:\\/\\/generativelanguage\\.googleapis\\.com\\//.test(base + '/');\nconst mode = String($env.N8N_OCR_MODE || (isGemini ? 'chat' : 'responses')).toLowerCase();\nconst src = $('Normalize & Guard').item.json;\nconst buf = await this.helpers.getBinaryDataBuffer($itemIndex, 'data');\nif (buf.length > 15_000_000) throw new Error('File terlalu besar untuk OCR');\nconst b64 = buf.toString('base64');\nconst dataUrl = `data:${src.mime_type};base64,${b64}`;\nconst prompt = 'Ekstrak SEMUA teks dari file ini (foto papan tulis, tulisan tangan, dokumen, screenshot, struk). ' +\n  'Tulis dalam bahasa aslinya, rapikan menjadi markdown terstruktur (judul, daftar, tabel bila ada). ' +\n  'Tandai bagian yang tidak terbaca dengan [?]. Jangan menambah informasi yang tidak ada. Balas hanya dengan hasil ekstraksi.';\nconst model = $env.OPENAI_VISION_MODEL || (isGemini ? 'gemini-3.8-flash' : 'gpt-4.1-mini');\nif (mode === 'chat') {\n  // Gemini menerima gambar (dan PDF) sebagai data URL di image_url.\n  return {\n    json: {\n      ai_url: `${base}/chat/completions`,\n      ai_body: {\n        model,\n        max_tokens: 4000,\n        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: dataUrl } }] }],\n      },\n    },\n  };\n}\nconst filePart = src.mime_type === 'application/pdf'\n  ? { type: 'input_file', filename: src.file_name || 'document.pdf', file_data: dataUrl }\n  : { type: 'input_image', image_url: dataUrl, detail: 'high' };\nreturn {\n  json: {\n    ai_url: `${base}/responses`,\n    ai_body: {\n      model,\n      max_output_tokens: 4000,\n      input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }, filePart] }],\n    },\n  },\n};",
         "mode": "runOnceForEachItem"
       },
       "id": "3fced92b-ec4b-43cb-b151-c894e1273454",
@@ -300,7 +300,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.openai.com/v1/responses",
+        "url": "={{ $json.ai_url }}",
         "options": {
           "timeout": 120000
         },
@@ -308,7 +308,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.openai_body) }}"
+        "jsonBody": "={{ JSON.stringify($json.ai_body) }}"
       },
       "id": "26dc4161-d28d-4b06-8c5f-6de21ae7c6e7",
       "name": "OpenAI OCR (vision)",
@@ -328,7 +328,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Ambil teks hasil OCR dari respons OpenAI lalu susun payload untuk Second Brain.\nconst src = $('Normalize & Guard').item.json;\nconst r = $json;\nlet text = r.output_text;\nif (!text && Array.isArray(r.output)) {\n  text = r.output.flatMap(o => o.content || []).filter(c => c.type === 'output_text').map(c => c.text).join('\\n');\n}\ntext = String(text || '').trim();\nreturn {\n  json: {\n    payload: {\n      ...src.meta,\n      kind: 'ocr',\n      source: 'ocr',\n      text: src.caption || null,          // caption bisa berisi perintah: /task, /note, /inbox\n      ocr_text: text.slice(0, 20000),\n      file_name: src.file_name,\n      mime_type: src.mime_type,\n      ocr_model: r.model ?? null,\n    },\n  },\n};",
+        "jsCode": "// Ambil teks hasil OCR dari respons OpenAI lalu susun payload untuk Second Brain.\nconst src = $('Normalize & Guard').item.json;\nconst r = $json;\nlet text = r.output_text;\nif (!text && Array.isArray(r.output)) {\n  text = r.output.flatMap(o => o.content || []).filter(c => c.type === 'output_text').map(c => c.text).join('\\n');\n}\nconst chat = r.choices?.[0]?.message?.content; // Chat Completions (Gemini/OpenAI-compatible)\nif (!text && chat) text = Array.isArray(chat) ? chat.map(c => c.text || '').join('') : chat;\ntext = String(text || '').trim();\nreturn {\n  json: {\n    payload: {\n      ...src.meta,\n      kind: 'ocr',\n      source: 'ocr',\n      text: src.caption || null,          // caption bisa berisi perintah: /task, /note, /inbox\n      ocr_text: text.slice(0, 20000),\n      file_name: src.file_name,\n      mime_type: src.mime_type,\n      ocr_model: r.model ?? null,\n    },\n  },\n};",
         "mode": "runOnceForEachItem"
       },
       "id": "674921f0-7f96-4be2-bc42-62c4c866cf24",
@@ -339,7 +339,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Telegram voice = .oga; OpenAI menerima .ogg (format sama).\nconst item = $input.item;\nconst b = item.binary.data;\nb.fileName = String(b.fileName || 'voice.ogg').replace(/\\.oga$/i, '.ogg');\nif (!/\\.[a-z0-9]+$/i.test(b.fileName)) b.fileName += '.ogg';\nreturn item;",
+        "jsCode": "// Telegram voice = .oga; OpenAI/Groq menerima .ogg (format sama).\n// Juga tentukan mode transkripsi: N8N_TRANSCRIBE_MODE = transcriptions (default) | chat\n// (Chat Completions + input_audio; wajib untuk Gemini, otomatis bila host transkripsi = Gemini).\nconst item = $input.item;\nconst b = item.binary.data;\nb.fileName = String(b.fileName || 'voice.ogg').replace(/\\.oga$/i, '.ogg');\nif (!/\\.[a-z0-9]+$/i.test(b.fileName)) b.fileName += '.ogg';\nconst base = String($env.OPENAI_TRANSCRIBE_BASE_URL || $env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '');\nconst isGemini = /^https:\\/\\/generativelanguage\\.googleapis\\.com\\//.test(base + '/');\nitem.json = { ...item.json, transcribe_mode: String($env.N8N_TRANSCRIBE_MODE || (isGemini ? 'chat' : 'transcriptions')).toLowerCase(), transcribe_base: base };\nreturn item;",
         "mode": "runOnceForEachItem"
       },
       "id": "d711814d-e62c-4cc3-8dca-60c58d47e743",
@@ -350,8 +350,78 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c7b0e2a4-5d1f-4b8e-9a63-2f4d8e1c0b71",
+              "leftValue": "={{ $json.transcribe_mode }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "chat"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0e6f3b9d-8a2c-4f71-b5d4-9c1e7a3f2b60",
+      "name": "Transcribe via chat?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1470, 640]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gemini tidak punya /audio/transcriptions: kirim audio sebagai input_audio (base64) ke Chat Completions.\n// Telegram voice = Ogg/Opus; Gemini menerima ogg, webm, mp3, wav, m4a/aac, flac, opus.\nconst src = $('Normalize & Guard').item.json;\nconst buf = await this.helpers.getBinaryDataBuffer($itemIndex, 'data');\nif (buf.length > 15_000_000) throw new Error('Audio terlalu besar untuk transkripsi');\nconst sub = String(src.mime_type || 'audio/ogg').split(';')[0].split('/')[1]?.toLowerCase() || 'ogg';\nconst format = { mpeg: 'mp3', mpga: 'mp3', 'x-wav': 'wav', wave: 'wav', mp4: 'm4a', 'x-m4a': 'm4a', oga: 'ogg' }[sub] || sub;\nreturn {\n  json: {\n    ai_url: `${$json.transcribe_base}/chat/completions`,\n    ai_body: {\n      model: $env.OPENAI_TRANSCRIBE_MODEL || 'gemini-3.8-flash',\n      messages: [{ role: 'user', content: [\n        { type: 'text', text: 'Transcribe this audio verbatim; reply with the transcript only.' },\n        { type: 'input_audio', input_audio: { data: buf.toString('base64'), format } },\n      ] }],\n    },\n  },\n};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "5a2d9e1f-3c7b-4e80-a6f2-1b9d4c8e7a35",
+      "name": "Prepare transcribe (chat)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1580, 820]
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "url": "={{ $json.ai_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.ai_body) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "9d4c1e7a-2b6f-4a38-8e05-7f3a1c9b2d84",
+      "name": "AI Transcribe (chat)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 820],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenAI Second Brain"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ String($env.OPENAI_TRANSCRIBE_BASE_URL || $env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\\/+$/, '') }}/audio/transcriptions",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
@@ -399,7 +469,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Susun payload transkripsi voice/audio untuk Second Brain.\nconst src = $('Normalize & Guard').item.json;\nconst text = String($json.text || '').trim();\nreturn {\n  json: {\n    payload: {\n      ...src.meta,\n      kind: 'voice',\n      source: 'voice',\n      text: src.caption || null,\n      transcript: text.slice(0, 20000),\n      duration: src.duration ?? null,\n      mime_type: src.mime_type,\n    },\n  },\n};",
+        "jsCode": "// Susun payload transkripsi voice/audio untuk Second Brain.\nconst src = $('Normalize & Guard').item.json;\n// /audio/transcriptions → { text }; Chat Completions (Gemini) → choices[0].message.content\nconst chat = $json.choices?.[0]?.message?.content;\nconst text = String($json.text || (Array.isArray(chat) ? chat.map(c => c.text || '').join('') : chat) || '').trim();\nreturn {\n  json: {\n    payload: {\n      ...src.meta,\n      kind: 'voice',\n      source: 'voice',\n      text: src.caption || null,\n      transcript: text.slice(0, 20000),\n      duration: src.duration ?? null,\n      mime_type: src.mime_type,\n    },\n  },\n};",
         "mode": "runOnceForEachItem"
       },
       "id": "97b3e661-83eb-4526-999a-50efe24bff51",
@@ -554,7 +624,7 @@
     },
     {
       "parameters": {
-        "content": "## Alur\n1. **callback** (tombol inline) → `/bot` → answerCallbackQuery + editMessageText\n2. **text** (teks & /perintah) → typing… + `/bot` → balasan\n3. **media** → getFile → unduh → *vision* (foto/gambar/PDF) → OpenAI Responses → `/bot` (kind=`ocr`) · *audio* (voice) → OpenAI transcriptions → `/bot` (kind=`voice`)\n4. **reply** → pesan lokal (file tidak didukung/terlalu besar)\n\nCaption foto bisa berisi `/task`, `/note`, `/inbox`, `/sum` untuk memilih tujuan hasil OCR.\nAlternatif OCR: Mistral OCR (`POST https://api.mistral.ai/v1/ocr`), Google Vision, atau node **OpenAI** bawaan n8n (Analyze Image).",
+        "content": "## Alur\n1. **callback** (tombol inline) → `/bot` → answerCallbackQuery + editMessageText\n2. **text** (teks & /perintah) → typing… + `/bot` → balasan\n3. **media** → getFile → unduh → *vision* (foto/gambar/PDF) → OpenAI Responses / Chat Completions (`N8N_OCR_MODE`) → `/bot` (kind=`ocr`) · *audio* (voice) → `/audio/transcriptions` atau Chat Completions + `input_audio` (`N8N_TRANSCRIBE_MODE=chat`, Gemini) → `/bot` (kind=`voice`)\n4. **reply** → pesan lokal (file tidak didukung/terlalu besar)\n\nCaption foto bisa berisi `/task`, `/note`, `/inbox`, `/sum` untuk memilih tujuan hasil OCR.\nAlternatif OCR: Mistral OCR (`POST https://api.mistral.ai/v1/ocr`), Google Vision, atau node **OpenAI** bawaan n8n (Analyze Image).",
         "height": 280,
         "width": 760,
         "color": "7"
@@ -689,7 +759,7 @@
       "main": [
         [
           {
-            "node": "OpenAI Transcribe",
+            "node": "Transcribe via chat?",
             "type": "main",
             "index": 0
           }
@@ -806,6 +876,53 @@
         [
           {
             "node": "Edit message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe via chat?": {
+      "main": [
+        [
+          {
+            "node": "Prepare transcribe (chat)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare transcribe (chat)": {
+      "main": [
+        [
+          {
+            "node": "AI Transcribe (chat)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Transcribe (chat)": {
+      "main": [
+        [
+          {
+            "node": "Transcript → payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message",
             "type": "main",
             "index": 0
           }
