@@ -55,7 +55,7 @@ to stay anonymous.
 
 - Code in this repository: the TanStack Start app (`src/`), server functions
   (`src/lib/*.functions.ts`), public API routes (`src/routes/api/public/*`), SQL migrations and
-  RLS policies (`drizzle/migrations/`), the service worker (`public/sw.js`) and CI workflows
+  RLS policies (`drizzle/migrations/`), the service worker (Workbox config in `vite.config.ts`) and CI workflows
   (`.github/`).
 - Authorization bypasses (reading or writing another user's or another project's data), secret
   leakage to the browser, injection, SSRF, XSS, CSRF, and insecure defaults that ship with the

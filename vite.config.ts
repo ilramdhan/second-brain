@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig, loadEnv, type PluginOption } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 const srcDir = fileURLToPath(new URL("./src", import.meta.url));
@@ -14,6 +17,99 @@ const nitroPreset = process.env["NITRO_PRESET"] || "vercel";
 
 // VITE_* values are inlined at build time; the browser Supabase client cannot start without these.
 const REQUIRED_CLIENT_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
+
+/**
+ * Workbox service worker (`/sw.js`, scope `/`), generated at build time. The hashed client
+ * assets are precached; navigations are network-first (falling back to the last cached copy,
+ * then `/offline.html`); auth, API and server-function traffic always goes to the network.
+ * `registerType: "prompt"` + `virtual:pwa-register/react` drive the "new version" toast in
+ * src/components/common/PwaUpdatePrompt.tsx. The web manifest stays in public/.
+ */
+const PRECACHED_PUBLIC_FILES = [
+  "offline.html",
+  "manifest.webmanifest",
+  "favicon.png",
+  "icon-192.png",
+  "icon-512.png",
+];
+
+function pwa(): PluginOption {
+  const plugins = VitePWA({
+    strategies: "generateSW",
+    filename: "sw.js",
+    scope: "/",
+    registerType: "prompt",
+    injectRegister: false,
+    // TanStack Start builds several Vite environments and Nitro points the client build at the
+    // host's static dir (`.vercel/output/static` for the vercel preset). Glob and write sw.js in
+    // the *client* environment's outDir, which is what the host serves as static files.
+    integration: {
+      configureOptions(viteConfig, options) {
+        const clientOutDir = viteConfig.environments["client"]?.build.outDir;
+        if (clientOutDir) options.outDir = clientOutDir;
+      },
+    },
+    manifest: false,
+    devOptions: { enabled: false },
+    workbox: {
+      globPatterns: ["assets/**/*.{js,css,woff2}"],
+      // Nitro copies public/ into the static dir only after the client build, so these are not
+      // globbed; their revision is a content hash so an edit re-downloads them.
+      additionalManifestEntries: PRECACHED_PUBLIC_FILES.map((file) => ({
+        url: `/${file}`,
+        revision: createHash("sha256")
+          .update(readFileSync(new URL(`./public/${file}`, import.meta.url)))
+          .digest("hex")
+          .slice(0, 16),
+      })),
+      // Hashed file names: no cache-busting query needed.
+      dontCacheBustURLsMatching: /^assets\//,
+      maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      cleanupOutdatedCaches: true,
+      inlineWorkboxRuntime: true,
+      // The pre-Workbox hand-written worker used `second-brain-shell-v*` caches.
+      importScripts: ["/sw-legacy-cleanup.js"],
+      navigateFallback: null,
+      // Only same-origin pages and images are cached. Server functions (`/_serverFn`), API and
+      // public endpoints (`/api/*`), OAuth popups and Supabase (another origin) always hit the
+      // network. Workbox serialises these matchers into sw.js, so they must not use closures.
+      runtimeCaching: [
+        {
+          urlPattern: ({ request, url, sameOrigin }) =>
+            sameOrigin &&
+            request.mode === "navigate" &&
+            !/^\/(?:api|_serverFn|oauth)(?:\/|$)/.test(url.pathname),
+          handler: "NetworkFirst",
+          options: {
+            cacheName: "pages",
+            networkTimeoutSeconds: 4,
+            expiration: { maxEntries: 32, maxAgeSeconds: 7 * 24 * 60 * 60 },
+            cacheableResponse: { statuses: [200] },
+            precacheFallback: { fallbackURL: "/offline.html" },
+          },
+        },
+        {
+          urlPattern: ({ request, url, sameOrigin }) =>
+            sameOrigin &&
+            request.destination === "image" &&
+            !/^\/(?:api|_serverFn|oauth)(?:\/|$)/.test(url.pathname),
+          handler: "CacheFirst",
+          options: {
+            cacheName: "images",
+            expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            cacheableResponse: { statuses: [200] },
+          },
+        },
+      ],
+    },
+  });
+  // Generate the worker once, after the client build (not again after the SSR/Nitro builds).
+  return plugins.map((plugin) =>
+    plugin.name === "vite-plugin-pwa:build"
+      ? { ...plugin, applyToEnvironment: (environment) => environment.name === "client" }
+      : plugin,
+  );
+}
 
 export default defineConfig(({ command, mode }) => {
   const isDevBuild = command === "build" && mode === "development";
@@ -58,6 +154,7 @@ export default defineConfig(({ command, mode }) => {
     // Nitro only packages the production server; `vite dev` uses TanStack Start's dev server.
     command === "build" ? nitro({ preset: nitroPreset }) : null,
     viteReact(),
+    pwa(),
   ];
 
   return {

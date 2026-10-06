@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { THEME_STORAGE_KEY } from "./theme-script";
 
 export type Theme = "light" | "dark" | "system";
 export type Locale = "id" | "en";
@@ -81,6 +82,8 @@ const messages = {
     landingOssTitle: "Open source (MIT)",
     landingOssBody: "Self-host di Vercel + Supabase. Kodenya terbuka di GitHub.",
     landingFooter: "Dibuat dengan TanStack Start, Supabase, dan Yjs.",
+    pwaUpdateAvailable: "Versi baru tersedia",
+    pwaReload: "Muat ulang",
   },
   en: {
     today: "Today",
@@ -159,6 +162,8 @@ const messages = {
     landingOssTitle: "Open source (MIT)",
     landingOssBody: "Self-host on Vercel + Supabase. The code is open on GitHub.",
     landingFooter: "Built with TanStack Start, Supabase and Yjs.",
+    pwaUpdateAvailable: "A new version is available",
+    pwaReload: "Reload",
   },
 } as const;
 
@@ -196,7 +201,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const [locale, setLocaleState] = useState<Locale>("id");
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem("second-brain-theme") as Theme | null;
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
     const storedLocale = localStorage.getItem("second-brain-locale") as Locale | null;
     const nextTheme =
       storedTheme && ["light", "dark", "system"].includes(storedTheme) ? storedTheme : "system";
@@ -221,7 +226,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       theme,
       setTheme: (next) => {
         setThemeState(next);
-        localStorage.setItem("second-brain-theme", next);
+        localStorage.setItem(THEME_STORAGE_KEY, next);
         applyTheme(next);
       },
       locale,
