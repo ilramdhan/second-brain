@@ -57,3 +57,6 @@ export { useAutomationActions, useAutomations } from "@/features/automations/hoo
 
 export type { SearchHit, SearchResults, SemanticHit } from "@/features/search/hooks";
 export { useSearch, useSemanticSearch, useSemanticStatus } from "@/features/search/hooks";
+
+export { SHARE_COLS, sharesQuery } from "@/features/shares/api";
+export { useCanShare, useShareActions, useShareFor, useShares } from "@/features/shares/hooks";
