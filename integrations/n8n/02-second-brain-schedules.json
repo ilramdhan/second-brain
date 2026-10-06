@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## ⏰ Second Brain — Jadwal\nSemua jadwal hidup di n8n (Vercel Hobby hanya 1 cron/hari, Supabase Free tanpa jaminan pg_cron). Isi pesan disusun server per user yang sudah `/link` Telegram; n8n hanya memicu & mengirim.\n\n| Jadwal (WIB) | Endpoint |\n|---|---|\n| Tiap 15 menit | `POST /reminders` (jatuh tempo ≤ `REMINDER_LEAD_MINUTES`, tandai `reminded`) |\n| 07:00 | `GET /digest?kind=morning` (hari ini + overdue + inbox) |\n| 12:30 Sen–Jum | `GET /digest?kind=overdue` |\n| 20:30 | `GET /digest?kind=evening` (selesai hari ini, besok) |\n| Minggu 18:00 | `GET /digest?kind=weekly` (weekly review) |\n| 03:00 | `POST /maintenance` (purge trash > `TRASH_RETENTION_DAYS`, link code kedaluwarsa, rate_limits, n8n_events) |\n\n**Env:** `SECOND_BRAIN_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS`, `REMINDER_LEAD_MINUTES` (default 60), `TRASH_RETENTION_DAYS` (default 30). **Credential:** Header Auth `x-api-key`.\nTombol ✅/⏰ di pesan diproses workflow 01 (mode n8n).",
+        "content": "## ⏰ Second Brain — Jadwal\nSemua jadwal hidup di n8n (Vercel Hobby hanya 1 cron/hari, Supabase Free tanpa jaminan pg_cron). Isi pesan disusun server per user yang sudah `/link` Telegram; n8n hanya memicu & mengirim.\n\n| Jadwal (WIB) | Endpoint |\n|---|---|\n| Tiap 15 menit | `POST /reminders` (jatuh tempo ≤ `SB_REMINDER_LEAD_MINUTES`, tandai `reminded`) |\n| 07:00 | `GET /digest?kind=morning` (hari ini + overdue + inbox) |\n| 12:30 Sen–Jum | `GET /digest?kind=overdue` |\n| 20:30 | `GET /digest?kind=evening` (selesai hari ini, besok) |\n| Minggu 18:00 | `GET /digest?kind=weekly` (weekly review) |\n| 03:00 | `POST /maintenance` (purge trash > `SB_TRASH_RETENTION_DAYS`, link code kedaluwarsa, rate_limits, n8n_events) |\n\n**Env:** `SB_APP_URL`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ALLOWED_CHAT_IDS`, `SB_REMINDER_LEAD_MINUTES` (default 60), `SB_TRASH_RETENTION_DAYS` (default 30). **Credential:** Header Auth `x-api-key`.\nTombol ✅/⏰ di pesan diproses workflow 01 (mode n8n).",
         "height": 420,
         "width": 640,
         "color": "6"
@@ -34,7 +34,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/reminders",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/reminders",
         "options": {
           "timeout": 30000
         },
@@ -42,7 +42,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ lead_minutes: Number($env.REMINDER_LEAD_MINUTES || 60), include_overdue: true }) }}"
+        "jsonBody": "={{ JSON.stringify({ lead_minutes: Number($env.SB_REMINDER_LEAD_MINUTES || 60), include_overdue: true }) }}"
       },
       "id": "5aa739f4-5f0a-42fa-999b-18fb7eb4fc0d",
       "name": "Pengingat jatuh tempo",
@@ -78,7 +78,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=morning",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/digest?kind=morning",
         "options": {
           "timeout": 30000
         },
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=overdue",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/digest?kind=overdue",
         "options": {
           "timeout": 30000
         },
@@ -162,7 +162,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=evening",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/digest?kind=evening",
         "options": {
           "timeout": 30000
         },
@@ -206,7 +206,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/digest?kind=weekly",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/digest?kind=weekly",
         "options": {
           "timeout": 30000
         },
@@ -230,7 +230,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Pecah respons { messages: [...] } menjadi satu item per pesan Telegram.\n// Server hanya mengembalikan chat yang sudah ditautkan (profiles.telegram_chat_id); n8n tetap memfilter allow-list.\nconst allowed = String($env.TELEGRAM_ALLOWED_CHAT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\nconst out = [];\nfor (const item of $input.all()) {\n  for (const m of item.json.messages || []) {\n    const chat = String(m.chat_id || '');\n    if (!chat || (allowed.length && !allowed.includes(chat))) continue;\n    out.push({ json: { chat_id: chat, text: String(m.text || '').slice(0, 4000), parse_mode: m.parse_mode || null, reply_markup: m.reply_markup || null } });\n  }\n}\nreturn out;"
+        "jsCode": "// Pecah respons { messages: [...] } menjadi satu item per pesan Telegram.\n// Server hanya mengembalikan chat yang sudah ditautkan (profiles.telegram_chat_id); n8n tetap memfilter allow-list.\nconst allowed = String($env.SB_TELEGRAM_ALLOWED_CHAT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\nconst out = [];\nfor (const item of $input.all()) {\n  for (const m of item.json.messages || []) {\n    const chat = String(m.chat_id || '');\n    if (!chat || (allowed.length && !allowed.includes(chat))) continue;\n    out.push({ json: { chat_id: chat, text: String(m.text || '').slice(0, 4000), parse_mode: m.parse_mode || null, reply_markup: m.reply_markup || null } });\n  }\n}\nreturn out;"
       },
       "id": "c2dcac67-9eac-41e8-bb33-4110b1be4008",
       "name": "Pecah per chat",
@@ -241,7 +241,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/sendMessage",
         "options": {
           "timeout": 15000
         },
@@ -278,7 +278,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/maintenance",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/maintenance",
         "options": {
           "timeout": 120000
         },
@@ -286,7 +286,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tasks: ['purge_trash', 'link_codes', 'rate_limits', 'n8n_events'], purge_after_days: Number($env.TRASH_RETENTION_DAYS || 30), events_after_days: 30 }) }}"
+        "jsonBody": "={{ JSON.stringify({ tasks: ['purge_trash', 'link_codes', 'rate_limits', 'n8n_events'], purge_after_days: Number($env.SB_TRASH_RETENTION_DAYS || 30), events_after_days: 30 }) }}"
       },
       "id": "98cda273-50db-4e42-9689-b0ddd79c6721",
       "name": "Maintenance",
@@ -323,13 +323,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/hooks/reminders",
+        "url": "={{ $env.SB_APP_URL }}/api/public/hooks/reminders",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $env.SECOND_BRAIN_CRON_SECRET }}"
+              "value": "=Bearer {{ $env.SB_CRON_SECRET }}"
             }
           ]
         },
@@ -346,7 +346,7 @@
     },
     {
       "parameters": {
-        "content": "## Fallback: `POST /api/public/hooks/reminders`\n`Authorization: Bearer $SECOND_BRAIN_CRON_SECRET` (nilai sama dengan env app). Endpoint ini mengirim pengingat ≤ 24 jam **langsung** dari app via Telegram (tanpa tombol). Node ini **disabled**; pakai hanya bila tidak memakai `POST /n8n/reminders` — jangan aktifkan keduanya.",
+        "content": "## Fallback: `POST /api/public/hooks/reminders`\n`Authorization: Bearer $SB_CRON_SECRET` (nilai sama dengan env app). Endpoint ini mengirim pengingat ≤ 24 jam **langsung** dari app via Telegram (tanpa tombol). Node ini **disabled**; pakai hanya bila tidak memakai `POST /n8n/reminders` — jangan aktifkan keduanya.",
         "height": 200,
         "width": 520,
         "color": "7"

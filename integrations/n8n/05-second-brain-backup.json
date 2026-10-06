@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 💾 Backup otomatis → Google Drive + email (Resend)\nTiap jam menit 05 workflow bangun; node **Jadwal?** hanya lanjut pada `BACKUP_HOUR` (default 2) dan, bila `BACKUP_FREQUENCY=weekly`, pada `BACKUP_WEEKDAY` (0 = Minggu). **Jalankan manual** selalu lanjut.\n\nAlur: `GET /api/public/n8n/backup?userId=all` (berhalaman, gzip) → gabung → `.json.gz` → upload ke folder `BACKUP_DRIVE_FOLDER_ID` → rotasi (simpan `BACKUP_RETENTION` file terbaru, default 14) → email ringkasan via **Resend SMTP** (lampiran bila ≤ `BACKUP_EMAIL_ATTACH_MAX_MB`, default 5). Gagal di langkah mana pun → alert Telegram admin + email.\n\nFormat file = format Settings → *Pulihkan JSON* (pilih file `.json.gz` langsung; tiap user memulihkan datanya sendiri).\n\n**Env:** `SECOND_BRAIN_URL`, `BACKUP_*`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`. **Credentials:** Header Auth, Google Drive OAuth2, SMTP (host `smtp.resend.com`, port 465, SSL, user `resend`, password = Resend API key).",
+        "content": "## 💾 Backup otomatis → Google Drive + email (Resend)\nTiap jam menit 05 workflow bangun; node **Jadwal?** hanya lanjut pada `SB_BACKUP_HOUR` (default 2) dan, bila `SB_BACKUP_FREQUENCY=weekly`, pada `SB_BACKUP_WEEKDAY` (0 = Minggu). **Jalankan manual** selalu lanjut.\n\nAlur: `GET /api/public/n8n/backup?userId=all` (berhalaman, gzip) → gabung → `.json.gz` → upload ke folder `SB_BACKUP_DRIVE_FOLDER_ID` → rotasi (simpan `SB_BACKUP_RETENTION` file terbaru, default 14) → email ringkasan via **Resend SMTP** (lampiran bila ≤ `SB_BACKUP_EMAIL_ATTACH_MAX_MB`, default 5). Gagal di langkah mana pun → alert Telegram admin + email.\n\nFormat file = format Settings → *Pulihkan JSON* (pilih file `.json.gz` langsung; tiap user memulihkan datanya sendiri).\n\n**Env:** `SB_APP_URL`, `SB_BACKUP_*`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`. **Credentials:** Header Auth, Google Drive OAuth2, SMTP (host `smtp.resend.com`, port 465, SSL, user `resend`, password = Resend API key).",
         "height": 420,
         "width": 760,
         "color": 6
@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Lanjut hanya pada jam/hari backup (zona waktu workflow = Asia/Jakarta). Manual = selalu.\nconst manual = $('Jalankan manual').isExecuted;\nconst now = $now.setZone($env.GENERIC_TIMEZONE || 'Asia/Jakarta');\nconst hour = Number($env.BACKUP_HOUR ?? 2);\nconst freq = String($env.BACKUP_FREQUENCY || 'daily').toLowerCase();\nconst weekday = Number($env.BACKUP_WEEKDAY ?? 0); // 0 = Minggu … 6 = Sabtu\nconst isDay = freq !== 'weekly' || (now.weekday % 7) === weekday;\nif (!manual && (now.hour !== hour || !isDay)) return [];\nif (!$env.BACKUP_DRIVE_FOLDER_ID) throw new Error('BACKUP_DRIVE_FOLDER_ID belum diatur');\nreturn [{ json: {\n  stamp: now.toFormat('yyyy-MM-dd-HHmm'),\n  date: now.toFormat('yyyy-MM-dd'),\n  frequency: freq,\n  include_versions: String($env.BACKUP_INCLUDE_VERSIONS || '0') === '1' ? '1' : '0',\n} }];"
+        "jsCode": "// Lanjut hanya pada jam/hari backup (zona waktu workflow = Asia/Jakarta). Manual = selalu.\nconst manual = $('Jalankan manual').isExecuted;\nconst now = $now.setZone($env.GENERIC_TIMEZONE || 'Asia/Jakarta');\nconst hour = Number($env.SB_BACKUP_HOUR ?? 2);\nconst freq = String($env.SB_BACKUP_FREQUENCY || 'daily').toLowerCase();\nconst weekday = Number($env.SB_BACKUP_WEEKDAY ?? 0); // 0 = Minggu … 6 = Sabtu\nconst isDay = freq !== 'weekly' || (now.weekday % 7) === weekday;\nif (!manual && (now.hour !== hour || !isDay)) return [];\nif (!$env.SB_BACKUP_DRIVE_FOLDER_ID) throw new Error('SB_BACKUP_DRIVE_FOLDER_ID belum diatur');\nreturn [{ json: {\n  stamp: now.toFormat('yyyy-MM-dd-HHmm'),\n  date: now.toFormat('yyyy-MM-dd'),\n  frequency: freq,\n  include_versions: String($env.SB_BACKUP_INCLUDE_VERSIONS || '0') === '1' ? '1' : '0',\n} }];"
       },
       "id": "e3380e33-d730-5ace-8292-f4ecf713f976",
       "name": "Jadwal?",
@@ -52,7 +52,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/backup",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/backup",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -175,7 +175,7 @@
         "folderId": {
           "__rl": true,
           "mode": "id",
-          "value": "={{ $env.BACKUP_DRIVE_FOLDER_ID }}"
+          "value": "={{ $env.SB_BACKUP_DRIVE_FOLDER_ID }}"
         },
         "inputDataFieldName": "data",
         "options": {}
@@ -188,7 +188,7 @@
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "REPLACE_ME",
-          "name": "Google Drive Second Brain"
+          "name": "Second Brain Google Drive"
         }
       },
       "retryOnFail": true,
@@ -206,7 +206,7 @@
           "folderId": {
             "__rl": true,
             "mode": "id",
-            "value": "={{ $env.BACKUP_DRIVE_FOLDER_ID }}"
+            "value": "={{ $env.SB_BACKUP_DRIVE_FOLDER_ID }}"
           }
         },
         "options": {
@@ -221,7 +221,7 @@
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "REPLACE_ME",
-          "name": "Google Drive Second Brain"
+          "name": "Second Brain Google Drive"
         }
       },
       "alwaysOutputData": true,
@@ -229,7 +229,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Rotasi: simpan BACKUP_RETENTION file terbaru (default 14), hapus sisanya.\nconst keep = Math.max(1, Number($env.BACKUP_RETENTION || 14));\nconst files = $('Daftar backup').all().map(i => i.json)\n  .filter(f => f.id && /^second-brain-backup-.*\\.json(\\.gz)?$/.test(f.name || ''))\n  .sort((a, b) => String(b.createdTime || b.name).localeCompare(String(a.createdTime || a.name)));\nconst expired = files.slice(keep);\nreturn expired.map(f => ({ json: { id: f.id, name: f.name } }));"
+        "jsCode": "// Rotasi: simpan SB_BACKUP_RETENTION file terbaru (default 14), hapus sisanya.\nconst keep = Math.max(1, Number($env.SB_BACKUP_RETENTION || 14));\nconst files = $('Daftar backup').all().map(i => i.json)\n  .filter(f => f.id && /^second-brain-backup-.*\\.json(\\.gz)?$/.test(f.name || ''))\n  .sort((a, b) => String(b.createdTime || b.name).localeCompare(String(a.createdTime || a.name)));\nconst expired = files.slice(keep);\nreturn expired.map(f => ({ json: { id: f.id, name: f.name } }));"
       },
       "id": "74f94e47-01da-5897-a589-b73e70aec1d0",
       "name": "Pilih yang dihapus",
@@ -255,14 +255,14 @@
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "REPLACE_ME",
-          "name": "Google Drive Second Brain"
+          "name": "Second Brain Google Drive"
         }
       },
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Ringkasan email + lampiran .json.gz bila ukurannya ≤ BACKUP_EMAIL_ATTACH_MAX_MB.\nconst keep = Math.max(1, Number($env.BACKUP_RETENTION || 14));\nconst files = $('Daftar backup').all().map(i => i.json)\n  .filter(f => f.id && /^second-brain-backup-.*\\.json(\\.gz)?$/.test(f.name || ''))\n  .sort((a, b) => String(b.createdTime || b.name).localeCompare(String(a.createdTime || a.name)));\nconst expired = files.slice(keep);\nconst meta = $('Gabung & ringkas').first().json;\nconst upload = $('Upload ke Google Drive').first().json;\nconst sized = $('Ukuran file').first();\nconst gz = sized.binary.data;\nconst gzBytes = sized.json.gz_bytes;\nconst maxMb = Number($env.BACKUP_EMAIL_ATTACH_MAX_MB ?? 5);\nconst attach = maxMb > 0 && gzBytes > 0 && gzBytes <= maxMb * 1048576;\nconst mb = (b) => (b / 1048576).toFixed(2) + ' MB';\nconst rows = Object.entries(meta.totals).map(([t, n]) => `<tr><td>${t}</td><td align=\"right\">${n}</td></tr>`).join('');\nconst link = upload.id ? `https://drive.google.com/file/d/${upload.id}/view` : null;\nconst html = `<h2>✅ Backup Second Brain berhasil</h2>\n<p><b>File:</b> ${upload.name || meta.fileName + '.gz'} (${mb(gzBytes)}, JSON ${mb(meta.json_bytes)})<br>\n<b>User:</b> ${meta.users}<br>${link ? `<b>Google Drive:</b> <a href=\"${link}\">${link}</a><br>` : ''}\n<b>Rotasi:</b> simpan ${keep} terbaru, ${expired.length} file lama dihapus.<br>\n<b>Lampiran:</b> ${attach ? 'ya' : `tidak (lebih dari ${maxMb} MB, unduh dari Drive)`}</p>\n<table border=\"1\" cellpadding=\"4\" cellspacing=\"0\"><tr><th>Tabel</th><th>Baris</th></tr>${rows}</table>\n<p>Pulihkan: Second Brain → Pengaturan → Backup → <i>Pulihkan JSON</i> → pilih file .json.gz.</p>`;\nreturn [{ json: { subject: `Backup Second Brain ${meta.users} user · ${mb(gzBytes)}`, html, attach }, ...(attach ? { binary: { data: gz } } : {}) }];"
+        "jsCode": "// Ringkasan email + lampiran .json.gz bila ukurannya ≤ SB_BACKUP_EMAIL_ATTACH_MAX_MB.\nconst keep = Math.max(1, Number($env.SB_BACKUP_RETENTION || 14));\nconst files = $('Daftar backup').all().map(i => i.json)\n  .filter(f => f.id && /^second-brain-backup-.*\\.json(\\.gz)?$/.test(f.name || ''))\n  .sort((a, b) => String(b.createdTime || b.name).localeCompare(String(a.createdTime || a.name)));\nconst expired = files.slice(keep);\nconst meta = $('Gabung & ringkas').first().json;\nconst upload = $('Upload ke Google Drive').first().json;\nconst sized = $('Ukuran file').first();\nconst gz = sized.binary.data;\nconst gzBytes = sized.json.gz_bytes;\nconst maxMb = Number($env.SB_BACKUP_EMAIL_ATTACH_MAX_MB ?? 5);\nconst attach = maxMb > 0 && gzBytes > 0 && gzBytes <= maxMb * 1048576;\nconst mb = (b) => (b / 1048576).toFixed(2) + ' MB';\nconst rows = Object.entries(meta.totals).map(([t, n]) => `<tr><td>${t}</td><td align=\"right\">${n}</td></tr>`).join('');\nconst link = upload.id ? `https://drive.google.com/file/d/${upload.id}/view` : null;\nconst html = `<h2>✅ Backup Second Brain berhasil</h2>\n<p><b>File:</b> ${upload.name || meta.fileName + '.gz'} (${mb(gzBytes)}, JSON ${mb(meta.json_bytes)})<br>\n<b>User:</b> ${meta.users}<br>${link ? `<b>Google Drive:</b> <a href=\"${link}\">${link}</a><br>` : ''}\n<b>Rotasi:</b> simpan ${keep} terbaru, ${expired.length} file lama dihapus.<br>\n<b>Lampiran:</b> ${attach ? 'ya' : `tidak (lebih dari ${maxMb} MB, unduh dari Drive)`}</p>\n<table border=\"1\" cellpadding=\"4\" cellspacing=\"0\"><tr><th>Tabel</th><th>Baris</th></tr>${rows}</table>\n<p>Pulihkan: Second Brain → Pengaturan → Backup → <i>Pulihkan JSON</i> → pilih file .json.gz.</p>`;\nreturn [{ json: { subject: `Backup Second Brain ${meta.users} user · ${mb(gzBytes)}`, html, attach }, ...(attach ? { binary: { data: gz } } : {}) }];"
       },
       "id": "ef2aed62-90aa-5c1a-a9a7-0c72bc1df48a",
       "name": "Susun email",
@@ -272,8 +272,8 @@
     },
     {
       "parameters": {
-        "fromEmail": "={{ $env.BACKUP_EMAIL_FROM }}",
-        "toEmail": "={{ $env.BACKUP_EMAIL_TO }}",
+        "fromEmail": "={{ $env.SB_BACKUP_EMAIL_FROM }}",
+        "toEmail": "={{ $env.SB_BACKUP_EMAIL_TO }}",
         "subject": "={{ $json.subject }}",
         "emailFormat": "html",
         "html": "={{ $json.html }}",
@@ -290,7 +290,7 @@
       "credentials": {
         "smtp": {
           "id": "REPLACE_ME",
-          "name": "Resend SMTP"
+          "name": "Second Brain Resend SMTP"
         }
       },
       "retryOnFail": true,
@@ -311,10 +311,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/sendMessage",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_ADMIN_CHAT_ID, text: $json.text, disable_web_page_preview: true }) }}",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.SB_TELEGRAM_ADMIN_CHAT_ID, text: $json.text, disable_web_page_preview: true }) }}",
         "options": {
           "timeout": 10000
         }
@@ -331,8 +331,8 @@
     },
     {
       "parameters": {
-        "fromEmail": "={{ $env.BACKUP_EMAIL_FROM }}",
-        "toEmail": "={{ $env.BACKUP_EMAIL_TO }}",
+        "fromEmail": "={{ $env.SB_BACKUP_EMAIL_FROM }}",
+        "toEmail": "={{ $env.SB_BACKUP_EMAIL_TO }}",
         "subject": "={{ $json.subject }}",
         "emailFormat": "html",
         "html": "={{ $json.html }}",
@@ -348,7 +348,7 @@
       "credentials": {
         "smtp": {
           "id": "REPLACE_ME",
-          "name": "Resend SMTP"
+          "name": "Second Brain Resend SMTP"
         }
       },
       "onError": "continueRegularOutput"

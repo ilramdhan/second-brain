@@ -767,7 +767,7 @@ Templates and the full endpoint contracts are in [`integrations/n8n/`](integrati
 | `POST /api/public/n8n/calendar/sync` | 07       | App → Google Calendar for connected users                                          |
 | `POST /api/public/n8n/events`        | 03       | n8n errors → `activity_logs`                                                       |
 
-Automatic backups (workflow 05): daily or weekly → `.json.gz` in a Google Drive folder → keep the newest `BACKUP_RETENTION` files → summary email via Resend SMTP (attachment up to `BACKUP_EMAIL_ATTACH_MAX_MB`) → Telegram/email alert on failure. `docs/n8n/` is reference material from another project and is not part of this app.
+Automatic backups (workflow 05): daily or weekly → `.json.gz` in a Google Drive folder → keep the newest `SB_BACKUP_RETENTION` files → summary email via Resend SMTP (attachment up to `SB_BACKUP_EMAIL_ATTACH_MAX_MB`) → Telegram/email alert on failure. `docs/n8n/` is reference material from another project and is not part of this app.
 
 ### Google Calendar
 
