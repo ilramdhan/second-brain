@@ -17,6 +17,9 @@ const REQUIRED_CLIENT_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY
 
 export default defineConfig(({ command, mode }) => {
   const isDevBuild = command === "build" && mode === "development";
+  // Hidden client source maps (no `//# sourceMappingURL` comment) only when CI uploads them to
+  // Sentry; the deploy workflow deletes the .map files before deploying. Never public.
+  const hiddenSourceMaps = command === "build" && process.env["SENTRY_SOURCEMAPS"] === "1";
 
   // Inline VITE_* variables (from .env files and the process env) as import.meta.env.* constants.
   const viteEnv = loadEnv(mode, process.cwd(), "VITE_");
@@ -60,13 +63,14 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins,
     define: envDefine,
-    ...(isDevBuild
-      ? {
-          environments: {
-            client: { define: { "process.env.NODE_ENV": JSON.stringify("development") } },
-          },
-        }
-      : {}),
+    environments: {
+      client: {
+        ...(isDevBuild
+          ? { define: { "process.env.NODE_ENV": JSON.stringify("development") } }
+          : {}),
+        ...(hiddenSourceMaps ? { build: { sourcemap: "hidden" as const } } : {}),
+      },
+    },
     css: { transformer: "lightningcss" },
     resolve: {
       alias: { "@": srcDir },

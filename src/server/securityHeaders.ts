@@ -28,7 +28,9 @@ export const CSP_REPORT_ONLY = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  // Sentry ingest (optional error monitoring, src/lib/monitoring.ts); DSN hosts are
+  // o<org>.ingest[.us|.de].sentry.io. A self-hosted Sentry needs its host added here.
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io",
   "media-src 'self' blob:",
   "worker-src 'self'",
   "manifest-src 'self'",

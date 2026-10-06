@@ -31,6 +31,7 @@ describe("security headers", () => {
     expect(CSP_REPORT_ONLY).toContain(
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
     );
+    expect(CSP_REPORT_ONLY).toContain("https://*.ingest.sentry.io");
     expect(CSP_REPORT_ONLY).toContain("worker-src 'self'");
     expect(SECURITY_HEADERS["X-Frame-Options"]).toBe("DENY");
     expect(SECURITY_HEADERS["Permissions-Policy"]).toContain("microphone=(self)");

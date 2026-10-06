@@ -74,6 +74,8 @@ export async function handleN8n(
     if (error instanceof ZodError) return json({ error: zodMessage(error) }, 400);
     if (error instanceof N8nHttpError) return json({ error: error.message }, error.status);
     console.error("[n8n] handler failed", error instanceof Error ? error.message : error);
+    const { captureServerError } = await import("../sentry.server");
+    await captureServerError(error, { source: "n8n", request });
     return json({ error: "internal error" }, 500);
   }
 }
