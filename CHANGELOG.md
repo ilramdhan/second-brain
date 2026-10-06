@@ -10,6 +10,13 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.3.1](https://github.com/ilramdhan/second-brain/compare/v0.3.0...v0.3.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **n8n:** use resolved IMAP format in email-to-inbox to avoid Gmail disconnects ([#45](https://github.com/ilramdhan/second-brain/issues/45)) ([e28b011](https://github.com/ilramdhan/second-brain/commit/e28b011534f98f6a9c014bb58200921e0d88f2c5))
+
 ## [0.3.0](https://github.com/ilramdhan/second-brain/compare/v0.2.1...v0.3.0) (2026-10-06)
 
 
