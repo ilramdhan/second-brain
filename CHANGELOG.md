@@ -10,6 +10,52 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.3.0](https://github.com/ilramdhan/second-brain/compare/v0.2.1...v0.3.0) (2026-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **n8n:** re-import all n8n workflows and rename the n8n env vars (SECOND_BRAIN_URL -> SB_APP_URL, SECOND_BRAIN_CRON_SECRET -> SB_CRON_SECRET, SECOND_BRAIN_OWNER_EMAIL -> SB_OWNER_EMAIL, OPENAI_* -> SB_AI_*, N8N_OCR_MODE/N8N_TRANSCRIBE_MODE -> SB_AI_OCR_MODE/SB_AI_TRANSCRIBE_MODE, everything else gets an SB_ prefix). Replace the OpenAI credential with the Header Auth credential "Second Brain AI key (Gemini)". AI now defaults to Gemini in chat mode. Web app (Vercel) env is unchanged.
+
+### Features
+
+* keyboard drag and drop, reduced motion, AA tokens and Playwright e2e (8.3, 8.5) ([#43](https://github.com/ilramdhan/second-brain/issues/43)) ([89d2842](https://github.com/ilramdhan/second-brain/commit/89d28422af9b2df73500c0b1b3235d0aa0f756db))
+* landing SEO, Open Graph image, favicons and demo CTA ([#42](https://github.com/ilramdhan/second-brain/issues/42)) ([60e9794](https://github.com/ilramdhan/second-brain/commit/60e9794d21dfb47da2c21565a7984a3269d19853))
+* optional Sentry error monitoring and web-vitals reporting ([#44](https://github.com/ilramdhan/second-brain/issues/44)) ([ca44950](https://github.com/ilramdhan/second-brain/commit/ca44950be77b48071ad4de920669a24b13e2fa73))
+* per-route error boundaries and consistent error toasts ([#36](https://github.com/ilramdhan/second-brain/issues/36)) ([9caefa2](https://github.com/ilramdhan/second-brain/commit/9caefa2b455b5b2924228f3d46929a86dd8bf4a0))
+* public bento-grid landing page at / and move Today to /today ([#38](https://github.com/ilramdhan/second-brain/issues/38)) ([dc6c101](https://github.com/ilramdhan/second-brain/commit/dc6c101666cb7218af2827f0a4ee94ee3090641a))
+* support Gemini (chat input_audio) for voice transcription ([#37](https://github.com/ilramdhan/second-brain/issues/37)) ([8a6ebad](https://github.com/ilramdhan/second-brain/commit/8a6ebad49f47272b8eba357c9e40237ba873d393))
+* Workbox service worker with update prompt and no theme flash ([#41](https://github.com/ilramdhan/second-brain/issues/41)) ([f91bc0e](https://github.com/ilramdhan/second-brain/commit/f91bc0e5611734bd7f25b85bae9c63842745d196))
+
+
+### Bug Fixes
+
+* **blocks:** parse `- [x]`/`* [x]` as checked todos so checked todos survive the markdown round trip ([5e2dbe9](https://github.com/ilramdhan/second-brain/commit/5e2dbe9b091bc6e7feeb49bea1be5ce36aace9bb))
+* fail Vercel build when client Supabase env is missing ([#22](https://github.com/ilramdhan/second-brain/issues/22)) ([e569b10](https://github.com/ilramdhan/second-brain/commit/e569b10effde57671b182fbfbb7a00a6b69cb2f5))
+* **n8n:** namespace template env vars with SB_ and use Gemini-compatible AI calls ([#40](https://github.com/ilramdhan/second-brain/issues/40)) ([4591c50](https://github.com/ilramdhan/second-brain/commit/4591c505200a00be8c24a350f1537751419beeb1))
+
+
+### Performance
+
+* auth guard in beforeLoad and parallel data prefetch in route loaders ([#27](https://github.com/ilramdhan/second-brain/issues/27)) ([86d6e52](https://github.com/ilramdhan/second-brain/commit/86d6e523861f76575d1b1ebdc6df13910c68bb10))
+* autosize only the changed block textarea and share note titles in the editor ([#24](https://github.com/ilramdhan/second-brain/issues/24)) ([c623594](https://github.com/ilramdhan/second-brain/commit/c6235946dcd2b14847b1d12eca088c31c5b9a94d))
+* granular Yjs blocks and single-leader autosave for note collaboration ([#30](https://github.com/ilramdhan/second-brain/issues/30)) ([a13fc53](https://github.com/ilramdhan/second-brain/commit/a13fc53b137fd6d40122a52cbef507c7fef41614))
+* move dependent auto-shift and recurrence into Postgres RPCs ([#26](https://github.com/ilramdhan/second-brain/issues/26)) ([b18fbee](https://github.com/ilramdhan/second-brain/commit/b18fbeedd8d2c34f59bed05540448e849bcef4c0))
+* store note links/refs/excerpt and query backlinks in Postgres ([#28](https://github.com/ilramdhan/second-brain/issues/28)) ([638c4a8](https://github.com/ilramdhan/second-brain/commit/638c4a8941553dc8bc8e1f1cfecf10aa215afaf0))
+* virtualize long lists above 200 items (Phase 4.6) ([#25](https://github.com/ilramdhan/second-brain/issues/25)) ([deec845](https://github.com/ilramdhan/second-brain/commit/deec845514eb6229fb7a32d03122a43f3f482ebe))
+
+
+### Refactoring
+
+* migrate to zod 4 ([#35](https://github.com/ilramdhan/second-brain/issues/35)) ([ab0b584](https://github.com/ilramdhan/second-brain/commit/ab0b5845ae8dea229fa4c7f5288f4f2dc646c980))
+* split data.ts into feature modules ([#32](https://github.com/ilramdhan/second-brain/issues/32)) ([816d018](https://github.com/ilramdhan/second-brain/commit/816d01820401fe4f4be3c2a70adbc989ab8814ae))
+* type Supabase helpers and forbid explicit any ([#34](https://github.com/ilramdhan/second-brain/issues/34)) ([5e2dbe9](https://github.com/ilramdhan/second-brain/commit/5e2dbe9b091bc6e7feeb49bea1be5ce36aace9bb))
+
+
+### Documentation
+
+* plan public bento-grid landing page at / (Phase 8.6) ([#23](https://github.com/ilramdhan/second-brain/issues/23)) ([f83bd16](https://github.com/ilramdhan/second-brain/commit/f83bd161a565ba1d054068e7b71b61582cb58daa))
+
 ## [0.2.1](https://github.com/ilramdhan/second-brain/compare/v0.2.0...v0.2.1) (2026-10-05)
 
 
