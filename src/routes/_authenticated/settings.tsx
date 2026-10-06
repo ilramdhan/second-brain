@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Loader2,
   Copy,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,6 +46,19 @@ import {
 } from "@/lib/googleCalendar.functions";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
+import {
+  APP_VERSION,
+  BUG_REPORT_URL,
+  BUILD_TIME,
+  CHANGELOG_URL,
+  commitUrl,
+  DOCS_URL,
+  GIT_SHA,
+  hasGitSha,
+  releaseTagUrl,
+  REPO_URL,
+  useLatestRelease,
+} from "@/lib/app-version";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -218,6 +232,8 @@ function SettingsPage() {
       <GoogleCalendarPanel />
 
       <BackupPanel />
+
+      <AboutPanel />
     </PageContainer>
   );
 }
@@ -536,6 +552,100 @@ function BackupPanel() {
           </label>
         </Button>
       </div>
+    </section>
+  );
+}
+
+function formatBuildTime(iso: string, locale: Locale): string | null {
+  const date = new Date(iso);
+  if (!iso || Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function AboutPanel() {
+  const { locale, t } = usePreferences();
+  const { release, updateAvailable, checked } = useLatestRelease();
+  const buildTime = formatBuildTime(BUILD_TIME, locale);
+  const linkClass = "text-primary underline-offset-4 hover:underline";
+  const links = [
+    { href: CHANGELOG_URL, label: `${t("aboutChangelog")} (CHANGELOG)` },
+    { href: REPO_URL, label: t("aboutRepo") },
+    { href: DOCS_URL, label: t("aboutDocs") },
+    { href: BUG_REPORT_URL, label: t("aboutReportBug") },
+  ];
+
+  return (
+    <section className="mt-4 rounded-2xl border bg-card p-5">
+      <h2 className="flex items-center gap-2 font-semibold">
+        <Info className="h-4 w-4 text-primary" /> {t("aboutTitle")}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("aboutSubtitle")}</p>
+      <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+        <dt className="text-muted-foreground">{t("aboutVersion")}</dt>
+        <dd className="font-mono">
+          <a className={linkClass} href={releaseTagUrl()} target="_blank" rel="noreferrer">
+            v{APP_VERSION}
+          </a>
+          {` · ${GIT_SHA}`}
+        </dd>
+        <dt className="text-muted-foreground">{t("aboutCommit")}</dt>
+        <dd className="font-mono">
+          {hasGitSha() ? (
+            <a className={linkClass} href={commitUrl()} target="_blank" rel="noreferrer">
+              {GIT_SHA}
+            </a>
+          ) : (
+            GIT_SHA
+          )}
+        </dd>
+        {buildTime ? (
+          <>
+            <dt className="text-muted-foreground">{t("aboutBuildTime")}</dt>
+            <dd suppressHydrationWarning>
+              <time dateTime={BUILD_TIME}>{buildTime}</time>
+            </dd>
+          </>
+        ) : null}
+      </dl>
+      <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-sm" role="status">
+        {!checked ? (
+          <span className="text-muted-foreground">{t("aboutChecking")}</span>
+        ) : !release ? (
+          <span className="text-muted-foreground">{t("aboutCheckFailed")}</span>
+        ) : updateAvailable ? (
+          <>
+            {t("aboutUpdateAvailable")}{" "}
+            <a className={linkClass} href={release.url} target="_blank" rel="noreferrer">
+              v{release.version}
+            </a>
+          </>
+        ) : (
+          t("aboutUpToDate")
+        )}
+      </p>
+      <nav
+        aria-label={t("aboutTitle")}
+        className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+      >
+        {links.map((link, index) => (
+          <span key={link.href} className="flex items-center gap-2">
+            {index > 0 ? (
+              <span aria-hidden="true" className="text-muted-foreground">
+                ·
+              </span>
+            ) : null}
+            <a className={linkClass} href={link.href} target="_blank" rel="noreferrer">
+              {link.label}
+            </a>
+          </span>
+        ))}
+      </nav>
     </section>
   );
 }

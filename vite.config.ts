@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,35 @@ const nitroPreset = process.env["NITRO_PRESET"] || "vercel";
 
 // VITE_* values are inlined at build time; the browser Supabase client cannot start without these.
 const REQUIRED_CLIENT_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
+
+/** Short commit SHA of this build: Vercel's env var, else local git, else "dev" (never throws). */
+function resolveGitSha(): string {
+  const fromEnv = process.env["VERCEL_GIT_COMMIT_SHA"]?.trim();
+  if (fromEnv) return fromEnv.slice(0, 7);
+  try {
+    const sha = execSync("git rev-parse --short HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+    })
+      .toString()
+      .trim();
+    return /^[0-9a-f]{4,40}$/i.test(sha) ? sha : "dev";
+  } catch {
+    return "dev";
+  }
+}
+
+/** Build info read by src/lib/app-version.ts (types in src/vite-env.d.ts). */
+function buildInfoDefine(): Record<string, string> {
+  const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
+    version?: string;
+  };
+  return {
+    __APP_VERSION__: JSON.stringify(pkg.version ?? "0.0.0"),
+    __GIT_SHA__: JSON.stringify(resolveGitSha()),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  };
+}
 
 /**
  * Workbox service worker (`/sw.js`, scope `/`), generated at build time. The hashed client
@@ -124,7 +154,7 @@ export default defineConfig(({ command, mode }) => {
 
   // Inline VITE_* variables (from .env files and the process env) as import.meta.env.* constants.
   const viteEnv = loadEnv(mode, process.cwd(), "VITE_");
-  const envDefine: Record<string, string> = {};
+  const envDefine: Record<string, string> = buildInfoDefine();
   for (const [key, value] of Object.entries(viteEnv)) {
     envDefine[`import.meta.env.${key}`] = JSON.stringify(value);
   }
