@@ -22,6 +22,7 @@ import {
   Copy,
   Info,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,8 +49,11 @@ import {
   completeGoogleCalendarConnect,
   disconnectGoogleCalendar,
   googleCalendarStatus,
+  setGoogleCalendarImport,
   startGoogleCalendarConnect,
+  syncGoogleCalendarNow,
 } from "@/lib/googleCalendar.functions";
+import { Switch } from "@/components/ui/switch";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import {
@@ -403,6 +407,30 @@ function GoogleCalendarPanel() {
       setBusy(false);
     }
   }
+  async function syncNow() {
+    setBusy(true);
+    try {
+      const r = await syncGoogleCalendarNow();
+      toast.success(
+        `Sinkron selesai: ${r.pulled} dari Google, ${r.pushed} ke Google` +
+          (r.failed ? `, ${r.failed} gagal` : ""),
+      );
+      await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
+      await qc.invalidateQueries({ queryKey: ["tasks"] });
+    } catch (error) {
+      toastError(error, "Sinkronisasi gagal");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function toggleImport(enabled: boolean) {
+    try {
+      await setGoogleCalendarImport({ data: { enabled } });
+      await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
+    } catch (error) {
+      toastError(error, "Gagal menyimpan");
+    }
+  }
   async function disconnect() {
     setBusy(true);
     try {
@@ -422,9 +450,9 @@ function GoogleCalendarPanel() {
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Setiap pengguna menghubungkan kalendernya sendiri. Tugas terjadwal dapat dikirim sebagai
-        blok waktu.
+        blok waktu; perubahan judul dan jadwal di Google ikut diperbarui di tugas.
       </p>
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
         <DemoDisabled>
           <Button
             variant={data?.connected ? "outline" : "default"}
@@ -441,6 +469,27 @@ function GoogleCalendarPanel() {
             {data?.connected ? "Putuskan" : "Hubungkan Google Calendar"}
           </Button>
         </DemoDisabled>
+        {data?.connected ? (
+          <Button variant="outline" onClick={syncNow} disabled={busy}>
+            <RefreshCw className={busy ? "animate-spin" : undefined} /> Sinkronkan sekarang
+          </Button>
+        ) : null}
+      </div>
+      {data?.connected ? (
+        <div className="mt-3 space-y-1">
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={data.importEvents} onCheckedChange={toggleImport} />
+            Impor acara Google sebagai tugas
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Acara baru di Google yang belum berupa tugas akan dibuat sebagai tugas.
+            {data.lastPulledAt
+              ? ` Terakhir disinkronkan ${new Date(data.lastPulledAt).toLocaleString()}.`
+              : ""}
+          </p>
+        </div>
+      ) : null}
+      <div>
         {data?.configured === false && !isDemo() ? (
           <p className="mt-2 text-xs text-muted-foreground">
             Belum dikonfigurasi oleh admin (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
