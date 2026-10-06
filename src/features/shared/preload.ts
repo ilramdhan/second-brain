@@ -8,8 +8,8 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
 export function preloadQueries(
   queryClient: QueryClient,
   // Each entry is one of the feature query option objects (`tasksQuery`, `noteQuery(id)`, ...).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...queries: Array<{ queryKey: QueryKey; queryFn?: any; staleTime?: any }>
+  // Only the key is read here; the rest is handed to `ensureQueryData` as is.
+  ...queries: Array<{ queryKey: QueryKey; queryFn?: unknown; staleTime?: unknown }>
 ) {
   for (const q of queries)
     queryClient.ensureQueryData(q as Parameters<QueryClient["ensureQueryData"]>[0]).catch(() => {});

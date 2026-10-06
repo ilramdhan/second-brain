@@ -46,12 +46,15 @@ export const newId = () => Math.random().toString(36).slice(2, 10);
 export function shortcut(
   text: string,
 ): { type: BlockType; text: string; checked?: boolean } | null {
+  // Checked todos first: "- [x] t" (what toMarkdown writes) would otherwise hit the bullet rule.
+  const done = /^(?:[-*]\s?|\s)?\[x\]\s/i.exec(text);
+  if (done) return { type: "todo", text: text.slice(done[0].length), checked: true };
   const rules: [RegExp, BlockType][] = [
     [/^###\s/, "h3"],
     [/^##\s/, "h2"],
     [/^#\s/, "h1"],
     [/^\[\s?\]\s/, "todo"],
-    [/^-\s\[\s?\]\s/, "todo"],
+    [/^[-*]\s\[\s?\]\s/, "todo"],
     [/^[-*]\s/, "bullet"],
     [/^1[.)]\s/, "numbered"],
     [/^>\s/, "quote"],
@@ -59,8 +62,6 @@ export function shortcut(
     [/^---$/, "divider"],
   ];
   for (const [re, type] of rules) if (re.test(text)) return { type, text: text.replace(re, "") };
-  const done = /^-?\s?\[x\]\s/i.exec(text);
-  if (done) return { type: "todo", text: text.slice(done[0].length), checked: true };
   return null;
 }
 

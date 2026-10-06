@@ -1,4 +1,5 @@
 import { useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
+import type { PostgrestError } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 import { AUTOMATION_COLS } from "@/features/automations/api";
@@ -21,6 +22,17 @@ import {
 } from "@/lib/query-cache";
 
 type TableName = "tasks" | "projects" | "notes" | "milestones" | "automations";
+
+type Result<T = unknown> = PromiseLike<{ data: T; error: PostgrestError | null }>;
+interface CrudFilter extends Result {
+  eq(column: "id" | "parent_id", value: string): CrudFilter;
+  is(column: "deleted_at", value: null): CrudFilter;
+}
+interface CrudTable {
+  insert(row: object): { select(columns: string): { single(): Result } };
+  update(patch: object): CrudFilter;
+  delete(): CrudFilter;
+}
 
 const COLS: Record<TableName, string> = {
   tasks: TASK_COLS,
@@ -73,8 +85,9 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
 ) {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const from = () => supabase.from(table) as any;
+  // `table` is a union, so supabase-js cannot resolve one Insert/Update type for it. Callers
+  // type rows via `Row`/`Ins`/`Upd`; this is just the slice of the query builder used below.
+  const from = () => supabase.from(table) as unknown as CrudTable;
 
   /** Applies `fn` to every cached query under the entity key. */
   function mapCached(fn: (data: unknown, queryKey: QueryKey) => unknown) {

@@ -34,6 +34,8 @@ export default tseslint.config(
       ],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Rows come from the typed client (`Tables<"x">` etc.); narrow `unknown` instead of `any`.
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
   eslintPluginPrettier,

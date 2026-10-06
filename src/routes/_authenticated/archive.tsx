@@ -111,8 +111,12 @@ function ArchivePage() {
   };
   async function restore(it: Item) {
     const patch = tab === "trash" ? { deleted_at: null } : { archived_at: null };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from(it.kind) as any).update(patch).eq("id", it.id);
+    // Projects only appear in the trash tab, so they only ever restore `deleted_at`.
+    const query =
+      it.kind === "projects"
+        ? supabase.from("projects").update({ deleted_at: null })
+        : supabase.from(it.kind).update(patch);
+    const { error } = await query.eq("id", it.id);
     if (!error && it.kind === "tasks" && tab === "trash")
       await supabase.from("tasks").update({ deleted_at: null }).eq("parent_id", it.id);
     if (error) toast.error(error.message);
