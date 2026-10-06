@@ -42,6 +42,7 @@ import { Route as ApiPublicN8nMaintenanceRouteImport } from './routes/api/public
 import { Route as ApiPublicN8nRemindersRouteImport } from './routes/api/public/n8n/reminders'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicN8nCalendarSyncRouteImport } from './routes/api/public/n8n/calendar/sync'
+import { Route as ApiPublicN8nDemoResetRouteImport } from './routes/api/public/n8n/demo/reset'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -214,6 +215,11 @@ const ApiPublicN8nCalendarSyncRoute =
     path: '/api/public/n8n/calendar/sync',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicN8nDemoResetRoute = ApiPublicN8nDemoResetRouteImport.update({
+  id: '/api/public/n8n/demo/reset',
+  path: '/api/public/n8n/demo/reset',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -248,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
+  '/api/public/n8n/demo/reset': typeof ApiPublicN8nDemoResetRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -282,6 +289,7 @@ export interface FileRoutesByTo {
   '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
+  '/api/public/n8n/demo/reset': typeof ApiPublicN8nDemoResetRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -318,6 +326,7 @@ export interface FileRoutesById {
   '/api/public/n8n/reminders': typeof ApiPublicN8nRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/n8n/calendar/sync': typeof ApiPublicN8nCalendarSyncRoute
+  '/api/public/n8n/demo/reset': typeof ApiPublicN8nDemoResetRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -354,6 +363,7 @@ export interface FileRouteTypes {
     | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
     | '/api/public/n8n/calendar/sync'
+    | '/api/public/n8n/demo/reset'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
     | '/api/public/n8n/calendar/sync'
+    | '/api/public/n8n/demo/reset'
   id:
     | '__root__'
     | '/'
@@ -423,6 +434,7 @@ export interface FileRouteTypes {
     | '/api/public/n8n/reminders'
     | '/api/public/telegram/webhook'
     | '/api/public/n8n/calendar/sync'
+    | '/api/public/n8n/demo/reset'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -442,6 +454,7 @@ export interface RootRouteChildren {
   ApiPublicN8nRemindersRoute: typeof ApiPublicN8nRemindersRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicN8nCalendarSyncRoute: typeof ApiPublicN8nCalendarSyncRoute
+  ApiPublicN8nDemoResetRoute: typeof ApiPublicN8nDemoResetRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -677,6 +690,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicN8nCalendarSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/n8n/demo/reset': {
+      id: '/api/public/n8n/demo/reset'
+      path: '/api/public/n8n/demo/reset'
+      fullPath: '/api/public/n8n/demo/reset'
+      preLoaderRoute: typeof ApiPublicN8nDemoResetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -741,6 +761,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicN8nRemindersRoute: ApiPublicN8nRemindersRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicN8nCalendarSyncRoute: ApiPublicN8nCalendarSyncRoute,
+  ApiPublicN8nDemoResetRoute: ApiPublicN8nDemoResetRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
