@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
+import { isDemo } from "@/lib/app-mode";
 import { AUTHOR, OG_IMAGE, SITE_NAME } from "@/lib/landing";
 import { PreferencesProvider } from "@/lib/preferences";
 import { DEFAULT_PREFERENCES, type InitialPreferences } from "@/lib/preference-cookies";
@@ -115,6 +116,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "author", content: AUTHOR },
       { name: "color-scheme", content: "light dark" },
       { name: "format-detection", content: "telephone=no, date=no, email=no, address=no" },
+      // The public demo is never indexed (public pages repeat this via publicPageHead).
+      ...(isDemo() ? [{ name: "robots", content: "noindex, nofollow" }] : []),
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:title", content: SITE_NAME },

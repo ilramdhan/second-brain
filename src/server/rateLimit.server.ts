@@ -7,6 +7,18 @@ export type RateLimitRule = { bucket: string; max: number; windowSeconds: number
 /** Shared budget for every AI gateway call (brain dump, paraphrase, summary, OCR, voice). */
 export const AI_RATE_LIMIT: RateLimitRule = { bucket: "ai", max: 30, windowSeconds: 600 };
 
+/**
+ * Default demo write quota (migration 0019). Enforced in Postgres by the `zz_demo_write`
+ * statement triggers through `consume_rate_limit`, only when `app_config.demo_mode = 'on'`;
+ * `demo_write_max` / `demo_write_window` in `app_config` override these values. Errors start
+ * with "Batas demo: ".
+ */
+export const DEMO_WRITE_LIMIT: RateLimitRule = {
+  bucket: "demo_write",
+  max: 600,
+  windowSeconds: 3600,
+};
+
 export class RateLimitError extends Error {
   constructor(message: string) {
     super(message);

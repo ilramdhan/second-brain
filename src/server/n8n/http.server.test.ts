@@ -105,3 +105,37 @@ describe("n8n error mapping (zod 4)", () => {
     if (!result.success) expect(zodMessage(result.error)).not.toMatch(/^: /);
   });
 });
+
+describe("handleN8n in demo mode", () => {
+  beforeEach(() => {
+    vi.stubEnv("N8N_API_KEY", KEY);
+    vi.stubEnv("APP_MODE", "demo");
+    vi.stubEnv("VITE_APP_MODE", "demo");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("returns 404 before auth unless the endpoint opts in", async () => {
+    const handler = vi.fn(async () => new Response(JSON.stringify({ ok: true })));
+    expect(await call(post("{}"), handler)).toEqual({
+      status: 404,
+      body: { error: "not found" },
+    });
+    // Even a wrong key gets 404: the endpoint does not exist on the demo.
+    expect(await call(post("{}", { "x-api-key": "wrong" }), handler)).toEqual({
+      status: 404,
+      body: { error: "not found" },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("runs allowInDemo endpoints with the usual auth", async () => {
+    const handler = vi.fn(async () => new Response(JSON.stringify({ ok: true })));
+    const ok = await handleN8n(post("{}"), handler, { allowInDemo: true });
+    expect(ok.status).toBe(200);
+    const denied = await handleN8n(post("{}", { "x-api-key": "wrong" }), handler, {
+      allowInDemo: true,
+    });
+    expect(denied.status).toBe(401);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});

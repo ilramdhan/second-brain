@@ -1,9 +1,16 @@
 import { useEffect } from "react";
 
+import { isDemo } from "@/lib/app-mode";
+
 export const IDLE_KEY = "second-brain-idle-minutes";
-export const getIdleMinutes = () => {
-  if (typeof window === "undefined") return 0;
+/** Idle timeouts offered on the shared demo account (no "never", no 4 hours). */
+export const DEMO_IDLE_OPTIONS = [15, 30, 60];
+export const DEMO_DEFAULT_IDLE = 30;
+
+export const getIdleMinutes = (demo: boolean = isDemo()) => {
+  if (typeof window === "undefined") return demo ? DEMO_DEFAULT_IDLE : 0;
   const v = Number(localStorage.getItem(IDLE_KEY) ?? "0");
+  if (demo) return DEMO_IDLE_OPTIONS.includes(v) ? v : DEMO_DEFAULT_IDLE;
   return Number.isFinite(v) ? v : 0;
 };
 

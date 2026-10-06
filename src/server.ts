@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { isDemoMode } from "./server/demo/mode.server";
 import { shouldApplyServerHeaders, withSecurityHeaders } from "./server/securityHeaders";
 
 type ServerEntry = {
@@ -68,20 +69,50 @@ const applyHeaders = shouldApplyServerHeaders(
 );
 const secure = (response: Response) => (applyHeaders ? withSecurityHeaders(response) : response);
 
+// Public demo (APP_MODE=demo): never indexed, and server functions / API endpoints are rate
+// limited per IP. Kept outside withSecurityHeaders so the vercel.json header sync is unaffected.
+const demoMode = isDemoMode();
+const demo = (response: Response) => (demoMode ? withDemoHeaders(response) : response);
+
+function withDemoHeaders(response: Response): Response {
+  try {
+    response.headers.set("x-robots-tag", "noindex, nofollow");
+    return response;
+  } catch {
+    const headers = new Headers(response.headers);
+    headers.set("x-robots-tag", "noindex, nofollow");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+}
+
+async function demoRateLimit(request: Request): Promise<Response | null> {
+  if (!demoMode) return null;
+  const { demoRateLimitResponse, isLimitedPath } = await import("./server/demo/ipRateLimit.server");
+  return isLimitedPath(new URL(request.url).pathname) ? demoRateLimitResponse(request) : null;
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const limited = await demoRateLimit(request);
+      if (limited) return demo(secure(limited));
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return secure(await normalizeCatastrophicSsrResponse(response, request));
+      return demo(secure(await normalizeCatastrophicSsrResponse(response, request)));
     } catch (error) {
       console.error(error);
       await captureError(error, request, "server_entry");
-      return secure(
-        new Response(renderErrorPage(), {
-          status: 500,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        }),
+      return demo(
+        secure(
+          new Response(renderErrorPage(), {
+            status: 500,
+            headers: { "content-type": "text/html; charset=utf-8" },
+          }),
+        ),
       );
     }
   },

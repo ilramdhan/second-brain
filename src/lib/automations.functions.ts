@@ -49,6 +49,12 @@ export const notifyUnblocked = createServerFn({ method: "POST" })
     z.object({ taskIds: z.array(z.guid()).max(50), blockerTitle: z.string().max(300) }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // The public demo sends no Telegram messages; skipping keeps task completion working.
+    const { isDemoMode } = await import("@/server/demo/mode.server");
+    if (isDemoMode()) {
+      console.info("[demo] notifyUnblocked: Telegram dilewati (demo)");
+      return { sent: 0 };
+    }
     const { data: tasks } = await context.supabase
       .from("tasks")
       .select("id,title,user_id,assignee_id")

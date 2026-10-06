@@ -9,6 +9,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const createTelegramLinkCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // The demo has no Telegram bot: refuse before touching the database.
+    const { assertNotDemo } = await import("@/server/demo/mode.server");
+    assertNotDemo("Telegram");
     const { generateLinkCode, hashLinkCode, formatLinkCode, linkCodeExpiry } =
       await import("@/server/telegramLinkCode.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

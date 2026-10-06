@@ -30,6 +30,10 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // The public demo has no Telegram bot: the webhook does not exist there.
+        const { isDemoMode } = await import("@/server/demo/mode.server");
+        if (isDemoMode())
+          return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
         // Verifikasi header rahasia dari Telegram (fail-closed, constant-time)
         const { checkWebhookSecret } = await import("@/server/telegramSecurity.server");
         const check = checkWebhookSecret(

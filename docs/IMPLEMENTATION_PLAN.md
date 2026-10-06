@@ -201,14 +201,14 @@ Diambil dari ANALYSIS §13, dikerjakan setelah Phase 1–5 stabil:
 
 ## Phase 10 — Domain produksi & deployment demo
 
-**Domain:** produksi `2ndbrain.ilramdhan.dev` (keputusan owner 2026-10-06; `APP_URL`). Demo `2ndbrain-demo.ilramdhan.dev` (saran: satu level subdomain seperti produksi, berurutan di daftar DNS/Vercel, sertifikat & CNAME sama sederhananya). Alternatif setara: `demo.2ndbrain.ilramdhan.dev`.
+**Domain:** produksi `2ndbrain.ilramdhan.dev` (keputusan owner 2026-10-06; `APP_URL`). Demo `demo-2ndbrain.ilramdhan.dev` (saran: satu level subdomain seperti produksi, berurutan di daftar DNS/Vercel, sertifikat & CNAME sama sederhananya). Alternatif setara: `demo.2ndbrain.ilramdhan.dev`.
 
 **Prinsip demo:** deployment kedua dari branch yang sama (Vercel project terpisah) dengan **Supabase project terpisah** (Free tier kedua) — demo tidak pernah menyentuh data produksi; perilaku dibatasi lewat env, bukan fork kode.
 
 | #    | Status  | Task                                                                                                                                                                                                                                |
 | ---- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 10.1 | ⏳ todo | Domain produksi: Vercel → Domains `2ndbrain.ilramdhan.dev` (CNAME `cname.vercel-dns.com`), `APP_URL`, Supabase Auth Site URL/redirect, Google OAuth redirect URI, `SB_APP_URL` di n8n.                                              |
-| 10.2 | ⏳ todo | Project demo: Vercel project kedua + Supabase project kedua, domain `2ndbrain-demo.ilramdhan.dev` (saran), env sendiri (Supabase keys, `N8N_API_KEY` berbeda, tanpa `GOOGLE_*`/`TELEGRAM_*`/`TOKEN_ENCRYPTION_KEY`).                |
+| 10.2 | ⏳ todo | Project demo: Vercel project kedua + Supabase project kedua, domain `demo-2ndbrain.ilramdhan.dev` (saran), env sendiri (Supabase keys, `N8N_API_KEY` berbeda, tanpa `GOOGLE_*`/`TELEGRAM_*`/`TOKEN_ENCRYPTION_KEY`).                |
 | 10.3 | ⏳ todo | `APP_MODE=demo` (server) + `VITE_APP_MODE=demo` (UI): matikan OCR, voice, AI capture/ringkasan (tanpa `AI_API_KEY` atau provider gratis dengan kuota sangat kecil), Telegram, Google Calendar, webhook automations, restore backup. |
 | 10.4 | ⏳ todo | Batas CRUD demo: kuota per user via `consume_rate_limit` (bucket `demo_write`), batas jumlah baris per tabel/user, ukuran teks lebih kecil; ditegakkan di server/DB (trigger), bukan hanya di UI.                                   |
 | 10.5 | ⏳ todo | Akun demo: akun bersama read-mostly atau Supabase anonymous sign-in + CAPTCHA (Cloudflare Turnstile, didukung Supabase Auth) agar sign-up tidak di-abuse; nonaktifkan email sign-up biasa di project demo.                          |

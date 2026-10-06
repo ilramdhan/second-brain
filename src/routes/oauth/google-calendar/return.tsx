@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
+
 export const Route = createFileRoute("/oauth/google-calendar/return")({
   head: () => ({
     meta: [
@@ -16,8 +18,11 @@ export const Route = createFileRoute("/oauth/google-calendar/return")({
 });
 
 function GoogleCalendarReturn() {
-  const [message, setMessage] = useState("Menyelesaikan koneksi…");
+  const demo = isDemo();
+  const [message, setMessage] = useState(demo ? DEMO_DISABLED_MESSAGE : "Menyelesaikan koneksi…");
   useEffect(() => {
+    // The demo never connects Google Calendar: do not forward anything to the opener.
+    if (demo) return;
     // Google redirects here with ?code=&state= (or ?error=). The code is useless without the
     // PKCE verifier sealed in `state`, which only the server can open for the signed-in user.
     const params = new URLSearchParams(window.location.search);
@@ -39,7 +44,7 @@ function GoogleCalendarReturn() {
       setMessage(error === "access_denied" ? "Izin ditolak." : "Koneksi tidak selesai.");
     else setMessage("Berhasil. Jendela ini dapat ditutup.");
     window.setTimeout(() => window.close(), 500);
-  }, []);
+  }, [demo]);
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6 text-sm text-foreground">
       {message}

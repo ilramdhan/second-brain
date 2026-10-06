@@ -11,6 +11,9 @@ const json = (body: unknown, status = 200) =>
 // Auth: `Authorization: Bearer <secret>` dengan SECOND_BRAIN_CRON_SECRET(_PREVIOUS), CRON_SECRET
 // (Vercel Cron) atau token lama app_config.cron_token. GET didukung untuk Vercel Cron.
 async function handle(request: Request) {
+  // The public demo sends no Telegram reminders; the endpoint does not exist there.
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) return json({ error: "not found" }, 404);
   const { authorizeCronRequest } = await import("@/server/cronAuth.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

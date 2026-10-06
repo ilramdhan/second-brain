@@ -86,6 +86,7 @@ public/                          manifest.webmanifest, offline.html, icons (sw.j
 - Outgoing requests to user-supplied URLs must go through `safeWebhookPost` / `assertSafeUrl` (`src/server/ssrf.server.ts`).
 - New AI server functions must call the per-user limiter (`enforceRateLimit` with `AI_RATE_LIMIT`, `src/server/rateLimit.server.ts`) and put `.max()` on every text input.
 - Security headers live in `src/server/securityHeaders.ts` (applied by `src/server.ts` in production) and are mirrored in `vercel.json`; a test fails if they drift. The resource CSP is report-only, so add new browser-side origins there before enforcing it.
+- Demo mode (`APP_MODE`/`VITE_APP_MODE=demo`): client checks use `isDemo()` (`src/lib/app-mode.ts`) and wrap switched-off controls in `DemoDisabled`; the real boundary is server-side: `assertNotDemo(feature)` / `isDemoMode()` (`src/server/demo/mode.server.ts`) in server functions and endpoints, `handleN8n(..., { allowInDemo })` (n8n is 404 in demo by default), and the per-IP limiter in `src/server.ts`. New integrations that reach people or third parties must be guarded the same way.
 - Bun's `minimumReleaseAge` (24 h) guard is in `bunfig.toml`. Ask the user before adding exclusions.
 - `docs/n8n/` is unrelated reference material (git-ignored). This app's n8n templates go in `integrations/n8n/`.
 

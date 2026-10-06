@@ -12,9 +12,18 @@ function requestOrigin() {
   }
 }
 
+/** Google Calendar is switched off in the public demo (no OAuth client, no real calendars). */
+async function rejectInDemo() {
+  const { assertNotDemo } = await import("@/server/demo/mode.server");
+  assertNotDemo("Google Calendar");
+}
+
 export const googleCalendarStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // The demo never connects a real calendar: report "not configured" instead of failing.
+    const { isDemoMode } = await import("@/server/demo/mode.server");
+    if (isDemoMode()) return { configured: false, connected: false };
     const { googleOAuthConfig } = await import("@/server/googleOAuth.server");
     const configured = Boolean(googleOAuthConfig(process.env, requestOrigin()));
     if (!configured) return { configured, connected: false };
@@ -26,6 +35,7 @@ export const googleCalendarStatus = createServerFn({ method: "GET" })
 export const startGoogleCalendarConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await rejectInDemo();
     const { googleOAuthConfig, createOAuthState, pkceChallenge, buildAuthorizationUrl } =
       await import("@/server/googleOAuth.server");
     const config = googleOAuthConfig(process.env, requestOrigin());
@@ -42,6 +52,7 @@ export const completeGoogleCalendarConnect = createServerFn({ method: "POST" })
     z.object({ code: z.string().min(1).max(2048), state: z.string().min(1).max(4096) }).parse(data),
   )
   .handler(async ({ data, context }) => {
+    await rejectInDemo();
     const { googleOAuthConfig, verifyOAuthState, exchangeAuthorizationCode } =
       await import("@/server/googleOAuth.server");
     const config = googleOAuthConfig(process.env, requestOrigin());
@@ -65,6 +76,7 @@ export const syncTaskToGoogle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ taskId: z.guid() }).parse(data))
   .handler(async ({ data, context }) => {
+    await rejectInDemo();
     const { loadTokens, upsertTaskEvent } = await import("@/server/googleCalendar.server");
     if (!(await loadTokens(context.userId))) return { connected: false };
     // Read through RLS so a user can only sync tasks they can see.

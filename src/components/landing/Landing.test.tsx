@@ -93,7 +93,7 @@ describe("Landing", () => {
   });
 
   it("shows the demo button when VITE_DEMO_URL is set", () => {
-    vi.stubEnv("VITE_DEMO_URL", "https://2ndbrain-demo.ilramdhan.dev");
+    vi.stubEnv("VITE_DEMO_URL", "https://demo-2ndbrain.ilramdhan.dev");
     renderLanding();
 
     // Header and hero both link to the demo landing (not /login), in the same tab.
@@ -103,7 +103,7 @@ describe("Landing", () => {
       links[0],
     );
     for (const link of links) {
-      expect(link).toHaveAttribute("href", "https://2ndbrain-demo.ilramdhan.dev/");
+      expect(link).toHaveAttribute("href", "https://demo-2ndbrain.ilramdhan.dev/");
       expect(link).not.toHaveAttribute("target");
     }
   });

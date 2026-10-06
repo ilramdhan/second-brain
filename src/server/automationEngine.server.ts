@@ -120,6 +120,8 @@ export async function runAutomationRules(
       .maybeSingle();
     projectName = p?.name ?? "";
   }
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  const demo = isDemoMode();
   let ran = 0;
   let changed = false;
   for (const rule of rules) {
@@ -162,6 +164,10 @@ export async function runAutomationRules(
           if (error) throw new Error(error.message);
           changed = true;
           log.push("komentar");
+        } else if ((a.type === "telegram" || a.type === "webhook") && demo) {
+          // The public demo never reaches Telegram or third-party URLs. The rule still runs
+          // (other actions apply, the run is logged) so visitors see automations working.
+          log.push(`${a.type} dilewati (demo)`);
         } else if (a.type === "telegram") {
           const { data: prof } = await supabase
             .from("profiles")
