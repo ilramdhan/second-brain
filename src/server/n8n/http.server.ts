@@ -2,6 +2,7 @@
 // JSON error shape (`{"error": "..."}`) that n8n shows in its execution log.
 import { z, ZodError, type ZodType } from "zod";
 
+import { isDemoMode } from "../demo/mode.server";
 import { authorizeN8nRequest } from "./auth.server";
 
 export const MAX_BODY_BYTES = 1024 * 1024;
@@ -54,6 +55,15 @@ export function readQuery<S extends ZodType>(request: Request, schema: S): z.inf
   return schema.parse(Object.fromEntries(new URL(request.url).searchParams));
 }
 
+export type HandleN8nOptions = {
+  /**
+   * Keep the endpoint reachable on the public demo (`APP_MODE=demo`). Every n8n endpoint is a
+   * 404 there by default, checked before auth, because the demo has no real users, bots or
+   * calendars to serve; only endpoints built for the demo (the daily reset) opt in.
+   */
+  allowInDemo?: boolean;
+};
+
 /**
  * Wraps a handler with x-api-key auth and error mapping. Unexpected errors are logged and
  * returned as a generic 500 (no stack traces or database messages leak to n8n).
@@ -61,7 +71,9 @@ export function readQuery<S extends ZodType>(request: Request, schema: S): z.inf
 export async function handleN8n(
   request: Request,
   handler: () => Promise<Response>,
+  options: HandleN8nOptions = {},
 ): Promise<Response> {
+  if (!options.allowInDemo && isDemoMode()) return json({ error: "not found" }, 404);
   const auth = authorizeN8nRequest(request);
   if (auth === "not-configured") {
     console.error("[n8n] N8N_API_KEY is not set; rejecting request");
