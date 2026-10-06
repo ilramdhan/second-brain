@@ -50,6 +50,19 @@ export function startOfZonedDay(date: Date, tz: string, days = 0) {
   return new Date(guess - tzOffsetMs(new Date(guess), tz));
 }
 
+/** Calendar date (YYYY-MM-DD) in `tz`, `days` days from the day containing `date`. */
+export function zonedIsoDate(date: Date, tz: string, days = 0): string {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+  if (!days) return today;
+  const [y, m, d] = today.split("-").map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d! + days)).toISOString().slice(0, 10);
+}
+
 /** `parseTaskText` evaluated in `tz` instead of the server's local zone. */
 export function parseTaskTextInZone(text: string, now: Date, tz: string): ParsedTask {
   const shift = tzOffsetMs(now, tz) + now.getTimezoneOffset() * 60_000;

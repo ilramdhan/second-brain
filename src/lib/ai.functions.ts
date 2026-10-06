@@ -33,15 +33,39 @@ const imageMime = z
   .string()
   .regex(/^image\/(png|jpe?g|webp|gif|heic|heif|avif|bmp)$/i, "Format gambar tidak didukung");
 
+// Tighter limits in the public demo (APP_MODE=demo): the fixtures ignore most of the input, so
+// there is no reason to accept (and ship through a serverless function) large payloads.
+const DEMO_MAX_TEXT_CHARS = 2_000;
+const DEMO_MAX_UPLOAD_BYTES = 1024 * 1024;
+
+type AiInput = { text?: string; base64?: string };
+
+/** Rejects inputs over the demo limits; a no-op outside the demo. */
+async function enforceDemoInputLimits(input: AiInput) {
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (!isDemoMode()) return;
+  if (input.text !== undefined && input.text.length > DEMO_MAX_TEXT_CHARS) {
+    throw new Error(
+      `Batas demo: teks maks ${DEMO_MAX_TEXT_CHARS.toLocaleString("id-ID")} karakter.`,
+    );
+  }
+  if (input.base64 !== undefined && input.base64.length > b64Len(DEMO_MAX_UPLOAD_BYTES)) {
+    throw new Error("Batas demo: file maks 1MB.");
+  }
+}
+
 /**
- * Fails fast with "AI belum dikonfigurasi" when no provider is set up (so no budget is spent),
- * then spends one unit of the per-user AI budget (30 calls / 10 min) or throws a friendly error.
+ * Fails fast with "AI belum dikonfigurasi" when no provider is set up (so no budget is spent;
+ * the demo never needs one), applies the demo input limits, then spends one unit of the per-user
+ * AI budget (30 calls / 10 min) or throws a friendly error.
  */
 async function limitAi(
   supabase: Parameters<typeof import("@/server/rateLimit.server").enforceRateLimit>[0],
+  input: AiInput,
 ) {
-  const { aiConfigFromEnv } = await import("./ai.server");
-  aiConfigFromEnv();
+  const { assertAiAvailable } = await import("./ai.server");
+  await assertAiAvailable();
+  await enforceDemoInputLimits(input);
   const { enforceRateLimit, AI_RATE_LIMIT } = await import("@/server/rateLimit.server");
   await enforceRateLimit(supabase, AI_RATE_LIMIT);
 }
@@ -50,7 +74,7 @@ export const parseBrainDump = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ dump: text(MAX_DUMP_CHARS) }))
   .handler(async ({ data, context }) => {
-    await limitAi(context.supabase);
+    await limitAi(context.supabase, { text: data.dump });
     const request = getRequest();
     const { aiParseBrainDump } = await import("./ai.server");
     const { data: projects } = await context.supabase.from("projects").select("name");
@@ -65,13 +89,14 @@ export const paraphrasePoint = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ point: text(MAX_POINT_CHARS) }))
   .handler(async ({ data, context }) => {
-    await limitAi(context.supabase);
+    await limitAi(context.supabase, { text: data.point });
     const request = getRequest();
     const { aiText } = await import("./ai.server");
     return aiText(
       request,
       "Parafrase poin singkat berikut menjadi deskripsi catatan yang lengkap dan jelas dalam bahasa Indonesia (2-4 kalimat). Jaga makna asli, jangan menambah fakta baru. Balas hanya dengan hasil parafrase.",
       [{ role: "user", content: data.point }],
+      "paraphrase",
     );
   });
 
@@ -79,13 +104,14 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ notes: text(MAX_MEETING_CHARS) }))
   .handler(async ({ data, context }) => {
-    await limitAi(context.supabase);
+    await limitAi(context.supabase, { text: data.notes });
     const request = getRequest();
     const { aiText } = await import("./ai.server");
     return aiText(
       request,
       "Buat notulen meeting yang rapi dalam bahasa Indonesia dari catatan mentah berikut. Format markdown: ## Ringkasan, ## Poin Pembahasan (per topik/aplikasi jika lebih dari satu), ## Action Items (dengan penanggung jawab & deadline bila disebut).",
       [{ role: "user", content: data.notes }],
+      "meeting",
     );
   });
 
@@ -95,17 +121,18 @@ export const transcribeVoice = createServerFn({ method: "POST" })
     z.object({ audioBase64: base64(MAX_AUDIO_BYTES, "Rekaman"), mimeType: audioMime }),
   )
   .handler(async ({ data, context }) => {
-    await limitAi(context.supabase);
+    await limitAi(context.supabase, { base64: data.audioBase64 });
+    const request = getRequest();
     const { aiTranscribe } = await import("./ai.server");
     const bytes = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
-    return aiTranscribe(new Blob([bytes], { type: data.mimeType }), data.mimeType);
+    return aiTranscribe(new Blob([bytes], { type: data.mimeType }), data.mimeType, request.signal);
   });
 
 export const ocrImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ imageBase64: base64(MAX_IMAGE_BYTES, "Gambar"), mimeType: imageMime }))
   .handler(async ({ data, context }) => {
-    await limitAi(context.supabase);
+    await limitAi(context.supabase, { base64: data.imageBase64 });
     const request = getRequest();
     const { aiText } = await import("./ai.server");
     return aiText(
@@ -120,5 +147,6 @@ export const ocrImage = createServerFn({ method: "POST" })
           ],
         },
       ],
+      "ocr",
     );
   });

@@ -9,6 +9,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { parseBrainDump, paraphrasePoint } from "@/lib/ai.functions";
 import { QuickCapture } from "@/components/QuickCapture";
+import { DemoExamples } from "@/components/demo/DemoExamples";
+import { isDemoGenericReply } from "@/lib/demo-examples";
 import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { VirtualList } from "@/components/common/VirtualList";
@@ -135,6 +137,11 @@ function InboxPage() {
     setExpandingId(item.id);
     try {
       const expanded = await paraphrasePoint({ data: { point: item.content } });
+      // Demo: free text gets a "try an example" reply; show it instead of overwriting the item.
+      if (isDemoGenericReply(expanded)) {
+        toast.info(expanded);
+        return;
+      }
       await supabase
         .from("inbox_items")
         .update({ content: expanded, ai_summary: item.content })
@@ -162,6 +169,7 @@ function InboxPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Semua tangkapan mentah mendarat di sini. Proses dengan AI atau arsipkan.
         </p>
+        <DemoExamples className="mt-2" />
       </header>
 
       <QuickCapture onCaptured={load} />

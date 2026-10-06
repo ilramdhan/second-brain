@@ -2,6 +2,8 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, Output, NoObjectGeneratedError, type ModelMessage } from "ai";
 import { z } from "zod";
 
+import type { DemoTextKind } from "@/server/demo/ai-fixtures.server";
+
 // Direct AI provider access through the Vercel AI SDK (no vendor gateway).
 //
 //   AI_PROVIDER           `openai` (default; Responses API) or `openai-compatible` (Chat
@@ -127,11 +129,44 @@ function providerOptions(config: AiConfig) {
   return config.provider === "openai" ? { openai: { store: false } } : undefined;
 }
 
+/** Plain text of the user turns (what the demo fixtures match on). */
+function userText(messages: ModelMessage[]): string {
+  return messages
+    .filter((m) => m.role === "user")
+    .map((m) =>
+      typeof m.content === "string"
+        ? m.content
+        : m.content.map((part) => (part.type === "text" ? part.text : "")).join("\n"),
+    )
+    .join("\n");
+}
+
+/**
+ * Throws AiNotConfiguredError when AI cannot run. The demo (APP_MODE=demo) always can: it answers
+ * from fixtures (src/server/demo/ai-fixtures.server.ts) and never needs AI_API_KEY.
+ */
+export async function assertAiAvailable(): Promise<void> {
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (!isDemoMode()) aiConfigFromEnv();
+}
+
+/**
+ * `demoKind` picks the fixture family in demo mode; without it an image request is OCR and
+ * anything else a summary. Outside the demo it is ignored.
+ */
 export async function aiText(
   request: Request,
   system: string,
   messages: ModelMessage[],
+  demoKind?: DemoTextKind,
 ): Promise<string> {
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) {
+    const demo = await import("@/server/demo/ai-fixtures.server");
+    await demo.demoDelay(request.signal);
+    const kind = demoKind ?? (hasImageContent(messages) ? "ocr" : "summary");
+    return demo.demoText(kind, userText(messages));
+  }
   const config = aiConfigFromEnv();
   const modelId = hasImageContent(messages) ? config.visionModel : config.model;
   const opts = providerOptions(config);
@@ -166,6 +201,12 @@ export async function aiParseBrainDump(
   dump: string,
   existingProjects: string[],
 ): Promise<ParsedTask[]> {
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) {
+    const demo = await import("@/server/demo/ai-fixtures.server");
+    await demo.demoDelay(request.signal);
+    return demo.demoBrainDump(dump, existingProjects);
+  }
   const config = aiConfigFromEnv();
   const opts = providerOptions(config);
   const today = new Date().toISOString().slice(0, 10);
@@ -268,10 +309,20 @@ type ChatCompletion = {
   choices?: { message?: { content?: string | { text?: string }[] | null } }[];
 };
 
-export async function aiTranscribe(audio: Blob, mimeType: string): Promise<string> {
+export async function aiTranscribe(
+  audio: Blob,
+  mimeType: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) {
+    const demo = await import("@/server/demo/ai-fixtures.server");
+    await demo.demoDelay(signal);
+    return demo.demoTranscript();
+  }
   const config = aiConfigFromEnv();
   const { url, init } = await buildTranscribeRequest(config, audio, mimeType);
-  const res = await fetch(url, init);
+  const res = await fetch(url, signal ? { ...init, signal } : init);
   if (!res.ok) {
     const detail = (await res.text()).slice(0, 300);
     throw new Error(`Transkripsi gagal [${res.status}]: ${detail}`);

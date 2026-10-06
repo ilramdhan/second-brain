@@ -32,6 +32,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { summarizeMeeting } from "@/lib/ai.functions";
+import { DemoExamples } from "@/components/demo/DemoExamples";
+import { isDemo } from "@/lib/app-mode";
+import { DEMO_MEETING_EXAMPLES, isDemoGenericReply, type DemoExample } from "@/lib/demo-examples";
+import { usePreferences } from "@/lib/preferences";
 import { indexBlocks, linksOf, loadBlocks, toMarkdown, type Block } from "@/lib/blocks";
 import { NOTE_STATUS } from "@/lib/constants";
 import {
@@ -121,6 +125,8 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   );
   const [saving, setSaving] = useState<"idle" | "dirty" | "saving">("idle");
   const [busy, setBusy] = useState(false);
+  const { t } = usePreferences();
+  const demo = isDemo();
   const [historyOpen, setHistoryOpen] = useState(false);
   const qc = useQueryClient();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,6 +230,11 @@ function NoteEditor({ note }: { note: NoteDetail }) {
     setBusy(true);
     try {
       const out = await summarizeMeeting({ data: { notes: text } });
+      // Demo: free text gets a "try an example" reply; show it instead of replacing the note.
+      if (isDemoGenericReply(out)) {
+        toast.info(out);
+        return;
+      }
       changeBlocks(loadBlocks({ blocks: [], content: out }));
       toast.success("Notulen dibuat dari poin-poin Anda");
     } catch (e) {
@@ -232,6 +243,18 @@ function NoteEditor({ note }: { note: NoteDetail }) {
       setBusy(false);
     }
   }
+  /** Demo: loads an example meeting note so "Buat notulen" has something to work with. */
+  function loadExample(example: DemoExample) {
+    const current = toMarkdown(blocks).trim();
+    if (current === example.text) return;
+    if (current && !confirm(t("demoAiFillNote"))) return;
+    changeBlocks(loadBlocks({ blocks: [], content: example.text }));
+    if (!title.trim()) {
+      setTitle(example.label.id);
+      schedule();
+    }
+  }
+
   async function remove() {
     if (!confirm("Pindahkan catatan ini ke Tempat Sampah?")) return;
     if (timer.current) clearTimeout(timer.current);
@@ -302,6 +325,15 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             </Button>
           </div>
         </div>
+        <DemoExamples
+          active={demo}
+          className="mb-3"
+          examples={DEMO_MEETING_EXAMPLES}
+          selected={
+            DEMO_MEETING_EXAMPLES.find((e) => e.text === toMarkdown(blocks).trim())?.key ?? null
+          }
+          onPick={loadExample}
+        />
         <input
           value={title}
           onChange={(e) => {
