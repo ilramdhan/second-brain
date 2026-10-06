@@ -6,7 +6,7 @@ import { id as localeId } from "date-fns/locale";
 import { Archive, Trash2, Plus, Send, Lock, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -181,6 +181,7 @@ export default function TaskEditor({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Deskripsi, konteks, langkah…"
           rows={3}
+          className="min-h-24"
         />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -237,8 +238,9 @@ export default function TaskEditor({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Mulai">
-            <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-1">
+          {/* Date + time need the full row on phones, or the date collapses to "dd/". */}
+          <Field label="Mulai" className="col-span-2 sm:col-span-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem] sm:gap-1">
               <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
               <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </div>
@@ -246,7 +248,7 @@ export default function TaskEditor({
           <Field label="Tenggat">
             <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
-          <Field label="Pengulangan" className="col-span-2 sm:col-span-1">
+          <Field label="Pengulangan">
             <Select value={recurrence} onValueChange={setRecurrence}>
               <SelectTrigger>
                 <SelectValue />
@@ -350,20 +352,20 @@ export default function TaskEditor({
         {task && <Comments key={task.id} taskId={task.id} />}
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2 border-t pt-4">
-        {task ? (
-          <div className="flex gap-1">
+      {/* Phones: primary on top, then Batal, then the secondary actions; desktop: one row. */}
+      <DialogFooter>
+        {task && (
+          <div className="grid grid-cols-2 gap-2 sm:mr-auto sm:flex">
             <Button
               variant="ghost"
-              size="sm"
               onClick={remove}
-              className="text-destructive hover:text-destructive"
+              className="h-11 text-destructive hover:text-destructive sm:h-9"
             >
               <Trash2 /> Hapus
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              className="h-11 sm:h-9"
               onClick={async () => {
                 await actions.archive(task.id);
                 onClose();
@@ -372,18 +374,14 @@ export default function TaskEditor({
               <Archive /> Arsip
             </Button>
           </div>
-        ) : (
-          <span />
         )}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Batal
-          </Button>
-          <Button onClick={save} disabled={saving}>
-            {task ? "Simpan" : "Buat tugas"}
-          </Button>
-        </div>
-      </div>
+        <Button variant="outline" onClick={onClose}>
+          Batal
+        </Button>
+        <Button onClick={save} disabled={saving}>
+          {task ? "Simpan" : "Buat tugas"}
+        </Button>
+      </DialogFooter>
     </>
   );
 }
@@ -463,7 +461,7 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
           </span>
         )}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Diblokir oleh (harus selesai dulu)</p>
           <ul>{blockedBy.map((d) => row(d.blocker_id, d.id))}</ul>
