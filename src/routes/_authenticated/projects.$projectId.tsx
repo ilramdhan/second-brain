@@ -39,6 +39,8 @@ import {
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
@@ -55,6 +57,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   loader: ({ context }) =>
     preloadQueries(context.queryClient, projectsQuery, tasksQuery, milestonesQuery, meQuery),
   component: ProjectDetail,
+  errorComponent: RouteError,
 });
 
 const fmt = (d: string) => format(new Date(`${d}T00:00:00`), "d MMM yyyy", { locale: localeId });
@@ -409,7 +412,8 @@ function Team({ project }: { project: Project }) {
       .from("project_invites")
       .insert({ project_id: project.id, email: v, invited_by: await getUid() });
     if (error) {
-      toast.error(error.code === "23505" ? "Email ini sudah diundang" : error.message);
+      if (error.code === "23505") toast.error("Email ini sudah diundang");
+      else toastError(error);
       return;
     }
     toast.success(
@@ -426,7 +430,7 @@ function Team({ project }: { project: Project }) {
       .eq("project_id", project.id)
       .eq("user_id", userId);
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     qc.invalidateQueries({ queryKey: ["people", project.id] });

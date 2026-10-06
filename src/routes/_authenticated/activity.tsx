@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/activity")({
   head: () => ({
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/_authenticated/activity")({
     ],
   }),
   component: ActivityPage,
+  errorComponent: RouteError,
 });
 
 function ActivityPage() {

@@ -20,6 +20,7 @@ import {
   pickKeys,
   removeRows,
 } from "@/lib/query-cache";
+import { toastError } from "@/lib/errors";
 
 type TableName = "tasks" | "projects" | "notes" | "milestones" | "automations";
 
@@ -96,9 +97,9 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
       if (next !== data) qc.setQueryData(k, next);
     }
   }
-  function fail(snap: Snapshot, message: string) {
+  function fail(snap: Snapshot, error: unknown) {
     restore(qc, snap);
-    toast.error(message);
+    toastError(error);
     void invalidate();
   }
 
@@ -111,7 +112,7 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
       .select(COLS[table])
       .single();
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return null;
     }
     const row = data as Row;
@@ -146,7 +147,7 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
     const snap = snapshot(qc, key);
     mapCached((data, k) => patchCached(data, id, patchFor(table, k, withTs as object)));
     const { error } = await from().update(withTs).eq("id", id);
-    if (error) fail(snap, error.message);
+    if (error) fail(snap, error);
     else if (table === "notes" && ("content" in patch || "title" in patch)) {
       // Other notes' backlinks and server-side search results may have changed; refetch them
       // on next use instead of now.
@@ -168,7 +169,7 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
     );
     const { error } = await from().update(patch).eq("id", id);
     if (!error && cascade) await from().update(patch).eq("parent_id", id).is("deleted_at", null);
-    if (error) fail(snap, error.message);
+    if (error) fail(snap, error);
     else {
       toast.message(done);
       // The open detail page navigates away itself; mark its cache stale for the next visit
@@ -190,7 +191,7 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
       Array.isArray(data) ? removeRows(data as Row[], (r) => r.id === id) : data,
     );
     const { error } = await from().delete().eq("id", id);
-    if (error) fail(snap, error.message);
+    if (error) fail(snap, error);
   }
   async function archive(id: string) {
     return hide(id, { archived_at: new Date().toISOString() }, "Diarsipkan");

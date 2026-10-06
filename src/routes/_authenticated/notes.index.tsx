@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { NotesBoard } from "@/components/notes/NotesBoard";
 import { PageContainer } from "@/components/common/PageContainer";
 import { notesQuery, preloadQueries, projectsQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/notes/")({
   head: () => ({
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_authenticated/notes/")({
   }),
   loader: ({ context }) => preloadQueries(context.queryClient, notesQuery, projectsQuery),
   component: NotesPage,
+  errorComponent: RouteError,
 });
 
 function NotesPage() {

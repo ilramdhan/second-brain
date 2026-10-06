@@ -21,6 +21,7 @@ import { taskRange, useMe, useMilestones, useProjects, useTasks, type Task } fro
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/")({
   loader: ({ context }) =>
     preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery, meQuery),
   component: Dashboard,
+  errorComponent: RouteError,
 });
 
 function Dashboard() {

@@ -5,6 +5,7 @@ import { Timeline } from "@/components/Timeline";
 import { useMilestones, useProjects, useTasks } from "@/lib/data";
 import { PageContainer } from "@/components/common/PageContainer";
 import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/timeline")({
   head: () => ({
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/timeline")({
   loader: ({ context }) =>
     preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery),
   component: TimelinePage,
+  errorComponent: RouteError,
 });
 
 function TimelinePage() {

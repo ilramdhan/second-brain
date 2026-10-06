@@ -13,7 +13,8 @@ import { Toaster } from "sonner";
 import { PreferencesProvider } from "@/lib/preferences";
 
 import appCss from "../styles.css?url";
-import { reportError } from "../lib/error-reporting";
+import { describeError, reportError } from "../lib/error-reporting";
+import { isConfigError } from "../lib/errors";
 
 function NotFoundComponent() {
   return (
@@ -37,36 +38,49 @@ function NotFoundComponent() {
   );
 }
 
+/**
+ * Catastrophic errors only (root render, the `_authenticated` guard). Page errors are caught by
+ * `RouteError` inside the app shell. Production never shows stack traces or raw messages; the
+ * config hint names env vars, not their values.
+ */
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   useEffect(() => {
     reportError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+  const config = isConfigError(error);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          {config ? "Aplikasi belum dikonfigurasi" : "Halaman ini gagal dimuat"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {config
+            ? "Variabel lingkungan Supabase tidak ditemukan. VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY harus diisi saat build (nilainya ditanam ke bundle), lalu build dan deploy ulang. Lihat .env.example."
+            : "Terjadi kesalahan. Coba muat ulang, atau kembali ke beranda."}
         </p>
+        {import.meta.env.DEV && (
+          <pre className="mt-4 max-h-60 overflow-auto rounded bg-muted p-3 text-left text-xs text-muted-foreground">
+            {error instanceof Error ? (error.stack ?? error.message) : describeError(error)}
+          </pre>
+        )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
-              router.invalidate();
+              void router.invalidate();
               reset();
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Coba lagi
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Ke beranda
           </a>
         </div>
       </div>
