@@ -1,7 +1,9 @@
-# Public pages: the landing page and sign-in. Everything else is the signed-in app.
+# Public pages: the landing page, sign-in and the legal pages. Everything else is the signed-in app.
 User-agent: *
 Allow: /
 Allow: /login
+Allow: /privacy
+Allow: /terms
 Disallow: /today
 Disallow: /inbox
 Disallow: /tasks
