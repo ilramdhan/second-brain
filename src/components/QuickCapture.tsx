@@ -4,8 +4,12 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { DemoExamples } from "@/components/demo/DemoExamples";
 import { transcribeVoice, ocrImage } from "@/lib/ai.functions";
+import { isDemo } from "@/lib/app-mode";
+import { DEMO_AUDIO_STUB, DEMO_CAPTURE_EXAMPLES, DEMO_IMAGE_STUB } from "@/lib/demo-examples";
 import { toastError } from "@/lib/errors";
+import { usePreferences } from "@/lib/preferences";
 
 function fileToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -16,9 +20,19 @@ function fileToBase64(blob: Blob): Promise<string> {
   });
 }
 
-export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
+const DRAFT_KEY = "second-brain-capture-draft";
+
+export function QuickCapture({
+  onCaptured,
+  demo = isDemo(),
+}: {
+  onCaptured?: () => void;
+  /** Public demo: pre-filled example, "Contoh" chips and sample voice/photo buttons. */
+  demo?: boolean;
+}) {
   const qc = useQueryClient();
-  const [text, setText] = useState("");
+  const { t } = usePreferences();
+  const [text, setText] = useState(() => (demo ? DEMO_CAPTURE_EXAMPLES[0]!.text : ""));
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -26,12 +40,15 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const draft = localStorage.getItem(DRAFT_KEY);
+    // In the demo an empty draft keeps the pre-filled example.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the draft from localStorage after mount (not available during SSR).
-    setText(localStorage.getItem("second-brain-capture-draft") ?? "");
-  }, []);
+    if (draft || !demo) setText(draft ?? "");
+  }, [demo]);
   useEffect(() => {
-    localStorage.setItem("second-brain-capture-draft", text);
+    localStorage.setItem(DRAFT_KEY, text);
   }, [text]);
+  const selectedExample = DEMO_CAPTURE_EXAMPLES.find((e) => e.text === text)?.key ?? null;
 
   async function saveToInbox(content: string, source: "manual" | "voice" | "ocr") {
     const {
@@ -54,8 +71,42 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
     setBusy(true);
     await saveToInbox(text.trim(), "manual");
     setText("");
-    localStorage.removeItem("second-brain-capture-draft");
+    localStorage.removeItem(DRAFT_KEY);
     setBusy(false);
+  }
+
+  /** Sends a recording (or the demo stub) for transcription and files the text in the Inbox. */
+  async function transcribe(audio: () => Promise<{ audioBase64: string; mimeType: string }>) {
+    setBusy(true);
+    try {
+      const transcript = await transcribeVoice({ data: await audio() });
+      if (transcript?.trim()) {
+        await saveToInbox(transcript.trim(), "voice");
+      } else {
+        toast.error("Tidak ada suara yang terdeteksi");
+      }
+    } catch (err) {
+      toastError(err, "Transkripsi gagal");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Sends a photo (or the demo stub) for OCR and files the text in the Inbox. */
+  async function readImage(image: () => Promise<{ imageBase64: string; mimeType: string }>) {
+    setBusy(true);
+    try {
+      const text = await ocrImage({ data: await image() });
+      if (text?.trim()) {
+        await saveToInbox(text.trim(), "ocr");
+      } else {
+        toast.error("Tidak ada teks yang terbaca pada gambar");
+      }
+    } catch (err) {
+      toastError(err, "OCR gagal");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function toggleRecording() {
@@ -72,22 +123,11 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
         setBusy(true);
-        try {
-          const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-          const base64 = await fileToBase64(blob);
-          const transcript = await transcribeVoice({
-            data: { audioBase64: base64, mimeType: blob.type },
-          });
-          if (transcript?.trim()) {
-            await saveToInbox(transcript.trim(), "voice");
-          } else {
-            toast.error("Tidak ada suara yang terdeteksi");
-          }
-        } catch (err) {
-          toastError(err, "Transkripsi gagal");
-        } finally {
-          setBusy(false);
-        }
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        await transcribe(async () => ({
+          audioBase64: await fileToBase64(blob),
+          mimeType: blob.type,
+        }));
       };
       recorderRef.current = recorder;
       recorder.start();
@@ -105,20 +145,7 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
       toast.error("Gambar terlalu besar (maks 8MB)");
       return;
     }
-    setBusy(true);
-    try {
-      const base64 = await fileToBase64(file);
-      const text = await ocrImage({ data: { imageBase64: base64, mimeType: file.type } });
-      if (text?.trim()) {
-        await saveToInbox(text.trim(), "ocr");
-      } else {
-        toast.error("Tidak ada teks yang terbaca pada gambar");
-      }
-    } catch (err) {
-      toastError(err, "OCR gagal");
-    } finally {
-      setBusy(false);
-    }
+    await readImage(async () => ({ imageBase64: await fileToBase64(file), mimeType: file.type }));
   }
 
   return (
@@ -180,6 +207,32 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
           Simpan
         </button>
       </div>
+      <DemoExamples
+        active={demo}
+        className="border-t px-1 pt-2"
+        examples={DEMO_CAPTURE_EXAMPLES}
+        selected={selectedExample}
+        onPick={(example) => setText(example.text)}
+      >
+        <button
+          type="button"
+          onClick={() => transcribe(async () => ({ ...DEMO_AUDIO_STUB }))}
+          disabled={busy || recording}
+          className="flex items-center gap-1 rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          <Mic className="h-3 w-3" aria-hidden />
+          {t("demoAiVoiceExample")}
+        </button>
+        <button
+          type="button"
+          onClick={() => readImage(async () => ({ ...DEMO_IMAGE_STUB }))}
+          disabled={busy}
+          className="flex items-center gap-1 rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          <ImageIcon className="h-3 w-3" aria-hidden />
+          {t("demoAiImageExample")}
+        </button>
+      </DemoExamples>
       {recording && (
         <p className="px-2 pt-2 text-xs text-destructive">
           Merekam… ketuk lagi untuk berhenti dan transkripsi.

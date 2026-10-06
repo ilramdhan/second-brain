@@ -207,6 +207,11 @@ const messages = {
     demoLoginHint: "Akun demo:",
     demoAutofill: "Isi otomatis",
     demoSignIn: "Masuk sebagai demo",
+    demoAiHint: "Mode demo: respons contoh",
+    demoAiExamples: "Contoh",
+    demoAiVoiceExample: "Pakai contoh suara",
+    demoAiImageExample: "Pakai contoh foto",
+    demoAiFillNote: "Isi catatan dengan contoh ini?",
   },
   en: {
     today: "Today",
@@ -408,6 +413,11 @@ const messages = {
     demoLoginHint: "Demo account:",
     demoAutofill: "Fill in",
     demoSignIn: "Sign in as demo",
+    demoAiHint: "Demo mode: sample responses",
+    demoAiExamples: "Examples",
+    demoAiVoiceExample: "Use sample voice",
+    demoAiImageExample: "Use sample photo",
+    demoAiFillNote: "Replace this note with the example?",
   },
 } as const;
 
