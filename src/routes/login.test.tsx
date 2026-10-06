@@ -6,6 +6,13 @@ const auth = vi.hoisted(() => ({
   signUp: vi.fn(),
   signInWithPassword: vi.fn(),
   resetPasswordForEmail: vi.fn(),
+  signInWithOtp: vi.fn(),
+  signInWithOAuth: vi.fn(),
+  signOut: vi.fn(),
+  aal: vi.fn(),
+  listFactors: vi.fn(),
+  challenge: vi.fn(),
+  verify: vi.fn(),
 }));
 const router = vi.hoisted(() => ({ navigate: vi.fn(), search: {} as { redirect?: string } }));
 
@@ -16,7 +23,16 @@ vi.mock("@/integrations/supabase/client", () => ({
       signUp: auth.signUp,
       signInWithPassword: auth.signInWithPassword,
       resetPasswordForEmail: auth.resetPasswordForEmail,
-      onAuthStateChange: vi.fn(),
+      signInWithOtp: auth.signInWithOtp,
+      signInWithOAuth: auth.signInWithOAuth,
+      signOut: auth.signOut,
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+      mfa: {
+        getAuthenticatorAssuranceLevel: auth.aal,
+        listFactors: auth.listFactors,
+        challenge: auth.challenge,
+        verify: auth.verify,
+      },
     },
   },
 }));
@@ -52,9 +68,13 @@ type LoginRoute = {
 const route = Route as unknown as LoginRoute;
 const LoginPage = route.component;
 
+const levels = (currentLevel: string, nextLevel: string) =>
+  auth.aal.mockResolvedValue({ data: { currentLevel, nextLevel }, error: null });
+
 beforeEach(() => {
-  auth.getSession.mockReset();
+  for (const fn of Object.values(auth)) fn.mockReset();
   auth.getSession.mockResolvedValue({ data: { session: null } });
+  levels("aal1", "aal1");
   router.navigate.mockReset();
   router.search = {};
 });
@@ -210,6 +230,160 @@ describe("/login", () => {
       vi.stubEnv("VITE_APP_MODE", "demo");
       render(<LoginPage />, { wrapper: PreferencesProvider });
       expect(screen.queryByRole("button", { name: "Lupa kata sandi?" })).toBeNull();
+    });
+  });
+
+  describe("passwordless and two-factor", () => {
+    it("shows the magic link by default and hides Google unless VITE_AUTH_GOOGLE=true", () => {
+      const { unmount } = render(<LoginPage />, { wrapper: PreferencesProvider });
+      expect(screen.getByRole("button", { name: "Kirim tautan masuk ke email" })).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Masuk dengan Google" })).toBeNull();
+      unmount();
+
+      vi.stubEnv("VITE_AUTH_GOOGLE", "true");
+      vi.stubEnv("VITE_AUTH_MAGIC_LINK", "false");
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      expect(screen.getByRole("button", { name: "Masuk dengan Google" })).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Kirim tautan masuk ke email" })).toBeNull();
+    });
+
+    it("hides Google and the magic link in the demo", () => {
+      vi.stubEnv("VITE_APP_MODE", "demo");
+      vi.stubEnv("VITE_AUTH_GOOGLE", "true");
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      expect(screen.queryByRole("button", { name: "Masuk dengan Google" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Kirim tautan masuk ke email" })).toBeNull();
+    });
+
+    it("switches between password and magic link modes", () => {
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: "me@example.test" } });
+      fireEvent.click(screen.getByRole("button", { name: "Kirim tautan masuk ke email" }));
+      expect(screen.getByRole("heading", { name: "Masuk tanpa kata sandi" })).toBeVisible();
+      expect(screen.queryByLabelText("Kata sandi")).toBeNull();
+      // The typed email is carried over.
+      expect(screen.getByLabelText("Email")).toHaveValue("me@example.test");
+      fireEvent.click(screen.getByRole("button", { name: "Masuk dengan kata sandi" }));
+      expect(screen.getByLabelText("Kata sandi")).toBeVisible();
+    });
+
+    it("requests a magic link that never creates users and answers generically", async () => {
+      router.search = { redirect: "/notes/abc" };
+      auth.signInWithOtp.mockResolvedValue({ data: {}, error: null });
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      fireEvent.click(screen.getByRole("button", { name: "Kirim tautan masuk ke email" }));
+      fireEvent.change(screen.getByLabelText("Email"), {
+        target: { value: " Me@Example.test " },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Kirim tautan masuk" }));
+      expect(await screen.findByRole("status")).toHaveTextContent(/Jika email tersebut terdaftar/);
+      expect(auth.signInWithOtp).toHaveBeenCalledWith({
+        email: "me@example.test",
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      expect(localStorage.getItem("second-brain-auth-redirect")).toBe("/notes/abc");
+      localStorage.clear();
+    });
+
+    it("gives the same answer for an unknown address (sign-up closed, no enumeration)", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      auth.signInWithOtp.mockResolvedValue({
+        data: null,
+        error: { status: 422, code: "otp_disabled", message: "Signups not allowed for otp" },
+      });
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      fireEvent.click(screen.getByRole("button", { name: "Kirim tautan masuk ke email" }));
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: "x@example.test" } });
+      fireEvent.click(screen.getByRole("button", { name: "Kirim tautan masuk" }));
+      expect(await screen.findByRole("status")).toHaveTextContent(/Jika email tersebut terdaftar/);
+    });
+
+    it("starts Google sign-in through Supabase with the callback URL", async () => {
+      vi.stubEnv("VITE_AUTH_GOOGLE", "true");
+      auth.signInWithOAuth.mockResolvedValue({ data: {}, error: null });
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      fireEvent.click(screen.getByRole("button", { name: "Masuk dengan Google" }));
+      await waitFor(() =>
+        expect(auth.signInWithOAuth).toHaveBeenCalledWith({
+          provider: "google",
+          options: { redirectTo: `${window.location.origin}/auth/callback` },
+        }),
+      );
+    });
+
+    it("asks for the TOTP code after the password when the user has 2FA", async () => {
+      auth.signInWithPassword.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+      levels("aal1", "aal2");
+      auth.listFactors.mockResolvedValue({
+        data: { all: [], totp: [{ id: "f1", status: "verified", friendly_name: "Phone" }] },
+        error: null,
+      });
+      auth.challenge.mockResolvedValue({ data: { id: "c1" }, error: null });
+      auth.verify.mockResolvedValue({ data: {}, error: null });
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: "me@example.test" } });
+      fireEvent.change(screen.getByLabelText("Kata sandi"), { target: { value: "secret12" } });
+      fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+
+      const code = await screen.findByLabelText("Kode autentikasi");
+      expect(router.navigate).not.toHaveBeenCalled();
+      expect(code).toHaveAttribute("autocomplete", "one-time-code");
+      expect(code).toHaveAttribute("inputmode", "numeric");
+
+      auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } } });
+      fireEvent.change(code, { target: { value: "123 456" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Verifikasi" })).toBeEnabled());
+      fireEvent.click(screen.getByRole("button", { name: "Verifikasi" }));
+      await waitFor(() =>
+        expect(auth.verify).toHaveBeenCalledWith({
+          factorId: "f1",
+          challengeId: "c1",
+          code: "123456",
+        }),
+      );
+      await waitFor(() =>
+        expect(router.navigate).toHaveBeenCalledWith({ to: "/today", replace: true }),
+      );
+    });
+
+    it("shows the TOTP step on load for a half-signed-in session and maps a wrong code", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } } });
+      levels("aal1", "aal2");
+      auth.listFactors.mockResolvedValue({
+        data: { all: [], totp: [{ id: "f1", status: "verified" }] },
+        error: null,
+      });
+      auth.challenge.mockResolvedValue({ data: { id: "c1" }, error: null });
+      auth.verify.mockResolvedValue({
+        data: null,
+        error: { status: 422, code: "mfa_verification_failed" },
+      });
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      const code = await screen.findByLabelText("Kode autentikasi");
+      fireEvent.change(code, { target: { value: "000000" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Verifikasi" })).toBeEnabled());
+      fireEvent.click(screen.getByRole("button", { name: "Verifikasi" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Kode salah atau kedaluwarsa");
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a malformed code without calling Supabase", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } } });
+      levels("aal1", "aal2");
+      auth.listFactors.mockResolvedValue({
+        data: { all: [], totp: [{ id: "f1", status: "verified" }] },
+        error: null,
+      });
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      const code = await screen.findByLabelText("Kode autentikasi");
+      fireEvent.change(code, { target: { value: "12ab" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Verifikasi" })).toBeEnabled());
+      fireEvent.click(screen.getByRole("button", { name: "Verifikasi" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Masukkan 6 digit angka.");
+      expect(auth.challenge).not.toHaveBeenCalled();
     });
   });
 });

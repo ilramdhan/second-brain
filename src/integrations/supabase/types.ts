@@ -1137,6 +1137,7 @@ export type Database = {
           title: string;
         }[];
       };
+      mfa_satisfied: { Args: never; Returns: boolean };
       my_project_ids: { Args: never; Returns: string[] };
       n8n_user_id_by_email: { Args: { _email: string }; Returns: string };
       note_backlinks: {

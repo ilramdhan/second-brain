@@ -104,8 +104,39 @@ code doesn't match.
   (implicit tokens whose `sub` matches the stored session, or a PKCE `?code=`),
   so opening it on a device with an existing session cannot change that account's password. It is
   disabled in the demo, whose account is shared.
+- **Magic link and Google** (`/login`, `/auth/callback`): the magic link calls `signInWithOtp`
+  with `shouldCreateUser: false` and shows the same message whether or not the address has an
+  account. Google uses the **Supabase Google provider** (`signInWithOAuth`), configured in
+  Supabase _Authentication → Sign In / Providers → Google_ with its own OAuth client (redirect URI
+  `https://<supabase-ref>.supabase.co/auth/v1/callback`); it is separate from the app's Calendar
+  OAuth client and only requests `openid email profile`. Neither method can create accounts while
+  "Allow new users to sign up" is off: Supabase rejects a new Google identity (`signup_disabled`)
+  and `/auth/callback` shows an "ask for an invite" message. The callback only follows a
+  remembered same-origin path (`safeRedirect`), never a URL from the query string, so it cannot
+  be used as an open redirect. Google is hidden unless `VITE_AUTH_GOOGLE=true`; both are hidden in
+  the demo.
+- **Two-step verification (TOTP, Supabase MFA)**: users enroll in _Settings → Keamanan_ (QR code
+  plus secret, confirmed with a code; removing a factor requires a current code first, which also
+  keeps the session at `aal2` as Supabase requires). A user with a verified factor is at `aal1`
+  after the first step and must pass a TOTP challenge before the app opens. Enforcement has three
+  layers:
+  1. client: the `_authenticated` guard (`requireSession`) redirects `aal1` sessions with
+     `nextLevel = aal2` to the TOTP step on `/login`;
+  2. server functions: `requireSupabaseAuth` lets `aal2` tokens through and otherwise asks
+     `mfa_satisfied()`, so `aal1` tokens of 2FA users are refused before any service-role code
+     runs;
+  3. database (migration 0022): a `RESTRICTIVE` policy `mfa_aal2` on every RLS table (and on
+     `realtime.messages`) requires `public.mfa_satisfied()` = JWT `aal` is `aal2`, or the caller
+     has no verified factor. `list_project_people()` (security definer) checks it too.
+     The RLS layer is what makes 2FA real: the anon key is public and an `aal1` access token is a
+     valid JWT, so without it a stolen password alone would still read and write all data through
+     PostgREST. It only affects users who enabled 2FA. Tables added later need the same policy
+     (rerun the DO block of 0022 or add `mfa_aal2` in the new migration). The demo account cannot
+     enroll (trigger on `auth.mfa_factors`) and the UI hides enrollment there. Owners can remove a
+     lost factor in the Supabase dashboard (_Authentication → Users_).
 - **Supabase Auth settings** for these flows: Site URL = your app origin; Redirect URLs include
-  `https://<your-app>/auth/set-password`; the **Invite user** and **Reset Password** templates use
+  `https://<your-app>/auth/set-password` and `https://<your-app>/auth/callback`; MFA → TOTP
+  enabled (default); the **Magic Link** template uses `{{ .ConfirmationURL }}`; the **Invite user** and **Reset Password** templates use
   `{{ .ConfirmationURL }}`; and production uses **custom SMTP** (for example Resend), because the
   built-in mailer is limited to a few emails per hour.
 - `src/start.ts` registers `attachSupabaseAuth` as global function middleware (attaches the user's
@@ -373,7 +404,11 @@ both match).
 - Use a long random `N8N_API_KEY` (`openssl rand -hex 32`), keep n8n behind HTTPS, set
   `SB_TELEGRAM_ALLOWED_CHAT_IDS` and `SB_EMAIL_ALLOWED_SENDERS`, and rotate via `N8N_API_KEY_PREVIOUS`.
 - Restrict Supabase Auth redirect URLs to your own domains (`https://<your-app>/auth/set-password`
-  is the only path the email links need), and configure custom SMTP for invite and reset emails.
+  and `https://<your-app>/auth/callback` are the only paths the email links and Google need), and
+  configure custom SMTP for invite, reset and magic-link emails.
+- Keep Supabase _Authentication → Multi-Factor → TOTP_ enabled, apply migration 0022 (database
+  enforcement of `aal2` for users with 2FA), and encourage owners/admins to turn on two-step
+  verification in _Settings → Keamanan_.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
 - Disable _Authentication → Sign In / Providers → "Allow new users to sign up"_ in Supabase unless
   the instance is meant to be public, and leave `VITE_ALLOW_SIGNUP` unset. Add users through

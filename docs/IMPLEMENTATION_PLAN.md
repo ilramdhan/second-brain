@@ -188,7 +188,7 @@ AI, Telegram, Google Calendar, build dan env tidak lagi memakai Lovable (`ai.gat
 Diambil dari ANALYSIS §13, dikerjakan setelah Phase 1–5 stabil:
 
 1. Semantic search memakai tabel embedding yang sudah ada (UI belum ada).
-2. Login Google/magic link, 2FA, reset password.
+2. Login Google/magic link, 2FA, reset password. _✅ Reset password & undangan: PR #58. ✅ Google (Supabase provider, `VITE_AUTH_GOOGLE`), magic link (`shouldCreateUser: false`), `/auth/callback`, 2FA TOTP (Pengaturan → Keamanan, langkah TOTP saat masuk, guard aal2 di klien + server function + RLS restrictive migration 0022): PR phase-9/auth-oauth-mfa._
 3. Sinkronisasi Google Calendar dua arah. ✅ _9.3: pull inkremental `syncToken` (410 → full resync), last-write-wins, anti-gema etag/`google_synced_at`, impor opsional per koneksi, "Sinkronkan sekarang" + n8n `calendar/sync` `direction` (migration 0021)._
 4. Otomasi terjadwal (cron per rule) dan trigger untuk catatan.
 5. Sharing read-only publik (link bertoken, bisa dicabut).

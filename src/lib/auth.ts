@@ -4,6 +4,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
+import { needsMfaChallenge, sessionAssurance } from "@/lib/mfa";
 import { setMonitoringUser } from "@/lib/monitoring";
 
 /** Where signed-out visitors are sent. */
@@ -26,11 +27,15 @@ export function safeRedirect(value: unknown): string | undefined {
  * Auth guard for the `_authenticated` subtree (`beforeLoad`). The Supabase session lives in
  * browser storage, so this only runs on the client (the subtree is `ssr: false`). A missing
  * session throws a router redirect, never an error, so the error boundary is not involved.
+ *
+ * A user with a verified TOTP factor whose session is still `aal1` (password, magic link or
+ * Google done, code not yet entered) is sent to /login as well, which shows the TOTP step. The
+ * database refuses such sessions too (migration 0022), so this guard is UX, not the boundary.
  */
 export async function requireSession(queryClient: QueryClient, href: string): Promise<Session> {
   ensureAuthListener(queryClient);
   const { data } = await supabase.auth.getSession();
-  if (!data.session) {
+  if (!data.session || needsMfaChallenge(await sessionAssurance())) {
     throw redirect({
       to: LOGIN_PATH,
       search: { redirect: safeRedirect(href) },
@@ -41,14 +46,16 @@ export async function requireSession(queryClient: QueryClient, href: string): Pr
 }
 
 /**
- * True when a Supabase session is stored in this browser. Used by the public landing page to
- * send signed-in visitors straight to the app; any failure (missing env, storage blocked)
- * counts as signed out so the landing page still renders.
+ * True when a Supabase session that may open the app is stored in this browser. Used by the
+ * public landing and login pages to send signed-in visitors straight to the app. A session that
+ * still needs its TOTP code does not count (the login page shows the challenge instead), and any
+ * failure (missing env, storage blocked) counts as signed out so the public pages still render.
  */
 export async function hasStoredSession(): Promise<boolean> {
   try {
     const { data } = await supabase.auth.getSession();
-    return Boolean(data.session);
+    if (!data.session) return false;
+    return !needsMfaChallenge(await sessionAssurance());
   } catch {
     return false;
   }
