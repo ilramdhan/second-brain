@@ -1047,6 +1047,8 @@ export type Database = {
     };
     Functions: {
       accept_project_invites: { Args: never; Returns: number };
+      can_access_canvas_board: { Args: { _board_id: string }; Returns: boolean };
+      can_access_note: { Args: { _note_id: string }; Returns: boolean };
       can_access_task: {
         Args: { _task_id: string; _user_id: string };
         Returns: boolean;
@@ -1063,6 +1065,7 @@ export type Database = {
         Args: { _bucket: string; _max: number; _user_id: string; _window_seconds: number };
         Returns: boolean;
       };
+      is_canvas_board_owner: { Args: { _board_id: string }; Returns: boolean };
       is_project_member: {
         Args: { _project_id: string; _user_id: string };
         Returns: boolean;
@@ -1090,6 +1093,7 @@ export type Database = {
         };
         Returns: string;
       };
+      my_project_ids: { Args: never; Returns: string[] };
       n8n_user_id_by_email: { Args: { _email: string }; Returns: string };
       note_backlinks: {
         Args: { _block_ids: string[]; _note_id: string; _title: string };
@@ -1101,6 +1105,7 @@ export type Database = {
           title: string;
         }[];
       };
+      note_collab_topic_note_id: { Args: { _topic: string }; Returns: string };
       search_semantic_documents: {
         Args: { _limit?: number; _query_embedding: string };
         Returns: {
