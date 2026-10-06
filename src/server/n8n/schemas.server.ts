@@ -9,7 +9,7 @@ const optText = (max: number) => z.string().max(max).nullish();
 const isoDate = z
   .string()
   .max(40)
-  .refine((v) => !Number.isNaN(Date.parse(v)), { message: "invalid date" });
+  .refine((v) => !Number.isNaN(Date.parse(v)), { error: "invalid date" });
 
 export const botSchema = z
   .object({
@@ -43,7 +43,7 @@ export type BotRequest = z.infer<typeof botSchema>;
 
 export const captureSchema = z
   .object({
-    user_email: z.string().trim().email().max(320).nullish(),
+    user_email: z.string().trim().max(320).pipe(z.email()).nullish(),
     chat_id: chatId.nullish(),
     source: z
       .enum(["email", "google_calendar", "webhook", "telegram", "manual"])
@@ -60,7 +60,7 @@ export const captureSchema = z
     summarize: z.boolean().default(false),
     external_id: z.string().trim().min(1).max(500).nullish(),
     google_event_id: optText(1024),
-    url: z.string().url().max(2000).nullish(),
+    url: z.url().max(2000).nullish(),
   })
   .superRefine((v, ctx) => {
     if (!v.user_email && !v.chat_id)
@@ -78,7 +78,7 @@ export const DIGEST_KINDS = ["morning", "evening", "overdue", "weekly"] as const
 export type DigestKind = (typeof DIGEST_KINDS)[number];
 export const digestQuerySchema = z.object({
   kind: z.enum(DIGEST_KINDS),
-  user_id: z.string().uuid().optional(),
+  user_id: z.guid().optional(),
 });
 
 export const remindersSchema = z.object({
@@ -106,7 +106,7 @@ export const maintenanceSchema = z.object({
 });
 
 export const backupQuerySchema = z.object({
-  userId: z.union([z.literal("all"), z.string().uuid()]).default("all"),
+  userId: z.union([z.literal("all"), z.guid()]).default("all"),
   include: z.enum(["all", "active"]).default("all"),
   versions: z.enum(["0", "1"]).default("0"),
   page: z.coerce.number().int().min(0).max(100_000).default(0),
@@ -116,7 +116,7 @@ export const backupQuerySchema = z.object({
 export const calendarSyncSchema = z.object({
   since_minutes: z.number().int().min(1).max(43_200).default(45),
   limit: z.number().int().min(1).max(500).default(200),
-  user_id: z.string().uuid().optional(),
+  user_id: z.guid().optional(),
   /** linked = only tasks already sent to Google; all = every dated task changed in the window */
   mode: z.enum(["linked", "all"]).default("linked"),
 });
@@ -127,7 +127,7 @@ export const eventSchema = z.object({
   node: optText(200),
   message: optText(4000),
   execution_id: optText(100),
-  execution_url: z.string().url().max(2000).nullish(),
+  execution_url: z.url().max(2000).nullish(),
   at: isoDate.nullish(),
 });
 
