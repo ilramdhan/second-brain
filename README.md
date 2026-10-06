@@ -48,7 +48,11 @@ Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgre
 
 ### Landing page (`/`)
 
-A public, server-rendered bento-grid page that introduces the app (hero, sign-in and GitHub links, feature cards with lightweight HTML/SVG mockups). Signed-in visitors are forwarded to `/today`.
+A public, server-rendered page that introduces the app: a sticky header with anchor links (`#fitur`, `#cara-kerja`, `#integrasi`, `#self-host`, `#faq`; smooth scroll that falls back to an instant jump under `prefers-reduced-motion`, and a sheet menu on mobile), the hero with sign-in, GitHub and the optional **Coba Demo** button (`VITE_DEMO_URL`), the bento feature grid with lightweight HTML/SVG mockups, _How it works_, _Integrations_, _Self-host_ (Vercel + Supabase + n8n) and an FAQ. The column footer links to the docs, the legal pages and the running release (`v<version> · <sha>` → GitHub release tag). Signed-in visitors are forwarded to `/today`.
+
+### Legal pages (`/privacy`, `/terms`)
+
+Public, server-rendered privacy policy and terms of use written for a self-hosted deployment (data stored in Supabase, optional third parties, local storage, retention, user rights). Indonesian by default, English through the language toggle. They are templates, not legal advice: operators should adapt them to their own instance. Both pages are in `public/sitemap.xml` and allowed in `robots.txt`.
 
 ### Today dashboard (`/today`)
 
@@ -191,7 +195,9 @@ Press `Cmd/Ctrl + K` to search tasks, projects and notes and jump to them, or to
 
 ### Authentication
 
-Supabase email/password sign-up and sign-in (`/login`). Every page under the `_authenticated` layout redirects to `/login` when there is no session.
+Supabase email/password sign-in (`/login`). Every page under the `_authenticated` layout redirects to `/login` when there is no session, and opening `/login` (or `/`) with an active session goes straight to `/today` (or the `redirect` target). The login page links back to the landing page.
+
+**Sign-up is closed by default.** The "Belum punya akun? Daftar" option only appears when the build sets `VITE_ALLOW_SIGNUP=true`. Hiding the UI is not a security boundary, because anyone can call `auth.signUp` with the public anon key, so also turn off **Supabase → Authentication → Sign In / Providers → "Allow new users to sign up"**. Create accounts with _Authentication → Users → Invite user / Add user_ (or the admin API). Team members are then added through project invites: the owner invites an email in the project, and `accept_project_invites()` turns the invite into a membership the first time that user signs in, whichever way the account was created.
 
 ---
 
@@ -605,34 +611,35 @@ erDiagram
 
 Copy `.env.example` to `.env` locally (it is git-ignored) and set the same variables in your hosting provider.
 
-| Variable                                    | Side                | Required              | Purpose                                                                                                                          |
-| ------------------------------------------- | ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_SUPABASE_URL`                         | Client (build-time) | Yes                   | Supabase project URL for the browser client                                                                                      |
-| `VITE_SUPABASE_PUBLISHABLE_KEY`             | Client (build-time) | Yes                   | Supabase anon/publishable key for the browser client                                                                             |
-| `VITE_DEMO_URL`                             | Client (build-time) | No                    | Public demo deployment; shows the "Coba Demo" button on the landing page (hidden when unset)                                     |
-| `SUPABASE_URL`                              | Server              | Yes                   | Supabase URL for SSR, auth middleware and the admin client                                                                       |
-| `SUPABASE_PUBLISHABLE_KEY`                  | Server              | Yes                   | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                         |
-| `SUPABASE_SERVICE_ROLE_KEY`                 | Server (secret)     | Yes                   | Service-role client (`supabaseAdmin`) for the Telegram webhook, n8n endpoints, reminders and the encrypted token store           |
-| `AI_PROVIDER`                               | Server              | No                    | `openai` (default, Responses API) or `openai-compatible` (Chat Completions at `AI_BASE_URL`)                                     |
-| `AI_API_KEY`                                | Server (secret)     | For AI features       | Provider API key. Without it the AI buttons show "AI belum dikonfigurasi" and the rest of the app works                          |
-| `AI_BASE_URL`                               | Server              | For openai-compatible | e.g. `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`, `https://generativelanguage.googleapis.com/v1beta/openai` |
-| `AI_MODEL`                                  | Server              | No                    | Text model (default `gpt-4o-mini`)                                                                                               |
-| `AI_VISION_MODEL`                           | Server              | No                    | Model for photo OCR (defaults to `AI_MODEL`; must accept images)                                                                 |
-| `AI_TRANSCRIBE_MODEL`                       | Server              | No                    | Voice capture model for `/audio/transcriptions` (default `whisper-1`; Groq: `whisper-large-v3`)                                  |
-| `SECOND_BRAIN_CRON_SECRET` / `..._PREVIOUS` | Server (secret)     | For the reminder cron | Bearer secret for `/api/public/hooks/reminders` from n8n or other schedulers; keep the old value in `_PREVIOUS` while rotating   |
-| `CRON_SECRET`                               | Server (secret)     | For Vercel Cron       | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`               |
-| `DATABASE_URL`                              | Tooling             | For migrations        | Postgres connection string used by `drizzle-kit`                                                                                 |
-| `NITRO_PRESET`                              | Build               | No                    | Nitro deploy preset (default `vercel`; e.g. `node-server` to self-host)                                                          |
-| `SECURITY_HEADERS`                          | Server              | No                    | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                     |
-| `APP_URL`                                   | Server              | Recommended           | Public base URL (`https://<app>.vercel.app`); used for the Google redirect URI                                                   |
-| `APP_TIMEZONE`                              | Server              | No                    | IANA zone for "today" in digests, reminders and bot dates (default `Asia/Jakarta`; Vercel runs in UTC)                           |
-| `TELEGRAM_BOT_TOKEN`                        | Server (secret)     | For Telegram          | BotFather token; the app calls `https://api.telegram.org/bot<token>/…` directly                                                  |
-| `TELEGRAM_BOT_USERNAME`                     | Server              | No                    | Bot username (without `@`) for the one-tap `t.me/<bot>?start=<code>` link in Settings                                            |
-| `TELEGRAM_WEBHOOK_SECRET`                   | Server (secret)     | For app-mode bot      | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches              |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Server (secret)     | For Google Calendar   | OAuth 2.0 "Web application" client from Google Cloud console                                                                     |
-| `GOOGLE_OAUTH_REDIRECT_URL`                 | Server              | No                    | Overrides the redirect URI (default `$APP_URL/oauth/google-calendar/return`, else the request origin)                            |
-| `TOKEN_ENCRYPTION_KEY`                      | Server (secret)     | For Google Calendar   | **Base64-encoded 32-byte key** for AES-GCM encryption of stored OAuth tokens (`openssl rand -base64 32`)                         |
-| `N8N_API_KEY` / `N8N_API_KEY_PREVIOUS`      | Server (secret)     | For n8n               | `x-api-key` for `/api/public/n8n/*` (≥ 32 random chars); keep the old value in `_PREVIOUS` while rotating                        |
+| Variable                                    | Side                | Required              | Purpose                                                                                                                           |
+| ------------------------------------------- | ------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                         | Client (build-time) | Yes                   | Supabase project URL for the browser client                                                                                       |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`             | Client (build-time) | Yes                   | Supabase anon/publishable key for the browser client                                                                              |
+| `VITE_DEMO_URL`                             | Client (build-time) | No                    | Public demo deployment; shows the "Coba Demo" button on the landing page (hidden when unset)                                      |
+| `VITE_ALLOW_SIGNUP`                         | Client (build-time) | No                    | `true` shows the sign-up option on `/login` (default: hidden). Also disable sign-ups in Supabase Auth; the UI alone is not enough |
+| `SUPABASE_URL`                              | Server              | Yes                   | Supabase URL for SSR, auth middleware and the admin client                                                                        |
+| `SUPABASE_PUBLISHABLE_KEY`                  | Server              | Yes                   | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                          |
+| `SUPABASE_SERVICE_ROLE_KEY`                 | Server (secret)     | Yes                   | Service-role client (`supabaseAdmin`) for the Telegram webhook, n8n endpoints, reminders and the encrypted token store            |
+| `AI_PROVIDER`                               | Server              | No                    | `openai` (default, Responses API) or `openai-compatible` (Chat Completions at `AI_BASE_URL`)                                      |
+| `AI_API_KEY`                                | Server (secret)     | For AI features       | Provider API key. Without it the AI buttons show "AI belum dikonfigurasi" and the rest of the app works                           |
+| `AI_BASE_URL`                               | Server              | For openai-compatible | e.g. `https://openrouter.ai/api/v1`, `https://api.groq.com/openai/v1`, `https://generativelanguage.googleapis.com/v1beta/openai`  |
+| `AI_MODEL`                                  | Server              | No                    | Text model (default `gpt-4o-mini`)                                                                                                |
+| `AI_VISION_MODEL`                           | Server              | No                    | Model for photo OCR (defaults to `AI_MODEL`; must accept images)                                                                  |
+| `AI_TRANSCRIBE_MODEL`                       | Server              | No                    | Voice capture model for `/audio/transcriptions` (default `whisper-1`; Groq: `whisper-large-v3`)                                   |
+| `SECOND_BRAIN_CRON_SECRET` / `..._PREVIOUS` | Server (secret)     | For the reminder cron | Bearer secret for `/api/public/hooks/reminders` from n8n or other schedulers; keep the old value in `_PREVIOUS` while rotating    |
+| `CRON_SECRET`                               | Server (secret)     | For Vercel Cron       | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`                |
+| `DATABASE_URL`                              | Tooling             | For migrations        | Postgres connection string used by `drizzle-kit`                                                                                  |
+| `NITRO_PRESET`                              | Build               | No                    | Nitro deploy preset (default `vercel`; e.g. `node-server` to self-host)                                                           |
+| `SECURITY_HEADERS`                          | Server              | No                    | Set to `off` to stop `src/server.ts` adding security headers (only if the host sets its own)                                      |
+| `APP_URL`                                   | Server              | Recommended           | Public base URL (`https://<app>.vercel.app`); used for the Google redirect URI                                                    |
+| `APP_TIMEZONE`                              | Server              | No                    | IANA zone for "today" in digests, reminders and bot dates (default `Asia/Jakarta`; Vercel runs in UTC)                            |
+| `TELEGRAM_BOT_TOKEN`                        | Server (secret)     | For Telegram          | BotFather token; the app calls `https://api.telegram.org/bot<token>/…` directly                                                   |
+| `TELEGRAM_BOT_USERNAME`                     | Server              | No                    | Bot username (without `@`) for the one-tap `t.me/<bot>?start=<code>` link in Settings                                             |
+| `TELEGRAM_WEBHOOK_SECRET`                   | Server (secret)     | For app-mode bot      | The webhook rejects every request (401) unless this is set and the `X-Telegram-Bot-Api-Secret-Token` header matches               |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Server (secret)     | For Google Calendar   | OAuth 2.0 "Web application" client from Google Cloud console                                                                      |
+| `GOOGLE_OAUTH_REDIRECT_URL`                 | Server              | No                    | Overrides the redirect URI (default `$APP_URL/oauth/google-calendar/return`, else the request origin)                             |
+| `TOKEN_ENCRYPTION_KEY`                      | Server (secret)     | For Google Calendar   | **Base64-encoded 32-byte key** for AES-GCM encryption of stored OAuth tokens (`openssl rand -base64 32`)                          |
+| `N8N_API_KEY` / `N8N_API_KEY_PREVIOUS`      | Server (secret)     | For n8n               | `x-api-key` for `/api/public/n8n/*` (≥ 32 random chars); keep the old value in `_PREVIOUS` while rotating                         |
 
 `VITE_*` variables are inlined at build time. Rebuild after you change them.
 
@@ -720,7 +727,7 @@ Target: **Vercel Hobby (free) + Supabase Free**. `vite build` uses Nitro with th
 3. **Import the repo in Vercel.** Framework preset: _Other_. Install command: `bun install`. Build command: `bun run build`. Leave the output directory empty (Nitro writes `.vercel/output`).
 4. **Environment variables** (Production and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, plus the optional groups below. `VITE_*` values are inlined at build time, so redeploy after changing them.
 5. **AI (optional).** Set `AI_API_KEY`. For a free tier, use an OpenAI-compatible provider: for example `AI_PROVIDER=openai-compatible`, `AI_BASE_URL=https://api.groq.com/openai/v1`, `AI_MODEL=llama-3.3-70b-versatile`, `AI_TRANSCRIBE_MODEL=whisper-large-v3`, and an image-capable `AI_VISION_MODEL` for OCR. OpenRouter (`https://openrouter.ai/api/v1`, `:free` models) and Gemini (`https://generativelanguage.googleapis.com/v1beta/openai`, `gemini-2.0-flash`) work the same way. Without a key the AI buttons show "AI belum dikonfigurasi".
-6. **Supabase Auth URLs.** In _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your domain) and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list.
+6. **Supabase Auth URLs.** In _Authentication → URL Configuration_, set the Site URL to `https://<your-app>.vercel.app` (or your domain) and add it plus `https://*-<team>.vercel.app/**` for previews to the redirect allow-list. In _Authentication → Sign In / Providers_, turn off **Allow new users to sign up** (unless the instance should be open, in which case also set `VITE_ALLOW_SIGNUP=true`), then create your own account under _Authentication → Users → Add user_ or _Invite user_.
 7. **Schedules (n8n first).** Vercel Hobby allows only one cron run per day and Supabase Free gives no scheduler guarantees, so reminders (every 15 min), digests, maintenance (trash purge, expired link codes, rate-limit rows) and backups run from n8n (see [Integrations → n8n](#n8n)). Fallbacks only:
    - **Vercel Cron** (daily): set `CRON_SECRET` (`openssl rand -hex 32`) and add `{ "crons": [{ "path": "/api/public/hooks/reminders", "schedule": "0 0 * * *" }] }` to `vercel.json` (UTC; 07:00 WIB).
    - **pg_cron + pg_net** in Supabase, or any scheduler: `GET`/`POST /api/public/hooks/reminders` with `Authorization: Bearer $SECOND_BRAIN_CRON_SECRET`. Do not run it together with the n8n reminders.

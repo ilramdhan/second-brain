@@ -46,3 +46,14 @@ describe("landing redirect", () => {
     await expect(redirectSignedInVisitor()).resolves.toBeUndefined();
   });
 });
+
+describe("signed-in visitor on a public page", () => {
+  it("is sent to a validated redirect target when one is given", async () => {
+    auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } } });
+
+    const thrown = await redirectSignedInVisitor("/tasks?view=kanban").catch((e: unknown) => e);
+
+    expect(isRedirect(thrown)).toBe(true);
+    expect((thrown as { options: { href: string } }).options.href).toBe("/tasks?view=kanban");
+  });
+});

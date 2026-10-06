@@ -1,25 +1,35 @@
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
-  Brain,
+  Bot,
   CalendarDays,
   CheckSquare,
+  ChevronDown,
+  Cloud,
+  Database,
+  HardDriveDownload,
   Inbox,
-  Monitor,
-  Moon,
   Network,
   Scale,
   Send,
   Smartphone,
-  Sun,
+  Sparkles,
   Users,
   Workflow,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import {
+  GithubMark,
+  NewTab,
+  PAGE,
+  SiteFooter,
+  SiteHeader,
+  SkipLink,
+} from "@/components/landing/SiteChrome";
 import { Button } from "@/components/ui/button";
-import { demoUrl, GITHUB_URL, LICENSE_URL, SECURITY_URL } from "@/lib/landing";
-import { usePreferences, type MessageKey, type Theme } from "@/lib/preferences";
+import { demoUrl, GITHUB_URL, SELF_HOST_DOCS_URL } from "@/lib/landing";
+import { usePreferences, type MessageKey } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 /*
@@ -58,15 +68,6 @@ function BentoCard({ icon: Icon, title, body, className, children }: CardProps) 
         </div>
       )}
     </article>
-  );
-}
-
-/** GitHub mark (lucide no longer ships brand icons). */
-function GithubMark() {
-  return (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-    </svg>
   );
 }
 
@@ -232,85 +233,87 @@ function ChatMock() {
   );
 }
 
-const NEXT_THEME: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
-const THEME_ICON = { light: Sun, dark: Moon, system: Monitor } as const;
-
-/** Cycles system → light → dark; same preference store (localStorage) as Settings. */
-function ThemeToggle() {
-  const { theme, setTheme, t } = usePreferences();
-  const Icon = THEME_ICON[theme];
-  const next = NEXT_THEME[theme];
+/** Section with an anchor id (header menu target): offset below the sticky header, focusable. */
+function Section({
+  id,
+  title,
+  subtitle,
+  children,
+}: {
+  id: string;
+  title: MessageKey;
+  subtitle?: MessageKey;
+  children: ReactNode;
+}) {
+  const { t } = usePreferences();
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(next)}
-      aria-label={`${t("landingThemeLabel")}: ${t(theme)}`}
-      title={`${t("landingThemeLabel")}: ${t(theme)}`}
+    <section
+      id={id}
+      tabIndex={-1}
+      aria-labelledby={`${id}-title`}
+      className="scroll-mt-20 py-12 focus:outline-none md:py-16"
     >
-      <Icon aria-hidden />
-    </Button>
+      <div className="mx-auto mb-8 max-w-2xl text-center">
+        <h2 id={`${id}-title`} className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          {t(title)}
+        </h2>
+        {subtitle && <p className="mt-3 text-pretty text-muted-foreground">{t(subtitle)}</p>}
+      </div>
+      {children}
+    </section>
   );
 }
 
-function LanguageToggle() {
-  const { locale, setLocale, t } = usePreferences();
+type Item = { title: MessageKey; body: MessageKey; icon: typeof Inbox };
+
+const STEPS: Item[] = [
+  { title: "landingStep1Title", body: "landingStep1Body", icon: Inbox },
+  { title: "landingStep2Title", body: "landingStep2Body", icon: Sparkles },
+  { title: "landingStep3Title", body: "landingStep3Body", icon: CheckSquare },
+  { title: "landingStep4Title", body: "landingStep4Body", icon: Network },
+];
+
+const INTEGRATIONS: Item[] = [
+  { title: "landingIntTelegramTitle", body: "landingIntTelegramBody", icon: Send },
+  { title: "landingIntCalendarTitle", body: "landingIntCalendarBody", icon: CalendarDays },
+  { title: "landingIntAiTitle", body: "landingIntAiBody", icon: Sparkles },
+  { title: "landingIntN8nTitle", body: "landingIntN8nBody", icon: Bot },
+  { title: "landingIntBackupTitle", body: "landingIntBackupBody", icon: HardDriveDownload },
+  { title: "landingIntWebhookTitle", body: "landingIntWebhookBody", icon: Workflow },
+];
+
+const SELF_HOST: Item[] = [
+  { title: "landingHost1Title", body: "landingHost1Body", icon: Database },
+  { title: "landingHost2Title", body: "landingHost2Body", icon: Cloud },
+  { title: "landingHost3Title", body: "landingHost3Body", icon: Bot },
+];
+
+const FAQ: { q: MessageKey; a: MessageKey }[] = [
+  { q: "landingFaq1Q", a: "landingFaq1A" },
+  { q: "landingFaq2Q", a: "landingFaq2A" },
+  { q: "landingFaq3Q", a: "landingFaq3A" },
+  { q: "landingFaq4Q", a: "landingFaq4A" },
+  { q: "landingFaq5Q", a: "landingFaq5A" },
+  { q: "landingFaq6Q", a: "landingFaq6A" },
+];
+
+function IconTile({ icon: Icon }: { icon: typeof Inbox }) {
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="h-9 w-9 px-0 text-xs font-semibold"
-      onClick={() => setLocale(locale === "id" ? "en" : "id")}
-      aria-label={t("landingLanguageLabel")}
-      title={t("landingLanguageLabel")}
-      lang={locale === "id" ? "en" : "id"}
-    >
-      {locale === "id" ? "EN" : "ID"}
-    </Button>
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <Icon className="h-5 w-5" aria-hidden />
+    </div>
   );
 }
-
-const FOOTER_LINK =
-  "rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
-const PAGE = "mx-auto w-full max-w-6xl px-4 sm:px-5 md:px-6";
 
 export function Landing() {
   const { t } = usePreferences();
   const demo = demoUrl();
-  const newTab = <span className="sr-only"> {t("landingNewTab")}</span>;
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <a
-        href="#main"
-        className="sr-only z-50 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {t("landingSkip")}
-      </a>
-      <header className={cn(PAGE, "flex h-16 items-center justify-between gap-2")}>
-        <Link
-          to="/"
-          className="flex items-center gap-2 rounded-md font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <Brain className="h-6 w-6 text-primary" aria-hidden />
-          Second Brain
-        </Link>
-        <nav aria-label="Second Brain" className="flex items-center gap-1">
-          <ThemeToggle />
-          <LanguageToggle />
-          <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub">
-              <GithubMark />
-            </a>
-          </Button>
-          <Button asChild size="sm" variant={demo ? "outline" : "default"} className="ml-1 h-9">
-            <Link to="/login">{t("landingSignIn")}</Link>
-          </Button>
-        </nav>
-      </header>
+      <SkipLink />
+      <SiteHeader onLanding />
 
-      <main id="main" tabIndex={-1} className={cn(PAGE, "pb-12 focus:outline-none")}>
+      <main id="main" tabIndex={-1} className={cn(PAGE, "pb-8 focus:outline-none")}>
         <section className="py-10 text-center md:py-16" aria-labelledby="landing-title">
           <p className="text-xs font-medium tracking-wide text-primary uppercase">
             {t("landingEyebrow")}
@@ -330,7 +333,7 @@ export function Landing() {
                 <a href={demo} target="_blank" rel="noopener">
                   {t("landingDemo")}
                   <ArrowRight aria-hidden />
-                  {newTab}
+                  <NewTab />
                 </a>
               </Button>
             ) : (
@@ -345,12 +348,13 @@ export function Landing() {
               <a href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <GithubMark />
                 {t("landingGithub")}
-                {newTab}
+                <NewTab />
               </a>
             </Button>
           </div>
         </section>
-        <section aria-label={t("landingFeatures")}>
+
+        <Section id="fitur" title="landingFeatures" subtitle="landingFeaturesSubtitle">
           <div className="grid grid-flow-dense grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <BentoCard
               icon={Inbox}
@@ -398,41 +402,87 @@ export function Landing() {
               <ChatMock />
             </BentoCard>
           </div>
-        </section>
+        </Section>
+
+        <Section id="cara-kerja" title="landingHowTitle" subtitle="landingHowSubtitle">
+          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((step, i) => (
+              <li key={step.title} className="rounded-2xl border bg-card p-5">
+                <div className="flex items-center gap-3">
+                  <IconTile icon={step.icon} />
+                  <span className="text-sm font-semibold text-primary">
+                    {t("landingStep")} {i + 1}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-base font-semibold tracking-tight">{t(step.title)}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{t(step.body)}</p>
+              </li>
+            ))}
+          </ol>
+        </Section>
+
+        <Section id="integrasi" title="landingIntTitle" subtitle="landingIntSubtitle">
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {INTEGRATIONS.map((item) => (
+              <li key={item.title} className="flex gap-4 rounded-2xl border bg-card p-5">
+                <IconTile icon={item.icon} />
+                <div>
+                  <h3 className="text-base font-semibold tracking-tight">{t(item.title)}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t(item.body)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+
+        <Section id="self-host" title="landingHostTitle" subtitle="landingHostSubtitle">
+          <ol className="grid gap-4 md:grid-cols-3">
+            {SELF_HOST.map((step, i) => (
+              <li key={step.title} className="rounded-2xl border bg-card p-5">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                    aria-hidden
+                  >
+                    {i + 1}
+                  </span>
+                  <IconTile icon={step.icon} />
+                </div>
+                <h3 className="mt-3 text-base font-semibold tracking-tight">{t(step.title)}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{t(step.body)}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-6 flex justify-center">
+            <Button asChild variant="outline">
+              <a href={SELF_HOST_DOCS_URL} target="_blank" rel="noreferrer">
+                {t("landingHostGuide")}
+                <ArrowRight aria-hidden />
+                <NewTab />
+              </a>
+            </Button>
+          </div>
+        </Section>
+
+        <Section id="faq" title="landingFaqTitle">
+          <div className="mx-auto max-w-3xl divide-y rounded-2xl border bg-card">
+            {FAQ.map((item) => (
+              <details key={item.q} className="group px-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md py-4 font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                  <h3 className="text-base">{t(item.q)}</h3>
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+                    aria-hidden
+                  />
+                </summary>
+                <p className="pb-4 text-sm text-pretty text-muted-foreground">{t(item.a)}</p>
+              </details>
+            ))}
+          </div>
+        </Section>
       </main>
 
-      <footer className="border-t">
-        <div
-          className={cn(
-            PAGE,
-            "flex flex-col gap-3 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between",
-          )}
-        >
-          {/* Server and browser years differ only around New Year's Eve. */}
-          <p suppressHydrationWarning>
-            © {new Date().getFullYear()} Second Brain · {t("landingFooter")}
-          </p>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1">
-            <li>
-              <a href={GITHUB_URL} target="_blank" rel="noreferrer" className={FOOTER_LINK}>
-                GitHub{newTab}
-              </a>
-            </li>
-            <li>
-              <a href={LICENSE_URL} target="_blank" rel="noreferrer" className={FOOTER_LINK}>
-                {t("landingLicense")}
-                {newTab}
-              </a>
-            </li>
-            <li>
-              <a href={SECURITY_URL} target="_blank" rel="noreferrer" className={FOOTER_LINK}>
-                {t("landingSecurity")}
-                {newTab}
-              </a>
-            </li>
-          </ul>
-        </div>
-      </footer>
+      <SiteFooter onLanding />
     </div>
   );
 }

@@ -82,6 +82,13 @@ code doesn't match.
 
 - Supabase Auth handles sign-up and sign-in. The browser client uses the **publishable (anon)
   key** only (`VITE_SUPABASE_*`).
+- **Sign-up is closed by default.** `/login` only offers sign-up when the build sets
+  `VITE_ALLOW_SIGNUP=true`. That flag hides UI only: the anon key is public, so anyone can still
+  call `auth.signUp` directly. The real control is Supabase _Authentication → Sign In / Providers
+  → "Allow new users to sign up"_, which must be **off** for a private instance. Accounts are then
+  created by the owner (_Authentication → Users → Invite user / Add user_ or the admin API);
+  project invites (`project_invites` + `accept_project_invites()`) keep working for those accounts
+  because they match on the verified email when the user signs in.
 - `src/start.ts` registers `attachSupabaseAuth` as global function middleware (attaches the user's
   access token to server function calls) and TanStack Start's **CSRF middleware** for server
   functions.
@@ -342,6 +349,9 @@ both match).
   `SB_TELEGRAM_ALLOWED_CHAT_IDS` and `SB_EMAIL_ALLOWED_SENDERS`, and rotate via `N8N_API_KEY_PREVIOUS`.
 - Restrict Supabase Auth redirect URLs to your own domains.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
+- Disable _Authentication → Sign In / Providers → "Allow new users to sign up"_ in Supabase unless
+  the instance is meant to be public, and leave `VITE_ALLOW_SIGNUP` unset. Add users through
+  _Invite user_ / _Add user_ instead.
 - Set `SECOND_BRAIN_CRON_SECRET` or `CRON_SECRET` (`openssl rand -hex 32`) for the reminder cron and
   stop relying on `app_config.cron_token`. To rotate, move the old value to
   `SECOND_BRAIN_CRON_SECRET_PREVIOUS` until every scheduler uses the new one.

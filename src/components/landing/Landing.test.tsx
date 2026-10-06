@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -19,7 +19,9 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 import { Landing } from "@/components/landing/Landing";
-import { GITHUB_URL, LICENSE_URL, SECURITY_URL } from "@/lib/landing";
+import { prefersReducedMotion, SECTIONS } from "@/components/landing/SiteChrome";
+import { APP_VERSION, GIT_SHA as BUILD_SHA, releaseTagUrl, REPO_URL } from "@/lib/app-version";
+import { GITHUB_URL, LICENSE_URL, SECURITY_URL, SELF_HOST_DOCS_URL } from "@/lib/landing";
 import { PreferencesProvider } from "@/lib/preferences";
 
 function renderLanding() {
@@ -93,10 +95,13 @@ describe("Landing", () => {
     vi.stubEnv("VITE_DEMO_URL", "https://2ndbrain-demo.ilramdhan.dev");
     renderLanding();
 
-    expect(screen.getByRole("link", { name: /Coba Demo/ })).toHaveAttribute(
-      "href",
-      "https://2ndbrain-demo.ilramdhan.dev/",
-    );
+    // Header (desktop) and hero both link to the demo, in a new tab.
+    const links = screen.getAllByRole("link", { name: /Coba Demo/ });
+    expect(links.length).toBeGreaterThanOrEqual(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "https://2ndbrain-demo.ilramdhan.dev/");
+      expect(link).toHaveAttribute("target", "_blank");
+    }
   });
 
   it("toggles theme and language through the shared preference store", () => {
@@ -115,5 +120,94 @@ describe("Landing", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "A second brain for your tasks and notes",
     );
+  });
+  it("has a sticky header menu linking to every landing section", () => {
+    renderLanding();
+
+    const header = screen.getByRole("banner");
+    expect(header.className).toContain("sticky");
+    const nav = within(header).getByRole("navigation", { name: "Menu utama" });
+    const hrefs = within(nav)
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(SECTIONS.map((s) => `#${s.id}`));
+    for (const { id } of SECTIONS) {
+      expect(document.getElementById(id)).toBeInstanceOf(HTMLElement);
+    }
+    for (const name of ["Cara kerja", "Integrasi", "Self-host dalam tiga langkah"]) {
+      expect(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
+    }
+    expect(screen.getByText("Apakah Second Brain gratis?")).toBeInTheDocument();
+  });
+
+  it("scrolls smoothly to a section, instantly with reduced motion", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderLanding();
+    const nav = screen.getByRole("navigation", { name: "Menu utama" });
+
+    fireEvent.click(within(nav).getByRole("link", { name: "FAQ" }));
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ behavior: "smooth", block: "start" });
+    expect(window.location.hash).toBe("#faq");
+    expect(document.activeElement).toBe(document.getElementById("faq"));
+
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      matches: query === "(prefers-reduced-motion: reduce)",
+    })) as typeof window.matchMedia;
+    try {
+      expect(prefersReducedMotion()).toBe(true);
+      fireEvent.click(within(nav).getByRole("link", { name: "Cara kerja" }));
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ behavior: "auto", block: "start" });
+    } finally {
+      window.matchMedia = original;
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("has a column footer with docs, legal pages and the release version", () => {
+    renderLanding();
+    const footer = screen.getByRole("contentinfo");
+
+    for (const name of ["Halaman", "Dokumentasi", "Legal"]) {
+      expect(within(footer).getByRole("navigation", { name })).toBeInTheDocument();
+    }
+    expect(within(footer).getByRole("link", { name: "Privasi" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(within(footer).getByRole("link", { name: "Ketentuan" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
+    expect(within(footer).getByRole("link", { name: /Panduan self-host/ })).toHaveAttribute(
+      "href",
+      SELF_HOST_DOCS_URL,
+    );
+    expect(within(footer).getByRole("link", { name: /Bot Telegram & n8n/ })).toHaveAttribute(
+      "href",
+      `${REPO_URL}/blob/main/integrations/n8n/README.md`,
+    );
+    expect(within(footer).getByRole("link", { name: /Environment variable/ })).toHaveAttribute(
+      "href",
+      `${REPO_URL}/blob/main/.env.example`,
+    );
+    const version = within(footer).getByRole("link", { name: /catatan rilis/ });
+    expect(version).toHaveAttribute("href", releaseTagUrl());
+    expect(version).toHaveTextContent(`v${APP_VERSION} · ${BUILD_SHA}`);
+    expect(footer).toHaveTextContent("Dibuat dengan ♥ di Indonesia");
+  });
+
+  it("opens the mobile menu sheet with the section links and sign in", () => {
+    renderLanding();
+
+    fireEvent.click(screen.getByRole("button", { name: "Buka menu" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog)
+        .getAllByRole("link")
+        .map((a) => a.getAttribute("href")),
+    ).toEqual(expect.arrayContaining([...SECTIONS.map((s) => `#${s.id}`), "/login", GITHUB_URL]));
   });
 });

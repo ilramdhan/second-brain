@@ -9,8 +9,10 @@ import {
   landingHead,
   OG_IMAGE,
   publicPageHead,
+  signupAllowed,
   SITE_URL,
 } from "@/lib/landing";
+import { LEGAL_DOCS } from "@/components/legal/content";
 
 type Meta = Record<string, unknown>;
 const pub = join(__dirname, "../../public");
@@ -126,5 +128,42 @@ describe("public brand assets", () => {
       "Sitemap: https://2ndbrain.ilramdhan.dev/sitemap.xml",
     );
     expect(readFileSync(join(pub, "sitemap.xml"), "utf8")).toMatch(/<lastmod>\d{4}-\d{2}-\d{2}/);
+  });
+});
+
+describe("signupAllowed", () => {
+  it("is closed unless the flag is exactly true", () => {
+    expect(signupAllowed(undefined)).toBe(false);
+    expect(signupAllowed("")).toBe(false);
+    expect(signupAllowed("false")).toBe(false);
+    expect(signupAllowed("1")).toBe(false);
+    expect(signupAllowed(" TRUE ")).toBe(true);
+    expect(signupAllowed("true")).toBe(true);
+  });
+});
+
+describe("public legal pages", () => {
+  it("are listed in the sitemap and allowed in robots.txt", () => {
+    const sitemap = readFileSync(join(pub, "sitemap.xml"), "utf8");
+    const robots = readFileSync(join(pub, "robots.txt"), "utf8");
+    for (const path of ["/privacy", "/terms"]) {
+      expect(sitemap).toContain(`<loc>${SITE_URL}${path}</loc>`);
+      expect(robots).toMatch(new RegExp(`^Allow: ${path}$`, "m"));
+    }
+  });
+
+  it("has Indonesian and English text with the same sections", () => {
+    for (const kind of ["privacy", "terms"] as const) {
+      const { id, en } = LEGAL_DOCS[kind];
+      expect(id.sections.map((s) => s.id)).toEqual(en.sections.map((s) => s.id));
+      expect(id.sections.length).toBeGreaterThan(5);
+    }
+    const privacy = JSON.stringify(LEGAL_DOCS.privacy.id);
+    for (const topic of ["Supabase", "Google Calendar", "Google Drive", "Telegram", "Gemini"]) {
+      expect(privacy).toContain(topic);
+    }
+    for (const topic of ["Resend", "Sentry", "localStorage", "30 hari"]) {
+      expect(privacy).toContain(topic);
+    }
   });
 });

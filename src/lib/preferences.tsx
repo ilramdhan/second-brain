@@ -89,6 +89,100 @@ const messages = {
     landingLicense: "Lisensi MIT",
     landingSecurity: "Keamanan & privasi",
     landingNewTab: "(tab baru)",
+    landingNavFeatures: "Fitur",
+    landingNavHowItWorks: "Cara kerja",
+    landingNavIntegrations: "Integrasi",
+    landingNavSelfHost: "Self-host",
+    landingNavFaq: "FAQ",
+    landingMenuLabel: "Menu utama",
+    landingMenuOpen: "Buka menu",
+    landingMenuDescription: "Navigasi halaman, demo, GitHub, dan masuk.",
+    landingFeaturesSubtitle:
+      "Semua yang Anda perlukan untuk menangkap, merapikan, dan menyelesaikan pekerjaan di satu tempat.",
+    landingHowTitle: "Cara kerja",
+    landingHowSubtitle:
+      "Dari pikiran yang berserakan sampai pekerjaan selesai, dalam empat langkah.",
+    landingStep: "Langkah",
+    landingStep1Title: "Tangkap apa saja",
+    landingStep1Body:
+      "Ketik, rekam suara, foto catatan, kirim lewat Telegram atau email. Semuanya masuk ke Inbox.",
+    landingStep2Title: "AI merapikan",
+    landingStep2Body:
+      "AI meringkas dan memecah isi Inbox menjadi tugas dan catatan, lengkap dengan tanggal, prioritas, dan proyek.",
+    landingStep3Title: "Rencanakan & kerjakan",
+    landingStep3Body:
+      "Atur tugas di list, kanban, kalender, atau timeline. Dependensi dan automations menjaga alurnya.",
+    landingStep4Title: "Hubungkan pengetahuan",
+    landingStep4Body:
+      "Catatan berblok saling terhubung lewat [[tautan]] dan ((referensi)), lalu tampil sebagai graph.",
+    landingIntTitle: "Integrasi",
+    landingIntSubtitle: "Bekerja dengan alat yang sudah Anda pakai. Semuanya opsional.",
+    landingIntTelegramTitle: "Bot Telegram",
+    landingIntTelegramBody:
+      "Tambah tugas, tangkap ide, kirim foto atau voice note, dan terima pengingat serta digest harian.",
+    landingIntCalendarTitle: "Google Calendar",
+    landingIntCalendarBody:
+      "Tugas bertanggal tersinkron ke kalender Anda lewat OAuth milik instance sendiri.",
+    landingIntAiTitle: "Provider AI pilihan Anda",
+    landingIntAiBody:
+      "OpenAI atau API yang kompatibel (Gemini, Groq, OpenRouter) untuk ringkasan, OCR, dan transkripsi.",
+    landingIntN8nTitle: "n8n",
+    landingIntN8nBody:
+      "Workflow siap impor untuk bot, pengingat terjadwal, maintenance, dan email ke Inbox.",
+    landingIntBackupTitle: "Backup otomatis",
+    landingIntBackupBody:
+      "Backup terjadwal ke Google Drive dengan ringkasan email via Resend, plus ekspor JSON manual.",
+    landingIntWebhookTitle: "Webhook",
+    landingIntWebhookBody:
+      "Automations bisa mengirim webhook HTTPS ke layanan lain saat aturan terpenuhi.",
+    landingHostTitle: "Self-host dalam tiga langkah",
+    landingHostSubtitle:
+      "Jalankan instance sendiri di tier gratis Vercel dan Supabase. Data Anda tetap milik Anda.",
+    landingHost1Title: "Supabase",
+    landingHost1Body:
+      "Buat project Supabase (Free), jalankan migration SQL dari repo, dan matikan pendaftaran publik.",
+    landingHost2Title: "Vercel",
+    landingHost2Body:
+      "Impor repo ke Vercel, isi environment variable dari .env.example, lalu deploy.",
+    landingHost3Title: "n8n (opsional)",
+    landingHost3Body:
+      "Impor workflow dari integrations/n8n untuk bot Telegram, pengingat, dan backup terjadwal.",
+    landingHostGuide: "Baca panduan self-host",
+    landingFaqTitle: "Pertanyaan yang sering diajukan",
+    landingFaq1Q: "Apakah Second Brain gratis?",
+    landingFaq1A:
+      "Ya. Kodenya open source dengan lisensi MIT. Anda hanya membayar layanan yang Anda pakai sendiri (hosting, provider AI), dan semuanya bisa berjalan di tier gratis.",
+    landingFaq2Q: "Di mana data saya disimpan?",
+    landingFaq2A:
+      "Di database Supabase milik pengelola instance. Pada instance self-host, itu project Supabase Anda sendiri. Akses dibatasi Row Level Security per pengguna dan per proyek.",
+    landingFaq3Q: "Bagaimana cara mendapatkan akun?",
+    landingFaq3A:
+      "Pendaftaran publik ditutup secara bawaan. Pemilik instance membuat atau mengundang akun lewat Supabase, dan anggota tim bergabung lewat undangan proyek.",
+    landingFaq4Q: "Apakah AI wajib?",
+    landingFaq4A:
+      "Tidak. Tanpa kunci API, fitur AI dinonaktifkan dan aplikasi tetap berjalan, termasuk parser bahasa alami lokal untuk tugas.",
+    landingFaq5Q: "Bisakah dipakai offline?",
+    landingFaq5A:
+      "Second Brain adalah PWA: bisa dipasang di layar utama, aset aplikasi di-cache, dan halaman yang terakhir dibuka tetap bisa dilihat saat koneksi terputus.",
+    landingFaq6Q: "Bagaimana cara menghapus data saya?",
+    landingFaq6A:
+      "Item yang dihapus masuk sampah dan dibersihkan setelah 30 hari. Untuk menghapus akun beserta seluruh datanya, hubungi pengelola instance. Lihat Kebijakan Privasi.",
+    landingFooterPages: "Halaman",
+    landingFooterDocs: "Dokumentasi",
+    landingFooterLegal: "Legal",
+    landingFooterSelfHostGuide: "Panduan self-host",
+    landingFooterN8n: "Bot Telegram & n8n",
+    landingFooterEnv: "Environment variable",
+    landingFooterRelease: "(catatan rilis)",
+    landingMadeIn: "Dibuat dengan ♥ di Indonesia",
+    legalPrivacy: "Privasi",
+    legalTerms: "Ketentuan",
+    legalPrivacyTitle: "Kebijakan Privasi",
+    legalTermsTitle: "Ketentuan Penggunaan",
+    legalUpdated: "Terakhir diperbarui",
+    legalToc: "Di halaman ini",
+    legalNotAdvice:
+      "Dokumen ini adalah templat untuk aplikasi open source yang di-host sendiri, bukan nasihat hukum. Pengelola instance bertanggung jawab menyesuaikannya dengan layanan dan hukum yang berlaku.",
     pwaUpdateAvailable: "Versi baru tersedia",
     pwaReload: "Muat ulang",
     aboutTitle: "Tentang aplikasi",
@@ -189,6 +283,99 @@ const messages = {
     landingLicense: "MIT license",
     landingSecurity: "Security & privacy",
     landingNewTab: "(new tab)",
+    landingNavFeatures: "Features",
+    landingNavHowItWorks: "How it works",
+    landingNavIntegrations: "Integrations",
+    landingNavSelfHost: "Self-host",
+    landingNavFaq: "FAQ",
+    landingMenuLabel: "Main menu",
+    landingMenuOpen: "Open menu",
+    landingMenuDescription: "Page navigation, demo, GitHub and sign in.",
+    landingFeaturesSubtitle:
+      "Everything you need to capture, organize and finish your work in one place.",
+    landingHowTitle: "How it works",
+    landingHowSubtitle: "From scattered thoughts to finished work, in four steps.",
+    landingStep: "Step",
+    landingStep1Title: "Capture anything",
+    landingStep1Body:
+      "Type, record a voice note, snap a photo, or send it via Telegram or email. It all lands in the Inbox.",
+    landingStep2Title: "AI tidies up",
+    landingStep2Body:
+      "AI summarizes the Inbox and splits it into tasks and notes, with dates, priorities and projects.",
+    landingStep3Title: "Plan & do",
+    landingStep3Body:
+      "Organize tasks in list, kanban, calendar or timeline. Dependencies and automations keep things moving.",
+    landingStep4Title: "Connect knowledge",
+    landingStep4Body:
+      "Block notes link to each other through [[links]] and ((references)) and show up as a graph.",
+    landingIntTitle: "Integrations",
+    landingIntSubtitle: "Works with the tools you already use. All optional.",
+    landingIntTelegramTitle: "Telegram bot",
+    landingIntTelegramBody:
+      "Add tasks, capture ideas, send photos or voice notes, and get reminders and a daily digest.",
+    landingIntCalendarTitle: "Google Calendar",
+    landingIntCalendarBody:
+      "Dated tasks sync to your calendar through the instance's own OAuth client.",
+    landingIntAiTitle: "Your AI provider",
+    landingIntAiBody:
+      "OpenAI or any compatible API (Gemini, Groq, OpenRouter) for summaries, OCR and transcription.",
+    landingIntN8nTitle: "n8n",
+    landingIntN8nBody:
+      "Ready-to-import workflows for the bot, scheduled reminders, maintenance and email to Inbox.",
+    landingIntBackupTitle: "Automatic backups",
+    landingIntBackupBody:
+      "Scheduled backups to Google Drive with an email summary via Resend, plus manual JSON export.",
+    landingIntWebhookTitle: "Webhooks",
+    landingIntWebhookBody:
+      "Automations can send HTTPS webhooks to other services when a rule matches.",
+    landingHostTitle: "Self-host in three steps",
+    landingHostSubtitle:
+      "Run your own instance on the Vercel and Supabase free tiers. Your data stays yours.",
+    landingHost1Title: "Supabase",
+    landingHost1Body:
+      "Create a Supabase project (Free), run the SQL migrations from the repo, and turn off public sign-ups.",
+    landingHost2Title: "Vercel",
+    landingHost2Body:
+      "Import the repo into Vercel, fill in the variables from .env.example, then deploy.",
+    landingHost3Title: "n8n (optional)",
+    landingHost3Body:
+      "Import the workflows from integrations/n8n for the Telegram bot, reminders and scheduled backups.",
+    landingHostGuide: "Read the self-host guide",
+    landingFaqTitle: "Frequently asked questions",
+    landingFaq1Q: "Is Second Brain free?",
+    landingFaq1A:
+      "Yes. The code is open source under the MIT license. You only pay for the services you use yourself (hosting, AI provider), and all of it can run on free tiers.",
+    landingFaq2Q: "Where is my data stored?",
+    landingFaq2A:
+      "In the Supabase database of whoever runs the instance. On a self-hosted instance that is your own Supabase project. Access is limited per user and per project by Row Level Security.",
+    landingFaq3Q: "How do I get an account?",
+    landingFaq3A:
+      "Public sign-up is closed by default. The instance owner creates or invites accounts in Supabase, and team members join through project invites.",
+    landingFaq4Q: "Is AI required?",
+    landingFaq4A:
+      "No. Without an API key the AI features are disabled and the app keeps working, including the local natural-language task parser.",
+    landingFaq5Q: "Does it work offline?",
+    landingFaq5A:
+      "Second Brain is a PWA: you can install it on your home screen, app assets are cached, and recently opened pages stay viewable when the connection drops.",
+    landingFaq6Q: "How do I delete my data?",
+    landingFaq6A:
+      "Deleted items go to the trash and are purged after 30 days. To delete your account and all of its data, contact the instance owner. See the Privacy Policy.",
+    landingFooterPages: "Pages",
+    landingFooterDocs: "Documentation",
+    landingFooterLegal: "Legal",
+    landingFooterSelfHostGuide: "Self-host guide",
+    landingFooterN8n: "Telegram bot & n8n",
+    landingFooterEnv: "Environment variables",
+    landingFooterRelease: "(release notes)",
+    landingMadeIn: "Made with ♥ in Indonesia",
+    legalPrivacy: "Privacy",
+    legalTerms: "Terms",
+    legalPrivacyTitle: "Privacy Policy",
+    legalTermsTitle: "Terms of Use",
+    legalUpdated: "Last updated",
+    legalToc: "On this page",
+    legalNotAdvice:
+      "This document is a template for a self-hosted open-source app, not legal advice. The instance owner is responsible for adapting it to their service and the applicable law.",
     pwaUpdateAvailable: "A new version is available",
     pwaReload: "Reload",
     aboutTitle: "About",
