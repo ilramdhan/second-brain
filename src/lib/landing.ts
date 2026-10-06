@@ -1,12 +1,19 @@
-import { redirect } from "@tanstack/react-router";
+import { redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+
+import { REPO_URL } from "@/lib/app-version";
 
 /** Public production origin, used for canonical and Open Graph URLs on the public pages. */
 export const SITE_URL = "https://2ndbrain.ilramdhan.dev";
 export const SITE_NAME = "Second Brain";
 export const AUTHOR = "Ilham Ramadhan";
-export const GITHUB_URL = "https://github.com/ilramdhan/second-brain";
+export const GITHUB_URL = REPO_URL;
 export const SECURITY_URL = `${GITHUB_URL}/blob/main/SECURITY.md`;
 export const LICENSE_URL = `${GITHUB_URL}/blob/main/LICENSE`;
+/** README section with the Vercel + Supabase deployment steps. */
+export const SELF_HOST_DOCS_URL = `${GITHUB_URL}#deployment-to-vercel`;
+export const N8N_DOCS_URL = `${GITHUB_URL}/blob/main/integrations/n8n/README.md`;
+export const ENV_EXAMPLE_URL = `${GITHUB_URL}/blob/main/.env.example`;
 /** Same value as APP_HOME in src/lib/auth.ts (kept here so the landing chunk stays Supabase-free). */
 export const APP_HOME_PATH = "/today";
 
@@ -35,6 +42,16 @@ export function demoUrl(raw: unknown = import.meta.env["VITE_DEMO_URL"]): string
   } catch {
     return null;
   }
+}
+
+/**
+ * Public self-service sign-up (`VITE_ALLOW_SIGNUP=true` at build time). Off by default: the
+ * login page then only offers "Masuk". This hides the UI only; the server-side switch is
+ * Supabase _Authentication → Sign In / Providers → Allow new users to sign up_, because
+ * `auth.signUp` can be called directly with the public anon key.
+ */
+export function signupAllowed(raw: unknown = import.meta.env["VITE_ALLOW_SIGNUP"]): boolean {
+  return typeof raw === "string" && raw.trim().toLowerCase() === "true";
 }
 
 type PageMeta = { title: string; description: string; path: string; robots?: string };
@@ -136,7 +153,34 @@ export async function isSignedIn(): Promise<boolean> {
   return hasStoredSession();
 }
 
-/** `beforeLoad` of `/`: throws a router redirect to the app for a signed-in visitor. */
-export async function redirectSignedInVisitor(): Promise<void> {
-  if (await isSignedIn()) throw redirect({ to: APP_HOME_PATH, replace: true });
+/**
+ * `beforeLoad` of `/` and `/login`: throws a router redirect to the app for a signed-in visitor.
+ * `target` is an already validated same-origin path (`safeRedirect`), e.g. the page the auth
+ * guard bounced the visitor from; without it the visitor lands on the app home.
+ */
+export async function redirectSignedInVisitor(target?: string): Promise<void> {
+  if (!(await isSignedIn())) return;
+  throw target
+    ? redirect({ href: target, replace: true })
+    : redirect({ to: APP_HOME_PATH, replace: true });
+}
+
+/**
+ * Client fallback for {@link redirectSignedInVisitor}. On the first page load `beforeLoad` ran
+ * on the server (where the session is unknown) and is not repeated during hydration, so a
+ * signed-in visitor opening a `/` or `/login` bookmark is forwarded from here after mount.
+ */
+export function useRedirectSignedInVisitor(target?: string): void {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let active = true;
+    void isSignedIn().then((signedIn) => {
+      if (!active || !signedIn) return;
+      if (target) void navigate({ href: target, replace: true });
+      else void navigate({ to: APP_HOME_PATH, replace: true });
+    });
+    return () => {
+      active = false;
+    };
+  }, [navigate, target]);
 }

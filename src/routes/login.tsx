@@ -1,12 +1,17 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Brain } from "lucide-react";
+import { ArrowLeft, Brain } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
 import { APP_HOME, safeRedirect } from "@/lib/auth";
-import { publicPageHead } from "@/lib/landing";
+import {
+  publicPageHead,
+  redirectSignedInVisitor,
+  signupAllowed,
+  useRedirectSignedInVisitor,
+} from "@/lib/landing";
 import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/login")({
@@ -14,6 +19,9 @@ export const Route = createFileRoute("/login")({
   validateSearch: (s: Record<string, unknown>): { redirect?: string | undefined } => ({
     redirect: safeRedirect(s["redirect"]),
   }),
+  // A visitor who is already signed in skips the form (client-side navigations; the first SSR
+  // load is covered by useRedirectSignedInVisitor after hydration).
+  beforeLoad: ({ search }) => redirectSignedInVisitor(search.redirect),
   head: () =>
     publicPageHead({
       title: "Masuk — Second Brain",
@@ -26,6 +34,9 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
+  useRedirectSignedInVisitor(redirect);
+  // Self-service sign-up is hidden unless VITE_ALLOW_SIGNUP=true (see signupAllowed()).
+  const allowSignup = signupAllowed();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +52,7 @@ function LoginPage() {
         void logActivity("signed_in", "auth", data.user.id, {}, "auth");
         if (redirect) await navigate({ href: redirect, replace: true });
         else await navigate({ to: APP_HOME, replace: true });
-      } else {
+      } else if (allowSignup) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         toast.success("Akun dibuat! Cek email Anda untuk konfirmasi, lalu masuk.");
@@ -55,12 +66,23 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
+        <Link
+          to="/"
+          className="mb-6 inline-flex items-center gap-1.5 rounded-md text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Kembali ke beranda
+        </Link>
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Brain className="h-6 w-6" />
-          </div>
+          <Link
+            to="/"
+            aria-label="Second Brain — beranda"
+            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          >
+            <Brain className="h-6 w-6" aria-hidden />
+          </Link>
           <h1 className="text-2xl font-semibold tracking-tight">Second Brain</h1>
           <p className="text-sm text-muted-foreground">
             Buang semua pikiran ke sini. Biar AI yang merapikan.
@@ -107,15 +129,22 @@ function LoginPage() {
           >
             {loading ? "Memproses…" : mode === "login" ? "Masuk" : "Daftar"}
           </button>
-          <button
-            type="button"
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
-          >
-            {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
-          </button>
+          {allowSignup ? (
+            <button
+              type="button"
+              onClick={() => setMode(mode === "login" ? "signup" : "login")}
+              className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
+            </button>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">
+              Pendaftaran ditutup. Akun dibuat oleh pemilik instance; minta undangan untuk
+              bergabung.
+            </p>
+          )}
         </form>
       </div>
-    </div>
+    </main>
   );
 }
