@@ -76,6 +76,8 @@ export const Route = createFileRoute("/_authenticated/notes/$noteId")({
 });
 
 const NONE = "none";
+/** Autosave debounce (Phase 4.3: 1.5–2 s, and only the collaboration leader saves blocks). */
+const SAVE_DEBOUNCE_MS = 1500;
 
 function NotePage() {
   const { noteId } = Route.useParams();
@@ -144,7 +146,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   function schedule() {
     setSaving("dirty");
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(flush, 700);
+    timer.current = setTimeout(flush, SAVE_DEBOUNCE_MS);
   }
   useEffect(
     () => () => {
@@ -156,14 +158,25 @@ function NoteEditor({ note }: { note: NoteDetail }) {
     [],
   );
 
-  const collaboration = useNoteCollaboration(note.id, blocks, (remote) => {
-    setBlocks(remote);
-    schedule();
-  });
+  // Block edits reach every peer through the shared Y.Doc, so only the autosave leader writes them
+  // to `notes.blocks` (one save per burst instead of one per peer). Title and properties are not
+  // in the doc, so a peer always saves its own changes to those.
+  const collaboration = useNoteCollaboration(
+    note.id,
+    blocks,
+    (remote) => {
+      setBlocks(remote);
+      if (collaboration.isLeader()) schedule();
+    },
+    (leader) => {
+      // Took over from a leader that left: save whatever it may not have written yet.
+      if (leader) schedule();
+    },
+  );
   const changeBlocks = (b: Block[]) => {
     setBlocks(b);
     collaboration.publishBlocks(b);
-    schedule();
+    if (collaboration.isLeader()) schedule();
   };
 
   // Backlinks: notes that link here by [[title]] or reference one of this note's blocks. Postgres
@@ -471,6 +484,8 @@ function NoteEditor({ note }: { note: NoteDetail }) {
         onRestore={(version) => {
           setTitle(version.title);
           setBlocks(version.blocks);
+          // Replace the shared doc's content too, so connected peers see the restored version.
+          collaboration.publishBlocks(version.blocks);
           latest.current = { title: version.title, blocks: version.blocks, props };
           void flush().then(() => {
             void qc.invalidateQueries({ queryKey: ["notes"] });
