@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
 import { APP_HOME, safeRedirect } from "@/lib/auth";
+import { publicPageHead } from "@/lib/landing";
 import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/login")({
@@ -13,15 +14,12 @@ export const Route = createFileRoute("/login")({
   validateSearch: (s: Record<string, unknown>): { redirect?: string | undefined } => ({
     redirect: safeRedirect(s["redirect"]),
   }),
-  head: () => ({
-    meta: [
-      { title: "Masuk — Second Brain" },
-      {
-        name: "description",
-        content: "Masuk ke Second Brain, asisten catatan dan tugas pribadi Anda.",
-      },
-    ],
-  }),
+  head: () =>
+    publicPageHead({
+      title: "Masuk — Second Brain",
+      description: "Masuk ke Second Brain, asisten catatan dan tugas pribadi Anda.",
+      path: "/login",
+    }),
   component: LoginPage,
 });
 

@@ -81,6 +81,13 @@ const messages = {
     landingOssTitle: "Open source (MIT)",
     landingOssBody: "Self-host di Vercel + Supabase. Kodenya terbuka di GitHub.",
     landingFooter: "Dibuat dengan TanStack Start, Supabase, dan Yjs.",
+    landingDemo: "Coba Demo",
+    landingSkip: "Langsung ke konten",
+    landingThemeLabel: "Ganti tema",
+    landingLanguageLabel: "Ganti bahasa ke English",
+    landingLicense: "Lisensi MIT",
+    landingSecurity: "Keamanan & privasi",
+    landingNewTab: "(tab baru)",
   },
   en: {
     today: "Today",
@@ -159,6 +166,13 @@ const messages = {
     landingOssTitle: "Open source (MIT)",
     landingOssBody: "Self-host on Vercel + Supabase. The code is open on GitHub.",
     landingFooter: "Built with TanStack Start, Supabase and Yjs.",
+    landingDemo: "Try the demo",
+    landingSkip: "Skip to content",
+    landingThemeLabel: "Change theme",
+    landingLanguageLabel: "Switch language to Bahasa Indonesia",
+    landingLicense: "MIT license",
+    landingSecurity: "Security & privacy",
+    landingNewTab: "(new tab)",
   },
 } as const;
 

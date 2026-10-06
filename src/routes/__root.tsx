@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
+import { AUTHOR, OG_IMAGE, SITE_NAME } from "@/lib/landing";
 import { PreferencesProvider } from "@/lib/preferences";
 
 import appCss from "../styles.css?url";
@@ -90,27 +91,44 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
+    // Defaults for every page. Public pages (`/`, `/login`) override title, description, robots,
+    // canonical and the Open Graph/Twitter tags via publicPageHead() in src/lib/landing.ts;
+    // `_authenticated` adds `noindex`. theme-color lives in RootShell: it needs two tags with the
+    // same name (light/dark media), and head() keeps only one meta per name.
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Second Brain" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { title: SITE_NAME },
       {
         name: "description",
         content: "Asisten catatan dan tugas pribadi: tangkap pikiran cepat, AI yang merapikan.",
       },
-      { name: "theme-color", content: "#1d6f6e" },
-      { property: "og:title", content: "Second Brain" },
-      { property: "og:description", content: "Asisten catatan dan tugas pribadi dengan AI." },
+      { name: "application-name", content: SITE_NAME },
+      { name: "apple-mobile-web-app-title", content: SITE_NAME },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "author", content: AUTHOR },
+      { name: "color-scheme", content: "light dark" },
+      { name: "format-detection", content: "telephone=no, date=no, email=no, address=no" },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "og:title", content: SITE_NAME },
+      { property: "og:description", content: "Asisten catatan dan tugas pribadi dengan AI." },
+      { property: "og:image", content: OG_IMAGE.url },
+      { property: "og:image:width", content: String(OG_IMAGE.width) },
+      { property: "og:image:height", content: String(OG_IMAGE.height) },
+      { property: "og:image:alt", content: OG_IMAGE.alt },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: OG_IMAGE.url },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", type: "image/png", href: "/favicon.png" },
-      { rel: "apple-touch-icon", href: "/icon-192.png" },
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
@@ -124,6 +142,9 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
+        {/* Browser UI colour = the --background token (src/styles.css) of each scheme. */}
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf7" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101418" />
         <HeadContent />
       </head>
       <body>
