@@ -43,6 +43,8 @@ import {
   googleCalendarStatus,
   startGoogleCalendarConnect,
 } from "@/lib/googleCalendar.functions";
+import { RouteError } from "@/components/common/RouteError";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -59,6 +61,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
     ],
   }),
   component: SettingsPage,
+  errorComponent: RouteError,
 });
 
 function SettingsPage() {
@@ -248,7 +251,7 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
       setLink(result);
       setNow(Date.now());
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal membuat kode tautan Telegram.");
+      toastError(error, "Gagal membuat kode tautan Telegram.");
     } finally {
       setBusy(false);
     }
@@ -368,7 +371,7 @@ function GoogleCalendarPanel() {
       await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
     } catch (error) {
       popup.close();
-      toast.error(error instanceof Error ? error.message : "Koneksi gagal");
+      toastError(error, "Koneksi gagal");
     } finally {
       setBusy(false);
     }
@@ -380,7 +383,7 @@ function GoogleCalendarPanel() {
       toast.success("Google Calendar diputus");
       await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal memutus koneksi");
+      toastError(error, "Gagal memutus koneksi");
     } finally {
       setBusy(false);
     }
@@ -426,7 +429,7 @@ function BackupPanel() {
     for (const table of BACKUP_TABLES) {
       const { data, error } = await supabase.from(table).select("*");
       if (error) {
-        toast.error(error.message);
+        toastError(error);
         return;
       }
       tables[table] = data ?? [];
@@ -507,7 +510,7 @@ function BackupPanel() {
         `Backup dipulihkan (${restored} baris${skipped ? `, ${skipped} milik orang lain dilewati` : ""}).`,
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Backup gagal dipulihkan");
+      toastError(error, "Backup gagal dipulihkan");
     }
   }
   return (

@@ -16,6 +16,8 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { withNoteIndex } from "@/lib/blocks";
 import { qk, useProjects } from "@/lib/data";
 import { preloadQueries, projectsQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
@@ -29,6 +31,7 @@ export const Route = createFileRoute("/_authenticated/inbox")({
   }),
   loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery),
   component: InboxPage,
+  errorComponent: RouteError,
 });
 
 type InboxItem = Tables<"inbox_items">;
@@ -121,7 +124,7 @@ function InboxPage() {
       toast.success(`Diproses menjadi ${taskRows.length} tugas & ${noteRows.length} catatan`);
       load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "AI gagal memproses");
+      toastError(err, "AI gagal memproses");
     } finally {
       setProcessingId(null);
     }
@@ -138,7 +141,7 @@ function InboxPage() {
       toast.success("Poin diperjelas oleh AI");
       load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Gagal memparafrase");
+      toastError(err, "Gagal memparafrase");
     } finally {
       setExpandingId(null);
     }

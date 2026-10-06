@@ -39,6 +39,7 @@ import { useAutomationActions, useAutomations, useProjects, type Automation } fr
 import type { Json } from "@/integrations/supabase/types";
 import { PageContainer } from "@/components/common/PageContainer";
 import { automationsQuery, preloadQueries, projectsQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/automations")({
   head: () => ({
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/_authenticated/automations")({
   }),
   loader: ({ context }) => preloadQueries(context.queryClient, automationsQuery, projectsQuery),
   component: AutomationsPage,
+  errorComponent: RouteError,
 });
 
 const ANY = "any";

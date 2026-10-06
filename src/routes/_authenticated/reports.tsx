@@ -13,6 +13,7 @@ import { color } from "@/lib/constants";
 import { useProjects, useTasks } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/reports")({
   head: () => ({
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/_authenticated/reports")({
   }),
   loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery, tasksQuery),
   component: ReportsPage,
+  errorComponent: RouteError,
 });
 
 const fmt = (sec: number) => {

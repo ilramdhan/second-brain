@@ -57,6 +57,8 @@ import {
 import { useNoteCollaboration } from "@/hooks/use-note-collaboration";
 import { PageContainer } from "@/components/common/PageContainer";
 import { noteBlocksQuery, noteQuery, preloadQueries, projectsQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_authenticated/notes/$noteId")({
   head: () => ({
@@ -73,6 +75,7 @@ export const Route = createFileRoute("/_authenticated/notes/$noteId")({
   loader: ({ context, params }) =>
     preloadQueries(context.queryClient, noteQuery(params.noteId), noteBlocksQuery, projectsQuery),
   component: NotePage,
+  errorComponent: RouteError,
 });
 
 const NONE = "none";
@@ -221,7 +224,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
       changeBlocks(loadBlocks({ blocks: [], content: out }));
       toast.success("Notulen dibuat dari poin-poin Anda");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal meringkas");
+      toastError(e, "Gagal meringkas");
     } finally {
       setBusy(false);
     }

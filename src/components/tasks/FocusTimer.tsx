@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getUid, type Task } from "@/lib/data";
+import { toastError } from "@/lib/errors";
 
 export function FocusTimer({ task }: { task: Task }) {
   const qc = useQueryClient();
@@ -41,7 +42,7 @@ export function FocusTimer({ task }: { task: Task }) {
       ended_at: new Date().toISOString(),
       duration_seconds: duration,
     });
-    if (error) toast.error(error.message);
+    if (error) toastError(error);
     else {
       toast.success("Sesi fokus tersimpan");
       void qc.invalidateQueries({ queryKey: ["time-entries"] });

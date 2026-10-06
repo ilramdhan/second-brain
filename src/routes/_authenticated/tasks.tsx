@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { useTasks } from "@/lib/data";
 import { PageContainer } from "@/components/common/PageContainer";
 import { depsQuery, meQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
   head: () => ({
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/tasks")({
   loader: ({ context }) =>
     preloadQueries(context.queryClient, tasksQuery, projectsQuery, depsQuery, meQuery),
   component: TasksPage,
+  errorComponent: RouteError,
 });
 
 function TasksPage() {

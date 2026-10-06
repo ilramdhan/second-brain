@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GripVertical, Link2, Plus, Trash2, Unlink } from "lucide-react";
-import { toast } from "sonner";
 
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -11,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { getUid } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { RouteError } from "@/components/common/RouteError";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_authenticated/canvas")({
   head: () => ({
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/canvas")({
     ],
   }),
   component: CanvasPage,
+  errorComponent: RouteError,
 });
 
 type Pos = { x: number; y: number };
@@ -104,7 +106,7 @@ function CanvasPage() {
       x: 40 + offset,
       y: 40 + offset,
     });
-    if (error) toast.error(error.message);
+    if (error) toastError(error);
     await qc.invalidateQueries({ queryKey: ["canvas-nodes"] });
   }
   async function updateNode(
@@ -116,7 +118,7 @@ function CanvasPage() {
       .update(patch)
       .eq("id", id)
       .eq("user_id", uid ?? "");
-    if (error) toast.error(error.message);
+    if (error) toastError(error);
     await qc.invalidateQueries({ queryKey: ["canvas-nodes"] });
   }
   async function connect() {
@@ -126,7 +128,7 @@ function CanvasPage() {
     const { error } = await supabase
       .from("canvas_edges")
       .insert({ board_id: board.id, user_id, source_id: sourceId, target_id: targetId });
-    if (error) toast.error(error.message);
+    if (error) toastError(error);
     setSelected([]);
     await qc.invalidateQueries({ queryKey: ["canvas-edges"] });
   }

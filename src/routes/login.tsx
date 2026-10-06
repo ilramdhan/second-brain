@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
 import { APP_HOME, safeRedirect } from "@/lib/auth";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/login")({
   // `redirect` is the page the auth guard bounced the visitor from; only same-origin paths.
@@ -49,7 +50,7 @@ function LoginPage() {
         setMode("login");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Gagal masuk");
+      toastError(err, "Gagal masuk");
     } finally {
       setLoading(false);
     }

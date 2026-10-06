@@ -52,6 +52,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
   head: () => ({
@@ -72,6 +73,7 @@ export const Route = createFileRoute("/_authenticated/calendar")({
   loader: ({ context }) =>
     preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery),
   component: CalendarPage,
+  errorComponent: RouteError,
 });
 
 type View = "day" | "week" | "month" | "year";
