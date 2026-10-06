@@ -103,7 +103,7 @@ for (const file of files) {
         return "";
       }
     });
-    if (hosts.includes("api.openai.com")) {
+    if (hosts.some((host) => host === "api.openai.com")) {
       err(`node "${node.name}": hard-coded api.openai.com (use SB_AI_BASE_URL)`);
     }
     if (node.credentials?.openAiApi || p.nodeCredentialType === "openAiApi") {
