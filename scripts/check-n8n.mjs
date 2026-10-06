@@ -96,7 +96,14 @@ for (const file of files) {
       .split("\n")
       .filter((line) => !line.trim().startsWith("//"))
       .join("\n");
-    if (`${p.url ?? ""}\n${code}`.includes("api.openai.com")) {
+    const hosts = [...`${p.url ?? ""}\n${code}`.matchAll(/https?:\/\/[^\s"'`)]+/g)].map((m) => {
+      try {
+        return new URL(m[0]).hostname;
+      } catch {
+        return "";
+      }
+    });
+    if (hosts.includes("api.openai.com")) {
       err(`node "${node.name}": hard-coded api.openai.com (use SB_AI_BASE_URL)`);
     }
     if (node.credentials?.openAiApi || p.nodeCredentialType === "openAiApi") {
