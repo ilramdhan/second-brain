@@ -63,7 +63,7 @@ function DialogFallback() {
 function AuthPending() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <Brain className="h-8 w-8 animate-pulse text-primary" />
+      <Brain className="h-8 w-8 text-primary motion-safe:animate-pulse" />
     </div>
   );
 }

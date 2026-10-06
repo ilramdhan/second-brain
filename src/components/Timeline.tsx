@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import {
   addDays,
   differenceInCalendarDays,
@@ -23,6 +23,7 @@ import {
   type Project,
   type Task,
 } from "@/lib/data";
+import { timelineKeyAction } from "@/lib/dnd-a11y";
 import { cn } from "@/lib/utils";
 
 const W = 36;
@@ -46,6 +47,8 @@ export function Timeline({
   const dragRef = useRef<Drag | null>(null);
   const { update } = useTaskActions();
   const { openTask } = useTaskDialog();
+  const hintId = useId();
+  const [status, setStatus] = useState("");
   const days = eachDayOfInterval({ start: from, end: addDays(from, DAYS - 1) });
 
   const dated = tasks.filter((t) => taskRange(t));
@@ -90,19 +93,52 @@ export function Timeline({
       if (d.mode === "move") openTask(t.id);
       return;
     }
+    apply(t, d.mode, d.delta);
+  }
+
+  /** Shifts the bar (`move`) or one of its edges by `delta` days; returns false if rejected. */
+  function apply(t: Task, mode: Drag["mode"], delta: number): boolean {
     const r = taskRange(t)!;
     const startIso = t.start_date ?? t.due_date;
     const dueIso = t.due_date ?? t.start_date;
-    if (d.mode === "move")
+    const span = differenceInCalendarDays(r.end, r.start);
+    if (mode === "move") {
       update(t.id, {
-        start_date: shiftIso(startIso, d.delta),
-        due_date: shiftIso(dueIso, d.delta),
+        start_date: shiftIso(startIso, delta),
+        due_date: shiftIso(dueIso, delta),
         reminded: false,
       });
-    if (d.mode === "end" && differenceInCalendarDays(r.end, r.start) + d.delta >= 0)
-      update(t.id, { start_date: startIso, due_date: shiftIso(dueIso, d.delta), reminded: false });
-    if (d.mode === "start" && differenceInCalendarDays(r.end, r.start) - d.delta >= 0)
-      update(t.id, { start_date: shiftIso(startIso, d.delta), due_date: dueIso });
+      return true;
+    }
+    if (mode === "end" && span + delta >= 0) {
+      update(t.id, { start_date: startIso, due_date: shiftIso(dueIso, delta), reminded: false });
+      return true;
+    }
+    if (mode === "start" && span - delta >= 0) {
+      update(t.id, { start_date: shiftIso(startIso, delta), due_date: dueIso });
+      return true;
+    }
+    return false;
+  }
+
+  /** ←/→ move the bar a day, Shift+←/→ change the due date, Enter/Space open the editor. */
+  function onBarKey(e: React.KeyboardEvent, t: Task) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openTask(t.id);
+      return;
+    }
+    const a = timelineKeyAction(e);
+    if (!a) return;
+    e.preventDefault();
+    const r = taskRange(t)!;
+    if (!apply(t, a.mode, a.delta)) {
+      setStatus("Tenggat tidak boleh sebelum tanggal mulai.");
+      return;
+    }
+    const start = a.mode === "move" ? addDays(r.start, a.delta) : r.start;
+    const end = addDays(r.end, a.delta);
+    setStatus(`${t.title}: ${rangeLabel(start, end)}.`);
   }
 
   function barGeom(t: Task) {
@@ -249,11 +285,16 @@ export function Timeline({
                   >
                     {geo.visible && (
                       <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${t.title}, ${rangeLabel(taskRange(t)!.start, taskRange(t)!.end)}`}
+                        aria-describedby={hintId}
+                        onKeyDown={(e) => onBarKey(e, t)}
                         onPointerDown={(e) => begin(e, t, "move")}
                         onPointerMove={moveDrag}
                         onPointerUp={() => end(t)}
                         className={cn(
-                          "group absolute top-1.5 bottom-1.5 flex cursor-grab touch-none select-none items-center rounded-md px-2 text-[11px] font-medium text-primary-foreground shadow-sm",
+                          "group absolute top-1.5 bottom-1.5 flex cursor-grab touch-none select-none items-center rounded-md px-2 text-[11px] font-medium text-primary-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                           tone,
                           t.status === "done" && "opacity-50",
                           drag?.id === t.id && "cursor-grabbing ring-2 ring-ring",
@@ -295,6 +336,14 @@ export function Timeline({
         </div>
       </div>
 
+      <p id={hintId} className="text-xs text-muted-foreground">
+        Panah kiri atau kanan memindahkan tugas satu hari. Shift dengan panah kiri atau kanan
+        mengubah tenggat. Enter membuka tugas.
+      </p>
+      <p role="status" aria-live="polite" className="sr-only">
+        {status}
+      </p>
+
       {undated.length > 0 && (
         <p className="text-xs text-muted-foreground">
           {undated.length} tugas belum punya tanggal sehingga tidak tampil di timeline.
@@ -330,3 +379,8 @@ function Row({
     </div>
   );
 }
+
+const rangeLabel = (start: Date, end: Date) =>
+  start.getTime() === end.getTime()
+    ? format(start, "d MMMM yyyy", { locale: localeId })
+    : `${format(start, "d MMMM", { locale: localeId })} sampai ${format(end, "d MMMM yyyy", { locale: localeId })}`;

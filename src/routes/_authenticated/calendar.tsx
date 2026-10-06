@@ -20,6 +20,7 @@ import { id as localeId } from "date-fns/locale";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   useDraggable,
@@ -50,6 +51,14 @@ import {
   type Task,
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import {
+  KEYBOARD_CODES,
+  dayLabel,
+  dayNavigator,
+  dndAnnouncements,
+  droppableKeyboardCoordinates,
+  screenReaderInstructions,
+} from "@/lib/dnd-a11y";
 import { PageContainer } from "@/components/common/PageContainer";
 import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
@@ -93,6 +102,28 @@ function CalendarPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
+    // Draggable ids are `move|resize:<taskId>:<yyyy-MM-dd>`, so the start day is the last part.
+    useSensor(KeyboardSensor, {
+      keyboardCodes: KEYBOARD_CODES,
+      coordinateGetter: droppableKeyboardCoordinates(
+        dayNavigator,
+        (id) => String(id).split(":").at(-1) ?? null,
+      ),
+    }),
+  );
+  const accessibility = useMemo(
+    () => ({
+      screenReaderInstructions,
+      announcements: dndAnnouncements({
+        itemName: (a) => {
+          const d = a.data.current as { task: Task; mode: "move" | "resize" } | undefined;
+          if (!d) return "Tugas";
+          return d.mode === "resize" ? `Tenggat "${d.task.title}"` : `Tugas "${d.task.title}"`;
+        },
+        targetName: (id) => dayLabel(String(id)),
+      }),
+    }),
+    [],
   );
 
   // Computed once per tasks change; pushes in place (was a copy of the day's array per task).
@@ -248,6 +279,7 @@ function CalendarPage() {
 
       <DndContext
         sensors={sensors}
+        accessibility={accessibility}
         onDragStart={(e) => setDragging((e.active.data.current as { task: Task }).task)}
         onDragEnd={onDragEnd}
         onDragCancel={() => setDragging(null)}
@@ -372,8 +404,10 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
+      role="group"
+      aria-label={dayLabel(k)}
       className={cn(
-        "group relative flex flex-col gap-1 border-b border-r p-1 transition-colors",
+        "group relative flex flex-col gap-1 border-b border-r p-1 motion-safe:transition-colors",
         minH,
         dim && "bg-secondary/30",
         isOver && "bg-accent",
@@ -394,7 +428,7 @@ function DayCell({
         </span>
         <button
           onClick={() => onAdd(day)}
-          className="rounded p-0.5 text-muted-foreground opacity-0 hover:bg-background group-hover:opacity-100"
+          className="rounded p-0.5 text-muted-foreground opacity-0 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
           aria-label="Tambah tugas di tanggal ini"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -441,6 +475,7 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
   } = useDraggable({
     id: `move:${task.id}:${day}`,
     data: { task, mode: "move", from: day },
+    attributes: { roleDescription: "tugas yang dapat dipindah" },
   });
   const {
     setNodeRef: setResizeNode,
@@ -449,6 +484,7 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
   } = useDraggable({
     id: `resize:${task.id}:${day}`,
     data: { task, mode: "resize", from: day },
+    attributes: { roleDescription: "pegangan ubah tenggat" },
   });
   const r = taskRange(task);
   const isEnd = r && dayKey(r.end) === day;
@@ -457,9 +493,18 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
       ref={setMoveNode}
       {...moveAttributes}
       {...moveListeners}
+      aria-label={task.title}
       onClick={() => openTask(task.id)}
+      onKeyDown={(e) => {
+        moveListeners?.["onKeyDown"]?.(e);
+        // Enter opens the editor (Space picks the chip up); ignored while dragging.
+        if (e.key === "Enter" && !isDragging && e.target === e.currentTarget) {
+          e.preventDefault();
+          openTask(task.id);
+        }
+      }}
       className={cn(
-        "relative flex cursor-grab touch-manipulation items-center truncate rounded-md py-0.5 pl-1.5 pr-3 text-[10px] font-medium leading-tight sm:text-[11px]",
+        "relative flex cursor-grab touch-manipulation items-center truncate rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring py-0.5 pl-1.5 pr-3 text-[10px] font-medium leading-tight sm:text-[11px]",
         className,
         task.status === "done" && "line-through opacity-60",
         isDragging && "opacity-30",
@@ -473,8 +518,8 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
           {...resizeAttributes}
           {...resizeListeners}
           onClick={(e) => e.stopPropagation()}
-          className="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize rounded-r-md hover:bg-foreground/15"
-          aria-label="Perpanjang tugas"
+          className="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize rounded-r-md hover:bg-foreground/15 focus-visible:bg-foreground/25 focus-visible:outline-none"
+          aria-label={`Ubah tenggat ${task.title}`}
         />
       )}
     </div>
@@ -561,7 +606,7 @@ function YearView({
                     onClick={() => onPick(d)}
                     disabled={!inMonth}
                     className={cn(
-                      "aspect-square rounded text-[10px] transition-colors",
+                      "aspect-square rounded text-[10px] motion-safe:transition-colors",
                       !inMonth && "invisible",
                       isToday(d) && "ring-1 ring-primary",
                       n === 0

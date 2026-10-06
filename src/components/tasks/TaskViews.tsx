@@ -29,7 +29,7 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
   const { data: allTasks = [] } = useTasks();
   const { data: projects = [] } = useProjects();
   const { data: me } = useMe();
-  const { newTask } = useTaskDialog();
+  const { newTask, openTask } = useTaskDialog();
   const { setStatus } = useTaskActions();
   const [view, setView] = useState("list");
   const [filter, setFilter] = useState<TaskFilter>(EMPTY_FILTER);
@@ -115,6 +115,8 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
           getColumn={(t) => t.status}
           onMove={(t, col) => setStatus(t, col)}
           onAdd={(col) => newTask({ status: col, project_id: projectId ?? null })}
+          onOpen={(t) => openTask(t.id)}
+          itemLabel={(t) => t.title}
           renderCard={(t) => <TaskCard {...rowProps(t, lookups)} />}
         />
       )}
