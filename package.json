@@ -27,6 +27,8 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@sentry/browser": "11.4.0",
+    "@sentry/core": "11.4.0",
     "@supabase/supabase-js": "^2.117.2",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.104.1",
@@ -48,6 +50,7 @@
     "tailwindcss": "^4.2.1",
     "tw-animate-css": "^1.3.4",
     "vite-tsconfig-paths": "^6.0.2",
+    "web-vitals": "6.2.2",
     "yjs": "^13.6.33",
     "zod": "^4.6.5"
   },

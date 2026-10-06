@@ -4,6 +4,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
+import { setMonitoringUser } from "@/lib/monitoring";
 
 /** Where signed-out visitors are sent. */
 export const LOGIN_PATH = "/login";
@@ -88,10 +89,13 @@ export function handleAuthEvent(
     // idle logout, token revocation, sign-out in another tab).
     seen.clear();
     queryClient.clear();
+    setMonitoringUser(null);
     return;
   }
   const userId = session?.user.id;
   if (!userId) return;
+  // Error reports carry the user id only (never e-mail or name).
+  setMonitoringUser(userId);
   if (event === "PASSWORD_RECOVERY" || event === "USER_UPDATED") {
     void logActivity(event.toLowerCase(), "auth", userId, {}, "auth");
   }

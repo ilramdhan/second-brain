@@ -55,6 +55,9 @@ function pwa(): PluginOption {
     devOptions: { enabled: false },
     workbox: {
       globPatterns: ["assets/**/*.{js,css,woff2}"],
+      // The optional Sentry chunk (src/lib/sentry-browser.ts) is only fetched when
+      // VITE_SENTRY_DSN is set; don't make every install download it.
+      globIgnores: ["assets/sentry-browser-*.js"],
       // Nitro copies public/ into the static dir only after the client build, so these are not
       // globbed; their revision is a content hash so an edit re-downloads them.
       additionalManifestEntries: PRECACHED_PUBLIC_FILES.map((file) => ({
@@ -115,6 +118,9 @@ function pwa(): PluginOption {
 
 export default defineConfig(({ command, mode }) => {
   const isDevBuild = command === "build" && mode === "development";
+  // Hidden client source maps (no `//# sourceMappingURL` comment) only when CI uploads them to
+  // Sentry; the deploy workflow deletes the .map files before deploying. Never public.
+  const hiddenSourceMaps = command === "build" && process.env["SENTRY_SOURCEMAPS"] === "1";
 
   // Inline VITE_* variables (from .env files and the process env) as import.meta.env.* constants.
   const viteEnv = loadEnv(mode, process.cwd(), "VITE_");
@@ -159,13 +165,14 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins,
     define: envDefine,
-    ...(isDevBuild
-      ? {
-          environments: {
-            client: { define: { "process.env.NODE_ENV": JSON.stringify("development") } },
-          },
-        }
-      : {}),
+    environments: {
+      client: {
+        ...(isDevBuild
+          ? { define: { "process.env.NODE_ENV": JSON.stringify("development") } }
+          : {}),
+        ...(hiddenSourceMaps ? { build: { sourcemap: "hidden" as const } } : {}),
+      },
+    },
     css: { transformer: "lightningcss" },
     resolve: {
       alias: { "@": srcDir },

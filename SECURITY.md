@@ -225,6 +225,27 @@ These routes have no user session and authenticate the caller themselves:
   Google to `oauth2.googleapis.com` / `www.googleapis.com` directly; these URLs are fixed, not
   user-supplied.
 
+### Error monitoring (Sentry, optional)
+
+- Off by default. Without `VITE_SENTRY_DSN` the browser loads no SDK and sends nothing; without
+  `SENTRY_DSN` the server sends nothing. Web vitals are only logged to `console.debug` in dev.
+- With a DSN, the browser SDK is a lazy chunk loaded after first paint (or on the first error) and
+  sends errors plus LCP/CLS/INP/FCP/TTFB values to the Sentry project; the server reports SSR,
+  request-middleware and n8n 500 errors through `@sentry/core` with a `fetch` transport
+  (`src/server/sentry.server.ts`). Performance tracing is off unless
+  `SENTRY_TRACES_SAMPLE_RATE` is set.
+- Privacy: events carry the error message/stack, route path, environment/release and the Supabase
+  **user id only** (no e-mail, name or IP). Request bodies, headers (incl. `Authorization`,
+  cookies, `x-api-key`), query strings, console and DOM-click breadcrumbs are never sent; keys
+  like `title`, `content`, `blocks`, `description`, `text` are redacted and e-mail addresses are
+  masked in messages (`scrubEvent` / `scrubBreadcrumb` in `src/lib/monitoring-config.ts`, unit
+  tested). Error messages written by the app should still avoid echoing note or task text.
+- Source maps are uploaded from CI only when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and
+  `SENTRY_PROJECT` are set; the build emits hidden maps and the deploy workflow deletes every
+  `.map` file before deploying, so they are never served publicly.
+- `VITE_SENTRY_DSN` is public by design (it only allows sending events). Configure allowed
+  domains and rate limits in the Sentry project to limit abuse.
+
 ## Known hardening items
 
 These are known weaknesses or missing defenses. They are tracked here so self-hosters can assess
@@ -296,14 +317,15 @@ The resource policy is **report-only** for now:
 ```
 default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';
 img-src 'self' data: blob: https:; font-src 'self' data:;
-connect-src 'self' https://*.supabase.co wss://*.supabase.co; media-src 'self' blob:;
+connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io
+  https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io; media-src 'self' blob:;
 worker-src 'self'; manifest-src 'self'; frame-src 'self'; frame-ancestors 'none';
 base-uri 'self'; object-src 'none'; form-action 'self'
 ```
 
 Why report-only: TanStack Start emits inline hydration scripts without a nonce (so
 `script-src` needs `'unsafe-inline'`), the browser talks to Supabase directly (a custom Supabase
-domain needs its own `connect-src` entry). AI, Telegram and Google calls run on the server, so
+domain needs its own `connect-src` entry, as does a self-hosted Sentry). AI, Telegram and Google calls run on the server, so
 the browser needs no AI provider or Google origins. To enforce: open the deployed app, use every feature (login, realtime notes,
 voice capture, Google Calendar connect, PWA install) with the console open, add any reported
 origin, then move the policy from `CSP_REPORT_ONLY` to `CSP_ENFORCED` in

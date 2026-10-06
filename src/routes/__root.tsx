@@ -18,6 +18,7 @@ import { PwaUpdatePrompt } from "@/components/common/PwaUpdatePrompt";
 import appCss from "../styles.css?url";
 import { describeError, reportError } from "../lib/error-reporting";
 import { isConfigError } from "../lib/errors";
+import { initMonitoring } from "../lib/monitoring";
 
 function NotFoundComponent() {
   return (
@@ -161,6 +162,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // Optional Sentry + web-vitals; a no-op without VITE_SENTRY_DSN (src/lib/monitoring.ts).
+  useEffect(() => {
+    initMonitoring();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <PreferencesProvider>

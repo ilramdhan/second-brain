@@ -12,6 +12,13 @@
 #   VERCEL_PROJECT_ID  - "projectId" from .vercel/project.json
 # App environment variables (VITE_*, SUPABASE_*, ...) are pulled from the
 # Vercel project settings by `vercel pull`; they are not stored in GitHub.
+#
+# Optional Sentry source maps (plan item 8.1). When all three secrets exist, the client build
+# emits *hidden* source maps (no sourceMappingURL comment), sentry-cli injects debug ids and
+# uploads them, and every .map file is deleted before `vercel deploy`, so maps are never public:
+#   SENTRY_AUTH_TOKEN  - Sentry → Settings → Auth Tokens (scope project:releases / org:ci)
+#   SENTRY_ORG         - organization slug
+#   SENTRY_PROJECT     - project slug
 name: Deploy (Vercel)
 
 on:
@@ -68,6 +75,9 @@ jobs:
       # vite.config.ts defaults to this preset; kept explicit so the CLI deploy never drifts.
       NITRO_PRESET: vercel
       TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -75,12 +85,32 @@ jobs:
       - name: Pull Vercel project settings and env
         run: bunx vercel@latest pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
 
+      - name: Enable Sentry source maps when configured
+        run: |
+          if [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SENTRY_ORG" ] && [ -n "$SENTRY_PROJECT" ]; then
+            echo "SENTRY_SOURCEMAPS=1" >> "$GITHUB_ENV"
+          else
+            echo "::notice::Sentry secrets are not configured; skipping source map upload."
+          fi
+
       - name: Build
         run: |
           if [ "$TARGET" = "production" ]; then
             bunx vercel@latest build --prod --token="$VERCEL_TOKEN"
           else
             bunx vercel@latest build --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Upload source maps to Sentry and remove them from the output
+        if: env.SENTRY_SOURCEMAPS == '1'
+        run: |
+          assets=.vercel/output/static/assets
+          bunx @sentry/cli@3.8.0 sourcemaps inject "$assets"
+          bunx @sentry/cli@3.8.0 sourcemaps upload --release="$GITHUB_SHA" "$assets"
+          find .vercel/output -name '*.map' -type f -delete
+          if find .vercel/output -name '*.map' -type f | grep -q .; then
+            echo "::error::source maps left in the deploy output"
+            exit 1
           fi
 
       - name: Deploy
