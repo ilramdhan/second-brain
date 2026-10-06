@@ -297,9 +297,9 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
 ├── drizzle.config.ts          # drizzle-kit config (DATABASE_URL)
 ├── drizzle/
 │   ├── schema.ts              # Intentionally blank (auto-generated placeholder)
-│   └── migrations/            # 0000–0012 SQL migrations + meta journal/snapshots
+│   └── migrations/            # 0000–0019 SQL migrations + meta journal/snapshots
 ├── supabase/config.toml       # Supabase project id
-├── supabase/tests/            # SQL regression checks (RLS, rate limits, n8n helpers)
+├── supabase/tests/            # SQL regression checks (RLS, rate limits, n8n helpers, demo limits)
 ├── integrations/n8n/          # n8n workflow templates (bot, schedules, backup, calendar, email)
 ├── public/
 │   ├── manifest.webmanifest   # PWA manifest
@@ -711,6 +711,13 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0010 | `member_ownership_guards`          | Immutable `user_id`, per-operation member policies, trash/delete limited to row or project owner                                                                                 |
 | 0011 | `rate_limits`                      | `rate_limits` table and `consume_rate_limit` (per-user fixed-window limiter for AI calls)                                                                                        |
 | 0012 | `n8n_integration`                  | `n8n_events` idempotency ledger, inbox sources `email`/`google_calendar`/`webhook`, service-role helpers `n8n_user_id_by_email` and `consume_rate_limit_for`                     |
+| 0013 | `single_audit_trigger`             | One audit trigger per table                                                                                                                                                      |
+| 0014 | `access_path_indexes`              | Indexes for the main list, RLS membership and dependency access paths                                                                                                            |
+| 0015 | `rls_auth_uid_initplan`            | RLS policies evaluate `(select auth.uid())` once per statement                                                                                                                   |
+| 0016 | `user_fks_and_checks`              | `auth.users` foreign keys (ON DELETE CASCADE), activity purge on account deletion, CHECK constraints for text enums                                                              |
+| 0017 | `task_rules_rpc`                   | `shift_task_dependents` and `complete_task` RPCs (dependent auto-shift, recurrence)                                                                                              |
+| 0018 | `note_links_refs_excerpt`          | `notes.links` / `refs` / `excerpt` (GIN-indexed, backfilled) and the `note_backlinks` RPC                                                                                        |
+| 0019 | `demo_limits`                      | Demo mode only (`app_config.demo_mode = 'on'`, off by default): per-user row limits, text-size caps, `demo_write` quota and demo account protection on `auth.users`              |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
@@ -788,7 +795,7 @@ See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalen
 
 - Vitest + jsdom + Testing Library (`vitest.config.ts`, setup in `src/test/setup.ts`). Test files match `src/**/*.{test,spec}.{ts,tsx}`.
 - Unit tests cover pure server helpers (cron/n8n auth, Telegram link codes and Bot API client, Google OAuth state/PKCE/token crypto, n8n zod schemas, digest/reminder builders, time zones, SSRF guard, rate limits, security headers, backup validation) plus a routing smoke test.
-- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
+- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers, demo limits). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
 
 ```bash
 bun run test
