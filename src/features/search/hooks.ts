@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 
 import { supabase } from "@/integrations/supabase/client";
 import { ilikePattern } from "@/lib/query-cache";
+import { getSemanticStatus, semanticSearchFn } from "@/lib/semantic.functions";
+import { flushSemanticSync } from "@/lib/semantic-sync";
 
 export type SearchHit = { id: string; title: string };
 export type SearchResults = { tasks: SearchHit[]; projects: SearchHit[]; notes: SearchHit[] };
@@ -50,6 +53,44 @@ export function useSearch(term: string, enabled = true) {
         projects: (pr.data ?? []).map((p) => ({ id: p.id, title: p.name })),
         notes: nr.data ?? [],
       };
+    },
+  });
+}
+
+export type { SemanticHit } from "@/lib/semantic";
+
+/**
+ * Whether semantic search is available (AI provider configured, or the demo's hashed
+ * embeddings). Cached for the session; on any error the palette stays in keyword mode.
+ */
+export function useSemanticStatus(enabled = true) {
+  const status = useServerFn(getSemanticStatus);
+  return useQuery({
+    queryKey: ["search", "semantic-status"],
+    enabled,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: () => status(),
+  });
+}
+
+/**
+ * Semantic (embedding) search over tasks and notes the user can read. Before searching it
+ * flushes the debounced index sync so the latest edits are embedded. Disabled for terms shorter
+ * than two characters.
+ */
+export function useSemanticSearch(term: string, enabled = true) {
+  const t = term.trim();
+  const search = useServerFn(semanticSearchFn);
+  return useQuery({
+    queryKey: ["search", "semantic", t],
+    enabled: enabled && t.length >= 2,
+    staleTime: 30_000,
+    retry: false,
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      await flushSemanticSync();
+      return search({ data: { query: t, limit: 20 } });
     },
   });
 }

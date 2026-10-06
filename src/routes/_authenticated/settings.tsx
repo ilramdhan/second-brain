@@ -21,6 +21,7 @@ import {
   Loader2,
   Copy,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,6 +33,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePreferences, type Locale, type Theme } from "@/lib/preferences";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTelegramLinkCode } from "@/lib/telegram.functions";
+import { syncSemanticIndexFn } from "@/lib/semantic.functions";
+import { useSemanticStatus } from "@/lib/data";
+import { useServerFn } from "@tanstack/react-start";
 import {
   BACKUP_TABLES,
   BackupError,
@@ -234,6 +238,8 @@ function SettingsPage() {
       <GoogleCalendarPanel />
 
       <BackupPanel />
+
+      <SemanticIndexPanel />
 
       <AboutPanel />
     </PageContainer>
@@ -567,6 +573,61 @@ function BackupPanel() {
           </Button>
         )}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Settings → semantic search: status and an "Indeks ulang" button that drains the embedding
+ * queue (missing or outdated rows) in a loop of server calls, 5 batches (250 rows) each.
+ */
+function SemanticIndexPanel() {
+  const { t } = usePreferences();
+  const { data: status, isLoading } = useSemanticStatus();
+  const sync = useServerFn(syncSemanticIndexFn);
+  const [running, setRunning] = useState(false);
+  const [indexed, setIndexed] = useState<number | null>(null);
+
+  async function reindex() {
+    setRunning(true);
+    setIndexed(0);
+    let total = 0;
+    try {
+      // At most 20 rounds (5000 rows) per click; click again for more.
+      for (let round = 0; round < 20; round++) {
+        const result = await sync({ data: { batches: 5 } });
+        total += result.embedded;
+        setIndexed(total);
+        if (result.remaining === 0) break;
+      }
+      toast.success(`${t("semanticIndexDone")}: ${total} ${t("semanticIndexCount")}`);
+    } catch (error) {
+      toastError(error);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <section className="mt-4 rounded-md border bg-card p-5" aria-labelledby="semantic-index-title">
+      <h2 id="semantic-index-title" className="mb-1 flex items-center gap-2 font-semibold">
+        <Sparkles className="h-4 w-4 text-primary" aria-hidden /> {t("semanticIndexTitle")}
+      </h2>
+      <p className="mb-4 text-sm text-muted-foreground">{t("semanticIndexBody")}</p>
+      {!isLoading && !status?.available ? (
+        <p className="text-sm text-muted-foreground">{t("semanticIndexUnavailable")}</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={reindex} disabled={running || isLoading}>
+            {running ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles aria-hidden />}
+            {running ? t("semanticIndexRunning") : t("semanticIndexButton")}
+          </Button>
+          <span className="text-xs text-muted-foreground" aria-live="polite">
+            {indexed !== null ? `${indexed} ${t("semanticIndexCount")}` : ""}
+            {status?.demo ? ` ${t("semanticIndexDemo")}` : ""}
+          </span>
+        </div>
+      )}
     </section>
   );
 }
