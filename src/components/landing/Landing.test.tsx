@@ -92,14 +92,14 @@ describe("Landing", () => {
   });
 
   it("shows the demo button when VITE_DEMO_URL is set", () => {
-    vi.stubEnv("VITE_DEMO_URL", "https://2ndbrain-demo.ilramdhan.dev");
+    vi.stubEnv("VITE_DEMO_URL", "https://demo-2ndbrain.ilramdhan.dev");
     renderLanding();
 
     // Header (desktop) and hero both link to the demo, in a new tab.
     const links = screen.getAllByRole("link", { name: /Coba Demo/ });
     expect(links.length).toBeGreaterThanOrEqual(2);
     for (const link of links) {
-      expect(link).toHaveAttribute("href", "https://2ndbrain-demo.ilramdhan.dev/");
+      expect(link).toHaveAttribute("href", "https://demo-2ndbrain.ilramdhan.dev/");
       expect(link).toHaveAttribute("target", "_blank");
     }
   });
