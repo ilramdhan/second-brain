@@ -1,14 +1,24 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Public pages: the landing page and sign-in. Everything else is the signed-in app.
 User-agent: *
 Allow: /
+Allow: /login
+Disallow: /today
+Disallow: /inbox
+Disallow: /tasks
+Disallow: /calendar
+Disallow: /timeline
+Disallow: /projects
+Disallow: /notes
+Disallow: /graph
+Disallow: /canvas
+Disallow: /automations
+Disallow: /reports
+Disallow: /templates
+Disallow: /archive
+Disallow: /activity
+Disallow: /settings
+Disallow: /oauth/
+Disallow: /api/
+Disallow: /_server
+
+Sitemap: https://2ndbrain.ilramdhan.dev/sitemap.xml

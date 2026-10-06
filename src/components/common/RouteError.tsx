@@ -49,7 +49,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
             {t("retry")}
           </Button>
           <Button variant="outline" asChild>
-            <Link to="/" onClick={() => reset()}>
+            <Link to="/today" onClick={() => reset()}>
               <Sun className="mr-1 h-4 w-4" />
               {t("backToToday")}
             </Link>

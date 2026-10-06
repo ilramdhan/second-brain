@@ -2,7 +2,7 @@
   "name": "Second Brain",
   "short_name": "Second Brain",
   "description": "Asisten catatan dan tugas pribadi: tangkap pikiran cepat, AI yang merapikan.",
-  "start_url": "/",
+  "start_url": "/today",
   "display": "standalone",
   "background_color": "#faf9f7",
   "theme_color": "#1d6f6e",

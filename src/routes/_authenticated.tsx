@@ -82,7 +82,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const NAV = [
-  { to: "/", key: "today", icon: Sun },
+  { to: "/today", key: "today", icon: Sun },
   { to: "/inbox", key: "inbox", icon: Inbox },
   { to: "/tasks", key: "tasks", icon: CheckSquare },
   { to: "/calendar", key: "calendar", icon: CalendarDays },
@@ -98,7 +98,7 @@ const NAV = [
   { to: "/activity", key: "activity", icon: Activity },
   { to: "/settings", key: "settings", icon: Settings },
 ] as const;
-const MOBILE = ["/", "/tasks", "/calendar", "/projects"];
+const MOBILE = ["/today", "/tasks", "/calendar", "/projects"];
 
 function AuthenticatedLayout() {
   const navigate = useNavigate();
@@ -156,7 +156,7 @@ function Shell() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
+  const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
   useEffect(() => setMore(false), [pathname]);
 

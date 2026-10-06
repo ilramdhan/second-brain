@@ -10,7 +10,7 @@ vi.mock("@tanstack/react-router", () => ({
     state: { matches: [{ routeId: "__root__" }, { routeId: "/_authenticated/tasks" }] },
   }),
   Link: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <a href="/" onClick={onClick}>
+    <a href="/today" onClick={onClick}>
       {children}
     </a>
   ),
