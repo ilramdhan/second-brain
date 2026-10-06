@@ -238,7 +238,7 @@ External: AI provider (OpenAI-compatible) · Telegram Bot API · Google OAuth + 
 
 ### Data flow
 
-- **Reads and writes from the client** go through hooks in `src/lib/data.ts` (`useTasks`, `useProjects`, `useNotes`, `useMilestones`, `useDeps`, `useAutomations`, plus `use*Actions`). They share TanStack Query keys (`tasks`, `projects`, `notes`, `milestones`, `deps`, `automations`), so list, kanban, calendar and timeline update together. Updates are optimistic (`setQueryData`) and then invalidated.
+- **Reads and writes from the client** go through hooks in `src/features/<entity>/` (re-exported by `src/lib/data.ts`) (`useTasks`, `useProjects`, `useNotes`, `useMilestones`, `useDeps`, `useAutomations`, plus `use*Actions`). They share TanStack Query keys (`tasks`, `projects`, `notes`, `milestones`, `deps`, `automations`), so list, kanban, calendar and timeline update together. Updates are optimistic (`setQueryData`) and then invalidated.
 - **Task mutations** all go through `useTaskActions()`. It handles blocked checks, auto-shifting dependents, recurring tasks, unblock notifications, and triggering `runAutomations` after create and update.
 - **List hooks exclude** soft-deleted (`deleted_at`) and archived (`archived_at`) rows. `/archive` queries them directly.
 - **Long lists** paginate on the client with `usePaged` / `LoadMore`.

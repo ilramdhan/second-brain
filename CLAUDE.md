@@ -26,7 +26,7 @@ Before finishing a change, run `bun run lint` and `bun run test`, and run `bun r
 
 ## Key conventions (see AGENTS.md)
 
-- **Data access**: client reads and writes go through hooks in `src/lib/data.ts` (query keys `tasks/projects/notes/milestones/deps/automations`). Don't add ad-hoc `useQuery` calls for these entities. Reuse the hooks so all views stay in sync.
+- **Data access**: client reads and writes go through hooks in `src/features/<entity>/{api,hooks,types}.ts` (queryOptions in `api.ts`, hooks in `hooks.ts`, shared `qk`/`useCrud`/`preloadQueries` in `src/features/shared`), all re-exported by the barrel `src/lib/data.ts` so `@/lib/data` imports keep working (query keys `tasks/projects/notes/milestones/deps/automations`). Don't add ad-hoc `useQuery` calls for these entities. Reuse the hooks so all views stay in sync.
 - **Tasks**: create and edit only through the global `TaskDialogProvider` (`useTaskDialog().newTask/openTask`). All task mutations go through `useTaskActions()`. That hook handles blocked checks, dependent auto-shift, recurrence, unblock notifications and the `runAutomations` trigger.
 - **Dependencies**: `task_dependencies`. Cycle rejection is in `useDependencyActions`.
 - **Automations**: run server-side in `runAutomations` (`src/lib/automations.functions.ts`). Actions write directly to the database and must never re-trigger rules. Secrets (webhooks, Telegram) stay on the server.
@@ -52,7 +52,8 @@ src/routes/_authenticated/*      pages: index(Today) inbox tasks calendar timeli
 src/routes/api/public/*          public HTTP endpoints: telegram/webhook (app mode), hooks/reminders (cron
                                  fallback), n8n/* (x-api-key)
 src/routes/oauth/google-calendar/return.tsx   OAuth popup return
-src/lib/data.ts                  query hooks + mutations (central)
+src/features/<entity>/          data layer: api.ts (columns, queryOptions), hooks.ts (queries + mutations), types.ts
+src/lib/data.ts                  re-export barrel of src/features (keeps `@/lib/data` imports working)
 src/lib/*.functions.ts           createServerFn (ai, automations, googleCalendar)
 src/lib/*.server.ts, src/server/ server-only helpers (AI provider, Telegram Bot API, Google OAuth, token
                                  crypto, automation engine, n8n/ services)
@@ -93,7 +94,7 @@ public/                          manifest.webmanifest, sw.js, icons
 2. For new tables: `ENABLE ROW LEVEL SECURITY`, add policies (owner `auth.uid() = user_id`, plus `is_project_member(project_id, auth.uid())` for project-scoped data), `GRANT ... TO authenticated` and `GRANT ALL ... TO service_role`, and an `audit_row_change` trigger if the table should appear in the activity log.
 3. Add an entry to `drizzle/migrations/meta/_journal.json`.
 4. Update `src/integrations/supabase/types.ts` (regenerate with `supabase gen types`).
-5. If the entity is listed in the UI, add a hook and query key in `src/lib/data.ts`. Exclude `deleted_at` and `archived_at` rows if the table soft-deletes.
+5. If the entity is listed in the UI, add a query key in `src/features/shared/query-keys.ts`, queryOptions/hooks in `src/features/<entity>/`, and re-export them from `src/lib/data.ts`. Exclude `deleted_at` and `archived_at` rows if the table soft-deletes.
 
 ## How to add a route
 
