@@ -7,8 +7,8 @@ import { logActivity } from "@/lib/activity";
 
 /** Where signed-out visitors are sent. */
 export const LOGIN_PATH = "/login";
-/** Where a sign-in lands when no (safe) `redirect` was requested. Phase 8.6 moves this to /today. */
-export const APP_HOME = "/";
+/** Where a sign-in lands when no (safe) `redirect` was requested. `/` is the public landing page. */
+export const APP_HOME = "/today";
 
 /**
  * Only same-origin, absolute paths are honoured as post-login targets (no `//evil.com`,
@@ -37,6 +37,20 @@ export async function requireSession(queryClient: QueryClient, href: string): Pr
     });
   }
   return data.session;
+}
+
+/**
+ * True when a Supabase session is stored in this browser. Used by the public landing page to
+ * send signed-in visitors straight to the app; any failure (missing env, storage blocked)
+ * counts as signed out so the landing page still renders.
+ */
+export async function hasStoredSession(): Promise<boolean> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return Boolean(data.session);
+  } catch {
+    return false;
+  }
 }
 
 let listening = false;

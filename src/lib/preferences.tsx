@@ -53,6 +53,34 @@ const messages = {
     routeErrorBody: "Terjadi kesalahan di halaman ini. Menu lain tetap bisa dipakai.",
     retry: "Coba lagi",
     backToToday: "Kembali ke Hari Ini",
+    landingEyebrow: "Open source · PWA · MIT",
+    landingTitle: "Otak kedua untuk tugas dan catatan Anda",
+    landingSubtitle:
+      "Tangkap ide secepat terlintas, biarkan AI merapikannya, lalu kelola tugas, catatan berblok, dan proyek tim di satu tempat.",
+    landingSignIn: "Masuk",
+    landingGithub: "Lihat di GitHub",
+    landingFeatures: "Fitur",
+    landingInboxTitle: "Inbox & AI capture",
+    landingInboxBody:
+      "Ketik, rekam suara, atau foto. AI mengubahnya jadi tugas atau catatan yang rapi.",
+    landingTasksTitle: "Tugas di empat tampilan",
+    landingTasksBody:
+      "List, kanban, kalender, dan timeline dengan dependensi, pengulangan, dan quick add bahasa alami.",
+    landingNotesTitle: "Catatan berblok + graph",
+    landingNotesBody: "Tautan [[catatan]], referensi ((blok)), query, dan peta pengetahuan.",
+    landingCollabTitle: "Kolaborasi real-time",
+    landingCollabBody: "Edit catatan bersama tim secara langsung, dengan akses per proyek.",
+    landingAutomationsTitle: "Automations",
+    landingAutomationsBody:
+      "Saat status atau prioritas berubah, jalankan aksi: pindahkan, tandai, atau kirim webhook.",
+    landingIntegrationsTitle: "Telegram & Google Calendar",
+    landingIntegrationsBody:
+      "Tambah tugas dari chat, terima pengingat, dan sinkronkan tenggat ke kalender.",
+    landingPwaTitle: "PWA & offline",
+    landingPwaBody: "Pasang di layar utama, terasa seperti aplikasi native.",
+    landingOssTitle: "Open source (MIT)",
+    landingOssBody: "Self-host di Vercel + Supabase. Kodenya terbuka di GitHub.",
+    landingFooter: "Dibuat dengan TanStack Start, Supabase, dan Yjs.",
   },
   en: {
     today: "Today",
@@ -103,6 +131,34 @@ const messages = {
     routeErrorBody: "Something went wrong on this page. The rest of the app still works.",
     retry: "Try again",
     backToToday: "Back to Today",
+    landingEyebrow: "Open source · PWA · MIT",
+    landingTitle: "A second brain for your tasks and notes",
+    landingSubtitle:
+      "Capture ideas the moment they appear, let AI tidy them up, then manage tasks, block-based notes and team projects in one place.",
+    landingSignIn: "Sign in",
+    landingGithub: "View on GitHub",
+    landingFeatures: "Features",
+    landingInboxTitle: "Inbox & AI capture",
+    landingInboxBody:
+      "Type, record a voice note or snap a photo. AI turns it into a clean task or note.",
+    landingTasksTitle: "Tasks in four views",
+    landingTasksBody:
+      "List, kanban, calendar and timeline with dependencies, recurrence and natural-language quick add.",
+    landingNotesTitle: "Block notes + graph",
+    landingNotesBody: "[[Note]] links, ((block)) references, queries and a knowledge graph.",
+    landingCollabTitle: "Real-time collaboration",
+    landingCollabBody: "Edit notes live with your team, with per-project access.",
+    landingAutomationsTitle: "Automations",
+    landingAutomationsBody:
+      "When a status or priority changes, run an action: move it, flag it or send a webhook.",
+    landingIntegrationsTitle: "Telegram & Google Calendar",
+    landingIntegrationsBody:
+      "Add tasks from chat, get reminders and sync due dates to your calendar.",
+    landingPwaTitle: "PWA & offline",
+    landingPwaBody: "Install it on your home screen; it feels like a native app.",
+    landingOssTitle: "Open source (MIT)",
+    landingOssBody: "Self-host on Vercel + Supabase. The code is open on GitHub.",
+    landingFooter: "Built with TanStack Start, Supabase and Yjs.",
   },
 } as const;
 

@@ -1,5 +1,7 @@
-const CACHE = "second-brain-shell-v2";
-const SHELL = ["/", "/manifest.webmanifest", "/favicon.png", "/icon-192.png"];
+const CACHE = "second-brain-shell-v3";
+// The app shell (/today, client-rendered) is the offline fallback for navigations; `/` is the
+// public landing page.
+const SHELL = ["/today", "/manifest.webmanifest", "/favicon.png", "/icon-192.png"];
 self.addEventListener("install", (event) =>
   event.waitUntil(
     caches
@@ -28,7 +30,7 @@ self.addEventListener("fetch", (event) => {
   )
     return;
   if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => caches.match("/")));
+    event.respondWith(fetch(event.request).catch(() => caches.match("/today")));
     return;
   }
   if (!["image", "font", "manifest"].includes(event.request.destination)) return;

@@ -46,7 +46,11 @@ Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgre
 
 ## Features
 
-### Today dashboard (`/`)
+### Landing page (`/`)
+
+A public, server-rendered bento-grid page that introduces the app (hero, sign-in and GitHub links, feature cards with lightweight HTML/SVG mockups). Signed-in visitors are forwarded to `/today`.
+
+### Today dashboard (`/today`)
 
 A daily agenda that shows overdue tasks, tasks due today and this week, upcoming milestones and pending inbox items.
 
@@ -303,9 +307,10 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     ├── styles.css             # Tailwind 4 theme tokens
     ├── routes/
     │   ├── __root.tsx         # HTML shell, meta, manifest, SW registration, providers
+    │   ├── index.tsx          # Public landing page (SSR bento grid; signed-in visitors → /today)
     │   ├── login.tsx          # Email/password sign-in & sign-up
     │   ├── _authenticated.tsx # Auth guard + app shell (sidebar, mobile nav, command menu, quick capture, idle logout)
-    │   ├── _authenticated/    # index (Today), inbox, tasks, calendar, timeline, projects.*, notes.*,
+    │   ├── _authenticated/    # today, inbox, tasks, calendar, timeline, projects.*, notes.*,
     │   │                      # graph, canvas, automations, reports, templates, archive, activity, settings
     │   ├── oauth/google-calendar/return.tsx   # OAuth popup return → postMessage to opener
     │   └── api/public/
