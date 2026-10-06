@@ -239,8 +239,8 @@ export async function safeWebhookPost(
   } catch (error) {
     const name = (error as { name?: string }).name;
     if (name === "TimeoutError" || name === "AbortError")
-      throw new Error("Webhook timeout (5 detik)");
-    throw new Error("Webhook tidak dapat dihubungi");
+      throw new Error("Webhook timeout (5 detik)", { cause: error });
+    throw new Error("Webhook tidak dapat dihubungi", { cause: error });
   }
   await drain(res);
   // `redirect: "manual"` yields 3xx (Node) or an opaque-redirect with status 0 (browsers).

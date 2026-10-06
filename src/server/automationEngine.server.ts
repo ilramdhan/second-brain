@@ -60,7 +60,7 @@ function fill(tpl: string, task: T, projectName: string) {
  * ids (user_id, assignee_id), descriptions and other fields third parties do not need.
  */
 function webhookTask(task: T, origin: string | null) {
-  let url: string | null = null;
+  let url: string | null;
   try {
     url = origin
       ? new URL(task.project_id ? `/projects/${task.project_id}` : "/tasks", origin).toString()

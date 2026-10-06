@@ -61,6 +61,7 @@ function InboxPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch; state is set after the Supabase request resolves.
     load();
   }, [load]);
 

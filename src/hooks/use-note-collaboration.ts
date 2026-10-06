@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
 import * as Y from "yjs";
 import { supabase } from "@/integrations/supabase/client";
 import type { Block } from "@/lib/blocks";
@@ -59,7 +59,8 @@ function isBehind(doc: Y.Doc, remote: Uint8Array): boolean {
 export function useNoteCollaboration(
   noteId: string,
   initialBlocks: Block[],
-  onRemoteBlocks: (blocks: Block[]) => void,
+  /** `isLeader` is this tab's leadership at delivery time (whether it should autosave). */
+  onRemoteBlocks: (blocks: Block[], isLeader: boolean) => void,
   onLeaderChange?: (leader: boolean) => void,
 ) {
   const docRef = useRef<Y.Doc | null>(null);
@@ -75,9 +76,15 @@ export function useNoteCollaboration(
   const shownRef = useRef<Block[]>(initialBlocks);
   const initialRef = useRef(initialBlocks);
   const remoteCb = useRef(onRemoteBlocks);
-  remoteCb.current = onRemoteBlocks;
+  // Synced after commit (not during render) so stable callbacks read the latest values.
+  useLayoutEffect(() => {
+    remoteCb.current = onRemoteBlocks;
+  });
   const leaderCb = useRef(onLeaderChange);
-  leaderCb.current = onLeaderChange;
+  // Synced after commit (not during render) so stable callbacks read the latest values.
+  useLayoutEffect(() => {
+    leaderCb.current = onLeaderChange;
+  });
 
   useEffect(() => {
     const doc = new Y.Doc();
@@ -108,7 +115,7 @@ export function useNoteCollaboration(
       const next = reuseUnchanged(prev, docToBlocks(doc));
       if (next.length === prev.length && next.every((b, i) => b === prev[i])) return;
       shownRef.current = next;
-      remoteCb.current(next);
+      remoteCb.current(next, leaderRef.current);
     };
 
     // Ready: the doc holds the shared state. Local edits made while joining are diffed onto it.

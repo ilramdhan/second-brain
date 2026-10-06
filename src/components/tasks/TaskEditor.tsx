@@ -347,7 +347,7 @@ export default function TaskEditor({
         )}
         {task && <Dependencies task={task} onOpen={onOpen} />}
         {task && <Subtasks parent={task} onOpen={onOpen} />}
-        {task && <Comments taskId={task.id} />}
+        {task && <Comments key={task.id} taskId={task.id} />}
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2 border-t pt-4">
@@ -402,11 +402,14 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
   const candidates = tasks.filter((t) => !linked.has(t.id) && !t.parent_id && t.status !== "done");
   const open = openBlockers(task.id, deps, tasks);
 
-  const Row = ({ id, depId }: { id: string; depId: string }) => {
+  const row = (id: string, depId: string) => {
     const t = tasks.find((x) => x.id === id);
     if (!t) return null;
     return (
-      <li className="group flex items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-accent/50">
+      <li
+        key={depId}
+        className="group flex items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-accent/50"
+      >
         <span
           className={cn(
             "h-2 w-2 shrink-0 rounded-full",
@@ -432,7 +435,7 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
       </li>
     );
   };
-  const Picker = ({ onPick, label }: { onPick: (id: string) => void; label: string }) => (
+  const picker = (label: string, onPick: (id: string) => void) => (
     <Select value="" onValueChange={onPick}>
       <SelectTrigger className="h-8 text-xs">
         <SelectValue placeholder={label} />
@@ -463,21 +466,13 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Diblokir oleh (harus selesai dulu)</p>
-          <ul>
-            {blockedBy.map((d) => (
-              <Row key={d.id} id={d.blocker_id} depId={d.id} />
-            ))}
-          </ul>
-          <Picker label="+ Tambah pemblokir" onPick={(id) => add(id, task.id)} />
+          <ul>{blockedBy.map((d) => row(d.blocker_id, d.id))}</ul>
+          {picker("+ Tambah pemblokir", (id) => add(id, task.id))}
         </div>
         <div className="space-y-1">
           <p className="text-[11px] text-muted-foreground">Memblokir (menunggu tugas ini)</p>
-          <ul>
-            {blocking.map((d) => (
-              <Row key={d.id} id={d.blocked_id} depId={d.id} />
-            ))}
-          </ul>
-          <Picker label="+ Tambah yang menunggu" onPick={(id) => add(task.id, id)} />
+          <ul>{blocking.map((d) => row(d.blocked_id, d.id))}</ul>
+          {picker("+ Tambah yang menunggu", (id) => add(task.id, id))}
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground">
@@ -585,7 +580,6 @@ function Comments({ taskId }: { taskId: string }) {
       return data;
     },
   });
-  useEffect(() => setDraft(""), [taskId]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();

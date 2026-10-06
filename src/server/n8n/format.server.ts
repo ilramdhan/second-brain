@@ -83,7 +83,7 @@ export function buildDigest(
   tz: string,
 ): { text: string; reply_markup: ReplyMarkup } | null {
   const parts: string[] = [];
-  let buttons: DigestTask[] = [];
+  let buttons: DigestTask[];
   if (kind === "morning") {
     if (!data.today.length && !data.overdue.length && !data.inboxPending) return null;
     parts.push("☀️ <b>Selamat pagi!</b> Ini rencana hari ini.");

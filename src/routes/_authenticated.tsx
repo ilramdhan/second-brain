@@ -158,7 +158,12 @@ function Shell() {
   }, []);
   const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
-  useEffect(() => setMore(false), [pathname]);
+  // Close the mobile menu on navigation (state adjusted during render, not in an effect).
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (menuPath !== pathname) {
+    setMenuPath(pathname);
+    setMore(false);
+  }
 
   async function signOut() {
     await logActivity("signed_out", "auth", undefined, {}, "auth");
@@ -175,7 +180,7 @@ function Shell() {
   }, [navigate, queryClient]);
   useIdleLogout(onIdle);
 
-  const NavLinks = () => (
+  const navLinks = (
     <>
       {NAV.map(({ to, key, icon: Icon }) => (
         <Link
@@ -225,9 +230,7 @@ function Shell() {
             <kbd className="ml-auto rounded border px-1.5 text-[10px]">Ctrl K</kbd>
           </button>
         </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
-          <NavLinks />
-        </nav>
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">{navLinks}</nav>
         <div className="border-t p-3">
           <button
             onClick={signOut}
@@ -302,9 +305,7 @@ function Shell() {
           <SheetHeader>
             <SheetTitle>{t("menu")}</SheetTitle>
           </SheetHeader>
-          <nav className="grid gap-0.5 py-2">
-            <NavLinks />
-          </nav>
+          <nav className="grid gap-0.5 py-2">{navLinks}</nav>
           <Button
             variant="ghost"
             onClick={signOut}

@@ -26,6 +26,7 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the draft from localStorage after mount (not available during SSR).
     setText(localStorage.getItem("second-brain-capture-draft") ?? "");
   }, []);
   useEffect(() => {

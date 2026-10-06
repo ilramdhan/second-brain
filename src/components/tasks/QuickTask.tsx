@@ -50,26 +50,6 @@ export function QuickTask({
     }
   }
 
-  const Chip = ({
-    icon: Icon,
-    children,
-    className,
-  }: {
-    icon: typeof Hash;
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground",
-        className,
-      )}
-    >
-      <Icon className="h-3 w-3" />
-      {children}
-    </span>
-  );
-
   return (
     <form onSubmit={submit} className="space-y-3">
       <div className="flex gap-2">
@@ -124,5 +104,27 @@ export function QuickTask({
         <kbd className="rounded border px-1">Q</kbd> di mana saja untuk membuka.
       </p>
     </form>
+  );
+}
+
+function Chip({
+  icon: Icon,
+  children,
+  className,
+}: {
+  icon: typeof Hash;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground",
+        className,
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {children}
+    </span>
   );
 }

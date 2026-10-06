@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -125,7 +125,10 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   const qc = useQueryClient();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef({ title, blocks, props });
-  latest.current = { title, blocks, props };
+  // Synced after commit (not during render) so stable callbacks read the latest values.
+  useLayoutEffect(() => {
+    latest.current = { title, blocks, props };
+  });
 
   async function flush() {
     const { title: t, blocks: b, props: p } = latest.current;
@@ -167,9 +170,9 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   const collaboration = useNoteCollaboration(
     note.id,
     blocks,
-    (remote) => {
+    (remote, isLeader) => {
       setBlocks(remote);
-      if (collaboration.isLeader()) schedule();
+      if (isLeader) schedule();
     },
     (leader) => {
       // Took over from a leader that left: save whatever it may not have written yet.

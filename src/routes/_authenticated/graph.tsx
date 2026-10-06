@@ -73,12 +73,15 @@ function GraphPage() {
   const [q, setQ] = useState("");
   const [orphans, setOrphans] = useState(true);
   const [hover, setHover] = useState<string | null>(focus ?? null);
-  // Bumped when the simulation is rebuilt so the SVG elements for the new nodes render; the
+  // Node/link sets of the current simulation, replaced when it is rebuilt so their SVG elements render; the
   // per-tick positions are written straight to the DOM (see paint), not through React state.
-  const [, setVersion] = useState(0);
+  const [shown, setShown] = useState<{ nodes: N[]; links: L[] }>({ nodes: [], links: [] });
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const viewRef = useRef(view);
-  viewRef.current = view;
+  // Synced after commit (not during render) so stable callbacks read the latest values.
+  useLayoutEffect(() => {
+    viewRef.current = view;
+  });
   const svgRef = useRef<SVGSVGElement>(null);
   const simRef = useRef<ReturnType<typeof forceSimulation<N>> | null>(null);
   const nodesRef = useRef<N[]>([]);
@@ -158,7 +161,7 @@ function GraphPage() {
         if (!frame.current) frame.current = requestAnimationFrame(paint);
       });
     simRef.current = sim;
-    setVersion((v) => v + 1);
+    setShown({ nodes, links });
     return () => {
       sim.stop();
       cancelAnimationFrame(frame.current);
@@ -327,7 +330,7 @@ function GraphPage() {
           onPointerLeave={onUp}
         >
           <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-            {linksRef.current.map((l, i) => {
+            {shown.links.map((l, i) => {
               const s = l.source as N,
                 t = l.target as N;
               if (typeof s !== "object" || typeof t !== "object") return null;
@@ -343,7 +346,7 @@ function GraphPage() {
                 />
               );
             })}
-            {nodesRef.current.map((n) => {
+            {shown.nodes.map((n) => {
               const dim =
                 (hover && n.id !== hover && !neighbors.has(n.id)) ||
                 (match && !n.title.toLowerCase().includes(match));

@@ -201,6 +201,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     const nextTheme =
       storedTheme && ["light", "dark", "system"].includes(storedTheme) ? storedTheme : "system";
     const nextLocale = storedLocale === "en" ? "en" : "id";
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate stored preferences after mount (localStorage is not available during SSR).
     setThemeState(nextTheme);
     setLocaleState(nextLocale);
     applyTheme(nextTheme);

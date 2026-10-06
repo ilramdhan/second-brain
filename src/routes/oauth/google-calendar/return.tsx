@@ -33,7 +33,9 @@ function GoogleCalendarReturn() {
     );
     // Drop the one-time code from the address bar and history.
     window.history.replaceState(null, "", window.location.pathname);
+    // The message mirrors the one-shot postMessage above, which can only run on the client.
     if (!success)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
       setMessage(error === "access_denied" ? "Izin ditolak." : "Koneksi tidak selesai.");
     else setMessage("Berhasil. Jendela ini dapat ditutup.");
     window.setTimeout(() => window.close(), 500);

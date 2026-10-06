@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -39,7 +39,10 @@ export function useNoteLinksValue(): NoteLinks {
   // Keep `openTitle` referentially stable so memoised fragments don't re-render
   // whenever the notes list or the mutation helpers change identity.
   const latest = useRef({ titles, create, navigate });
-  latest.current = { titles, create, navigate };
+  // Synced after commit (not during render) so stable callbacks read the latest values.
+  useLayoutEffect(() => {
+    latest.current = { titles, create, navigate };
+  });
   const openTitle = useCallback(async (title: string) => {
     const { titles, create, navigate } = latest.current;
     const t = title.trim();

@@ -87,6 +87,7 @@ function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch; state is set after the Supabase request resolves.
     load();
   }, [load]);
 
@@ -542,6 +543,7 @@ function BackupPanel() {
 function IdleSetting() {
   const [value, setValue] = useState("0");
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- read the stored idle timeout after mount (localStorage is not available during SSR).
     setValue(String(getIdleMinutes()));
   }, []);
   return (

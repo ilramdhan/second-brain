@@ -51,7 +51,7 @@ function CanvasPage() {
     },
   });
   const board = boards[0];
-  const { data: nodes = [] } = useQuery({
+  const { data: nodesData } = useQuery({
     queryKey: ["canvas-nodes", board?.id],
     enabled: Boolean(board),
     queryFn: async () => {
@@ -63,6 +63,7 @@ function CanvasPage() {
       return data;
     },
   });
+  const nodes = nodesData ?? [];
   const { data: edges = [] } = useQuery({
     queryKey: ["canvas-edges", board?.id],
     enabled: Boolean(board),
@@ -76,9 +77,13 @@ function CanvasPage() {
     },
   });
 
-  useEffect(() => {
+  // Drop optimistic positions once fresh nodes arrive (adjusted during render, not in an effect).
+  // Compare the raw query data: a `= []` default would be a new array on every render.
+  const [localFor, setLocalFor] = useState(nodesData);
+  if (localFor !== nodesData) {
+    setLocalFor(nodesData);
     setLocal({});
-  }, [nodes]);
+  }
   const posOf = (n: { id: string; x: number; y: number }) => local[n.id] ?? { x: n.x, y: n.y };
   const own = (n: { user_id: string }) => n.user_id === uid;
 
