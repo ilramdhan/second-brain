@@ -86,9 +86,28 @@ code doesn't match.
   `VITE_ALLOW_SIGNUP=true`. That flag hides UI only: the anon key is public, so anyone can still
   call `auth.signUp` directly. The real control is Supabase _Authentication → Sign In / Providers
   → "Allow new users to sign up"_, which must be **off** for a private instance. Accounts are then
-  created by the owner (_Authentication → Users → Invite user / Add user_ or the admin API);
-  project invites (`project_invites` + `accept_project_invites()`) keep working for those accounts
-  because they match on the verified email when the user signs in.
+  created through project invites (below) or by the instance owner (_Authentication → Users →
+  Invite user / Add user_); `accept_project_invites()` matches the verified email when the user
+  signs in.
+- **Member invites** (`inviteProjectMember`, `src/lib/invites.functions.ts` +
+  `src/server/invites.server.ts`): only the project owner may invite (checked against the project
+  row as RLS shows it to the caller, and again by the `invites_owner_manage` policy on the insert),
+  the email is zod-validated (max 320 characters), and each user has a budget of 20 invites per
+  hour (`consume_rate_limit`, bucket `member_invite`). The service role is used only for one
+  `auth.admin.inviteUserByEmail` call for that email (which creates the account and sends the
+  Supabase "Invite user" email) and to list one project's pending invites for its members. The
+  owner gets the same answer whether or not the email already has an account, so the form cannot
+  be used to probe which addresses are registered. Refused in demo mode (`assertNotDemo`).
+- **Password links**: "Lupa kata sandi?" on `/login` calls `resetPasswordForEmail` and always
+  shows the same message (only rate-limit errors are surfaced). `/auth/set-password` (noindex,
+  never cached by the service worker) accepts a session only when the URL carries an email link
+  (implicit tokens whose `sub` matches the stored session, a PKCE `?code=` or a `?token_hash=`),
+  so opening it on a device with an existing session cannot change that account's password. It is
+  disabled in the demo, whose account is shared.
+- **Supabase Auth settings** for these flows: Site URL = your app origin; Redirect URLs include
+  `https://<your-app>/auth/set-password`; the **Invite user** and **Reset Password** templates use
+  `{{ .ConfirmationURL }}`; and production uses **custom SMTP** (for example Resend), because the
+  built-in mailer is limited to a few emails per hour.
 - `src/start.ts` registers `attachSupabaseAuth` as global function middleware (attaches the user's
   access token to server function calls) and TanStack Start's **CSRF middleware** for server
   functions.
@@ -137,7 +156,7 @@ code doesn't match.
 ### Server functions
 
 - All server functions (`ai.functions.ts`, `automations.functions.ts`,
-  `googleCalendar.functions.ts`, `telegram.functions.ts`) use the `requireSupabaseAuth`
+  `googleCalendar.functions.ts`, `invites.functions.ts`, `telegram.functions.ts`) use the `requireSupabaseAuth`
   middleware, which builds a **per-user Supabase client** so queries run under the caller's RLS.
   Inputs are validated with zod.
 - AI server functions cap their inputs (brain dump 20k characters, paraphrase 5k, meeting notes
@@ -347,7 +366,8 @@ both match).
   `TELEGRAM_BOT_TOKEN` and `N8N_API_KEY` only in server environment variables; never in `VITE_*`.
 - Use a long random `N8N_API_KEY` (`openssl rand -hex 32`), keep n8n behind HTTPS, set
   `SB_TELEGRAM_ALLOWED_CHAT_IDS` and `SB_EMAIL_ALLOWED_SENDERS`, and rotate via `N8N_API_KEY_PREVIOUS`.
-- Restrict Supabase Auth redirect URLs to your own domains.
+- Restrict Supabase Auth redirect URLs to your own domains (`https://<your-app>/auth/set-password`
+  is the only path the email links need), and configure custom SMTP for invite and reset emails.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
 - Disable _Authentication → Sign In / Providers → "Allow new users to sign up"_ in Supabase unless
   the instance is meant to be public, and leave `VITE_ALLOW_SIGNUP` unset. Add users through
