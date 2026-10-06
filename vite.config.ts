@@ -16,6 +16,16 @@ const srcDir = fileURLToPath(new URL("./src", import.meta.url));
 // API). Override with `NITRO_PRESET=<preset>` (e.g. `node-server`, `cloudflare-module`).
 const nitroPreset = process.env["NITRO_PRESET"] || "vercel";
 
+/**
+ * Daily reset of the public demo (Phase 10): 00:00 WIB = 17:00 UTC. Registered only when the
+ * build itself runs with `APP_MODE=demo` (the demo Vercel project), so the production project
+ * keeps its single Hobby cron slot free and never calls the reset endpoint (which is a 404
+ * outside demo mode anyway). The vercel preset writes it to `.vercel/output/config.json`;
+ * Vercel Cron then sends `Authorization: Bearer $CRON_SECRET`. See docs/DEMO.md.
+ */
+const DEMO_RESET_CRON = { path: "/api/public/n8n/demo/reset", schedule: "0 17 * * *" };
+const demoBuild = process.env["APP_MODE"]?.trim().toLowerCase() === "demo";
+
 // VITE_* values are inlined at build time; the browser Supabase client cannot start without these.
 const REQUIRED_CLIENT_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
 
@@ -187,7 +197,12 @@ export default defineConfig(({ command, mode }) => {
       server: { entry: "server" },
     }),
     // Nitro only packages the production server; `vite dev` uses TanStack Start's dev server.
-    command === "build" ? nitro({ preset: nitroPreset }) : null,
+    command === "build"
+      ? nitro({
+          preset: nitroPreset,
+          ...(demoBuild ? { vercel: { config: { version: 3, crons: [DEMO_RESET_CRON] } } } : {}),
+        })
+      : null,
     viteReact(),
     pwa(),
   ];
