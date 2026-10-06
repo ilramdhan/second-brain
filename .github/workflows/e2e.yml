@@ -85,10 +85,30 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.deployment.sha || github.sha }}
+      # A protected preview answers with a redirect to Vercel's SSO login. Without the bypass
+      # secret the tests would only see that page, so skip with a notice instead of failing.
+      - name: Check deployment is reachable
+        id: reach
+        run: |
+          headers=()
+          if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            headers=(-H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET")
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' "${headers[@]}" "$E2E_BASE_URL/login")
+          echo "HTTP $code from $E2E_BASE_URL/login"
+          if [ "$code" = "401" ] || [ "$code" = "302" ] || [ "$code" = "307" ] || [ "$code" = "403" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deployment is protected (HTTP $code). Add the VERCEL_AUTOMATION_BYPASS_SECRET repository secret to run E2E against previews; the local-build E2E job still covers PRs."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: ./.github/actions/setup
+        if: steps.reach.outputs.run == 'true'
       - name: Install Chromium
+        if: steps.reach.outputs.run == 'true'
         run: bunx playwright install --with-deps chromium
       - name: Run Playwright against ${{ env.E2E_BASE_URL }}
+        if: steps.reach.outputs.run == 'true'
         run: |
           if [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ]; then
             echo "::notice::E2E_EMAIL / E2E_PASSWORD not set; the authenticated smoke test is skipped."
