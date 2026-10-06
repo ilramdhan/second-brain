@@ -116,15 +116,16 @@ function pwa(): PluginOption {
       importScripts: ["/sw-legacy-cleanup.js"],
       navigateFallback: null,
       // Only same-origin pages and images are cached. Server functions (`/_serverFn`), API and
-      // public endpoints (`/api/*`), OAuth popups, email-link pages (`/auth/*`, one-time codes)
-      // and Supabase (another origin) always hit the network. Workbox serialises these matchers
-      // into sw.js, so they must not use closures.
+      // public endpoints (`/api/*`), OAuth popups, email-link pages (`/auth/*`, one-time codes),
+      // public share links (`/s/*`: a revoked link must stop working at once and must never sit
+      // in the cache of a shared device) and Supabase (another origin) always hit the network.
+      // Workbox serialises these matchers into sw.js, so they must not use closures.
       runtimeCaching: [
         {
           urlPattern: ({ request, url, sameOrigin }) =>
             sameOrigin &&
             request.mode === "navigate" &&
-            !/^\/(?:api|_serverFn|oauth|auth)(?:\/|$)/.test(url.pathname),
+            !/^\/(?:api|_serverFn|oauth|auth|s)(?:\/|$)/.test(url.pathname),
           handler: "NetworkFirst",
           options: {
             cacheName: "pages",
@@ -138,7 +139,7 @@ function pwa(): PluginOption {
           urlPattern: ({ request, url, sameOrigin }) =>
             sameOrigin &&
             request.destination === "image" &&
-            !/^\/(?:api|_serverFn|oauth|auth)(?:\/|$)/.test(url.pathname),
+            !/^\/(?:api|_serverFn|oauth|auth|s)(?:\/|$)/.test(url.pathname),
           handler: "CacheFirst",
           options: {
             cacheName: "images",

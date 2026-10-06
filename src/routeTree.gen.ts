@@ -29,6 +29,7 @@ import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSetPasswordRouteImport } from './routes/auth/set-password'
+import { Route as STokenRouteImport } from './routes/s.$token'
 import { Route as AuthenticatedNotesIndexRouteImport } from './routes/_authenticated/notes.index'
 import { Route as AuthenticatedNotesNoteIdRouteImport } from './routes/_authenticated/notes.$noteId'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
@@ -147,6 +148,11 @@ const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
   path: '/auth/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const STokenRoute = STokenRouteImport.update({
+  id: '/s/$token',
+  path: '/s/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedNotesIndexRoute = AuthenticatedNotesIndexRouteImport.update({
   id: '/notes/',
   path: '/notes/',
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/today': typeof AuthenticatedTodayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
+  '/s/$token': typeof STokenRoute
   '/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -298,6 +305,7 @@ export interface FileRoutesByTo {
   '/today': typeof AuthenticatedTodayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
+  '/s/$token': typeof STokenRoute
   '/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -338,6 +346,7 @@ export interface FileRoutesById {
   '/_authenticated/today': typeof AuthenticatedTodayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
+  '/s/$token': typeof STokenRoute
   '/_authenticated/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -378,6 +387,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/auth/callback'
     | '/auth/set-password'
+    | '/s/$token'
     | '/notes/$noteId'
     | '/projects/$projectId'
     | '/oauth/google-calendar/return'
@@ -416,6 +426,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/auth/callback'
     | '/auth/set-password'
+    | '/s/$token'
     | '/notes/$noteId'
     | '/projects/$projectId'
     | '/oauth/google-calendar/return'
@@ -455,6 +466,7 @@ export interface FileRouteTypes {
     | '/_authenticated/today'
     | '/auth/callback'
     | '/auth/set-password'
+    | '/s/$token'
     | '/_authenticated/notes/$noteId'
     | '/_authenticated/projects/$projectId'
     | '/oauth/google-calendar/return'
@@ -482,6 +494,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
+  STokenRoute: typeof STokenRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicHooksRemindersRoute: typeof ApiPublicHooksRemindersRoute
   ApiPublicN8nBackupRoute: typeof ApiPublicN8nBackupRoute
@@ -637,6 +650,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/set-password'
       fullPath: '/auth/set-password'
       preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$token': {
+      id: '/s/$token'
+      path: '/s/$token'
+      fullPath: '/s/$token'
+      preLoaderRoute: typeof STokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/notes/': {
@@ -813,6 +833,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSetPasswordRoute: AuthSetPasswordRoute,
+  STokenRoute: STokenRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicHooksRemindersRoute: ApiPublicHooksRemindersRoute,
   ApiPublicN8nBackupRoute: ApiPublicN8nBackupRoute,
