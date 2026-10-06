@@ -1,6 +1,6 @@
 // Request plumbing shared by every /api/public/n8n/* route: auth, zod validation and a uniform
 // JSON error shape (`{"error": "..."}`) that n8n shows in its execution log.
-import { z, ZodError, type ZodTypeAny } from "zod";
+import { z, ZodError, type ZodType } from "zod";
 
 import { authorizeN8nRequest } from "./auth.server";
 
@@ -30,7 +30,7 @@ export function zodMessage(error: ZodError) {
 }
 
 /** Reads and validates a JSON body (size-capped). */
-export async function readJson<S extends ZodTypeAny>(
+export async function readJson<S extends ZodType>(
   request: Request,
   schema: S,
 ): Promise<z.infer<S>> {
@@ -50,7 +50,7 @@ export async function readJson<S extends ZodTypeAny>(
 }
 
 /** Validates the query string (`?a=1&b=2` → object of strings). */
-export function readQuery<S extends ZodTypeAny>(request: Request, schema: S): z.infer<S> {
+export function readQuery<S extends ZodType>(request: Request, schema: S): z.infer<S> {
   return schema.parse(Object.fromEntries(new URL(request.url).searchParams));
 }
 
