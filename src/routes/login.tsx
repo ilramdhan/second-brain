@@ -13,6 +13,8 @@ import {
   useRedirectSignedInVisitor,
 } from "@/lib/landing";
 import { toastError } from "@/lib/errors";
+import { usePreferences } from "@/lib/preferences";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/login")({
   // `redirect` is the page the auth guard bounced the visitor from; only same-origin paths.
@@ -33,6 +35,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { t } = usePreferences();
   const { redirect } = Route.useSearch();
   useRedirectSignedInVisitor(redirect);
   // Self-service sign-up is hidden unless VITE_ALLOW_SIGNUP=true (see signupAllowed()).
@@ -66,19 +69,25 @@ function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-sm">
-        <Link
-          to="/"
-          className="mb-6 inline-flex items-center gap-1.5 rounded-md text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Kembali ke beranda
+    <main className="relative flex min-h-screen items-center justify-center bg-background px-4 pt-20 pb-10">
+      {/* Back to the landing: first in the tab order, pinned top-left on the page gutter
+          (outside the card), 44px tap target. */}
+      <Button
+        asChild
+        variant="ghost"
+        size="sm"
+        className="absolute top-4 left-4 h-11 px-3 text-muted-foreground hover:text-foreground sm:top-6 sm:left-6"
+      >
+        <Link to="/" aria-label={t("loginBackHomeLabel")}>
+          <ArrowLeft aria-hidden />
+          {t("loginBackHome")}
         </Link>
+      </Button>
+      <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Link
             to="/"
-            aria-label="Second Brain — beranda"
+            aria-label={t("loginLogoLabel")}
             className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
           >
             <Brain className="h-6 w-6" aria-hidden />

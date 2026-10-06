@@ -36,6 +36,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 
 import { isRedirect } from "@tanstack/react-router";
 
+import { PreferencesProvider } from "@/lib/preferences";
 import { Route } from "@/routes/login";
 
 type LoginRoute = {
@@ -57,11 +58,16 @@ afterEach(() => {
 });
 
 describe("/login", () => {
-  it("links the logo and a text link back to the landing page", () => {
-    render(<LoginPage />);
+  it("has one back button outside the card (first link) and a logo linking home", () => {
+    render(<LoginPage />, { wrapper: PreferencesProvider });
 
-    expect(screen.getByRole("link", { name: /Kembali ke beranda/ })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: /Second Brain — beranda/ })).toHaveAttribute(
+    const back = screen.getByRole("link", { name: "Kembali ke beranda" });
+    expect(back).toHaveAttribute("href", "/");
+    expect(back).toHaveTextContent("Beranda");
+    // Focus order: the back button comes before the logo and the form.
+    expect(screen.getAllByRole("link")[0]).toBe(back);
+    expect(back.closest("form")).toBeNull();
+    expect(screen.getByRole("link", { name: "Second Brain — beranda" })).toHaveAttribute(
       "href",
       "/",
     );
@@ -70,20 +76,20 @@ describe("/login", () => {
 
   it("hides sign-up unless VITE_ALLOW_SIGNUP=true", () => {
     vi.stubEnv("VITE_ALLOW_SIGNUP", "");
-    const { unmount } = render(<LoginPage />);
+    const { unmount } = render(<LoginPage />, { wrapper: PreferencesProvider });
     expect(screen.queryByRole("button", { name: /Daftar/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Pendaftaran ditutup/)).toBeInTheDocument();
     unmount();
 
     vi.stubEnv("VITE_ALLOW_SIGNUP", "true");
-    render(<LoginPage />);
+    render(<LoginPage />, { wrapper: PreferencesProvider });
     expect(screen.getByRole("button", { name: "Belum punya akun? Daftar" })).toBeInTheDocument();
     expect(screen.queryByText(/Pendaftaran ditutup/)).not.toBeInTheDocument();
   });
 
   it("lets guests stay on the form", async () => {
     await expect(route.beforeLoad({ search: {} })).resolves.toBeUndefined();
-    render(<LoginPage />);
+    render(<LoginPage />, { wrapper: PreferencesProvider });
     await waitFor(() => expect(auth.getSession).toHaveBeenCalled());
     expect(router.navigate).not.toHaveBeenCalled();
   });
@@ -111,7 +117,7 @@ describe("/login", () => {
   it("forwards a signed-in visitor after hydration (SSR first load)", async () => {
     auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } } });
 
-    render(<LoginPage />);
+    render(<LoginPage />, { wrapper: PreferencesProvider });
 
     await waitFor(() =>
       expect(router.navigate).toHaveBeenCalledWith({ to: "/today", replace: true }),
