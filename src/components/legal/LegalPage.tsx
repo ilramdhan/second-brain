@@ -26,7 +26,7 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
     { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" },
   );
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div data-public-page className="min-h-screen bg-background text-foreground">
       <SkipLink />
       <SiteHeader />
       <main id="main" tabIndex={-1} className={cn(PAGE, "py-10 focus:outline-none md:py-14")}>
@@ -65,7 +65,7 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
                 key={section.id}
                 id={section.id}
                 aria-labelledby={`${section.id}-title`}
-                className="scroll-mt-20 space-y-3"
+                className="space-y-3"
               >
                 <h2 id={`${section.id}-title`} className="text-xl font-semibold tracking-tight">
                   {i + 1}. {section.title}

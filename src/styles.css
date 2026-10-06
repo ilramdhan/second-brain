@@ -174,6 +174,51 @@
   }
 }
 
+/*
+ * Public pages (landing, privacy, terms) mark their root with `data-public-page`. Anchor jumps
+ * (header menu, footer, skip link, legal table of contents) land below the sticky 4rem header,
+ * and scroll smoothly unless the visitor prefers reduced motion (see the media query below).
+ */
+html:has([data-public-page]) {
+  scroll-padding-top: 5rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has([data-public-page]) {
+    scroll-behavior: smooth;
+  }
+}
+
+/*
+ * Tech stack marquee (src/components/landing/LandingExtras.tsx): the track holds two identical
+ * lists, so translating it by -50% loops seamlessly. Paused on hover/focus; no animation with
+ * reduced motion (the component then shows one wrapped list).
+ */
+@keyframes tech-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.tech-marquee {
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tech-marquee-track {
+    animation: tech-marquee 50s linear infinite;
+  }
+  .tech-marquee:hover .tech-marquee-track,
+  .tech-marquee:focus-within .tech-marquee-track {
+    animation-play-state: paused;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tech-marquee {
+    mask-image: none;
+  }
+}
+
 @layer utilities {
   .scrollbar-subtle::-webkit-scrollbar {
     width: 6px;
