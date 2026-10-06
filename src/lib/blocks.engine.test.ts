@@ -37,10 +37,11 @@ describe("shortcut", () => {
     expect(shortcut("[X] done")).toEqual({ type: "todo", text: "done", checked: true });
   });
 
-  // Known bug: "- [x] " hits the bullet rule before the checked-todo check, so a checked todo
-  // exported by toMarkdown ("- [x] t") re-imports as a bullet "[x] t". Flip to `it` once fixed.
-  it.fails("recognises '- [x]' checked todos", () => {
+  // toMarkdown exports checked todos as "- [x] t"; they must re-import as todos, not bullets.
+  it("recognises '- [x]' and '* [x]' checked todos", () => {
     expect(shortcut("- [x] done")).toEqual({ type: "todo", text: "done", checked: true });
+    expect(shortcut("* [X] done")).toEqual({ type: "todo", text: "done", checked: true });
+    expect(shortcut("* [ ] open")).toEqual({ type: "todo", text: "open" });
   });
 
   it("returns null for plain text", () => {
