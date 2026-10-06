@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
+import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePreferences, type Locale, type Theme } from "@/lib/preferences";
@@ -187,6 +188,8 @@ function SettingsPage() {
       </section>
 
       <IdleSetting />
+
+      <SecurityPanel />
 
       <section className="rounded-2xl border bg-card p-5">
         <h2 className="flex items-center gap-2 font-semibold">
