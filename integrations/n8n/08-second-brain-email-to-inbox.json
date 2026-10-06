@@ -18,9 +18,10 @@
       "parameters": {
         "mailbox": "INBOX",
         "postProcessAction": "read",
-        "format": "simple",
+        "format": "resolved",
+        "dataPropertyAttachmentsPrefixName": "attachment_",
         "options": {
-          "customEmailConfig": "[\"UNSEEN\"]"
+          "forceReconnect": 5
         }
       },
       "id": "b56f386d-1408-4922-9ffc-29032b0cddf9",
@@ -37,7 +38,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Allow-list pengirim + bersihkan isi email → payload capture.\nconst allowed = String($env.SB_EMAIL_ALLOWED_SENDERS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);\nconst out = [];\nfor (const i of $input.all()) {\n  const e = i.json;\n  const fromRaw = String(e.from?.value?.[0]?.address ?? e.from ?? '').toLowerCase();\n  const from = (fromRaw.match(/[^\\s<>]+@[^\\s<>]+/) || [''])[0];\n  if (!from || !allowed.includes(from)) continue; // fail-closed\n  const subject = String(e.subject || '(tanpa subjek)').trim();\n  // Subjek \"task: ...\" → tugas, \"note: ...\" → catatan, selain itu → inbox\n  const m = subject.match(/^\\s*(task|tugas|note|catatan)\\s*:\\s*(.*)$/i);\n  const target = m ? (/^(task|tugas)$/i.test(m[1]) ? 'task' : 'note') : 'inbox';\n  const body = String(e.text || e.textPlain || '').replace(/\\r/g, '').split(/\\n-- \\n|\\nOn .+wrote:\\n/)[0].trim();\n  out.push({ json: { payload: {\n    user_email: from,\n    source: 'email',\n    target,\n    title: (m ? m[2] : subject).slice(0, 300),\n    text: body.slice(0, 20000),\n    summarize: body.length > 1500,  // minta server membuat ai_summary untuk email panjang\n    external_id: (e.messageId || e.headers?.['message-id']) ? `email:${e.messageId || e.headers['message-id']}`.slice(0, 500) : null,\n  } } });\n}\nreturn out;"
+        "jsCode": "// Allow-list pengirim + bersihkan isi email → payload capture.\n// Input = format \"resolved\" (mailparser): from.value[0].address, subject, text, html, messageId, headers{key: \"Key: value\"}.\nconst allowed = String($env.SB_EMAIL_ALLOWED_SENDERS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);\nconst stripHtml = (h) => String(h || '')\n  .replace(/<(script|style)[\\s\\S]*?<\\/\\1>/gi, '')\n  .replace(/<br\\s*\\/?>|<\\/(p|div|li|tr|h[1-6])>/gi, '\\n')\n  .replace(/<[^>]+>/g, '')\n  .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/&amp;/g, '&')\n  .replace(/[ \\t]+\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n');\nconst out = [];\nfor (const i of $input.all()) {\n  const e = i.json;\n  const fromRaw = String(e.from?.value?.[0]?.address ?? e.from?.text ?? e.from ?? '').toLowerCase();\n  const from = (fromRaw.match(/[^\\s<>\"]+@[^\\s<>\"]+/) || [''])[0];\n  if (!from || !allowed.includes(from)) continue; // fail-closed\n  const subject = String(e.subject || '(tanpa subjek)').trim();\n  // Subjek \"task: ...\" → tugas, \"note: ...\" → catatan, selain itu → inbox\n  const m = subject.match(/^\\s*(task|tugas|note|catatan)\\s*:\\s*(.*)$/i);\n  const target = m ? (/^(task|tugas)$/i.test(m[1]) ? 'task' : 'note') : 'inbox';\n  // text kosong (email HTML-only) → fallback ke html/textAsHtml yang di-strip\n  const rawText = String(e.text || e.textPlain || '').trim() || stripHtml(typeof e.html === 'string' ? e.html : e.textAsHtml);\n  const body = rawText.replace(/\\r/g, '').split(/\\n-- \\n|\\nOn .+wrote:\\n/)[0].trim();\n  // headers (resolved) berisi baris penuh \"Message-ID: <...>\" → buang prefiks nama header\n  const hdrId = String(e.headers?.['message-id'] || '').replace(/^message-id:\\s*/i, '').trim();\n  const msgId = String(e.messageId || hdrId || '').trim();\n  out.push({ json: { payload: {\n    user_email: from,\n    source: 'email',\n    target,\n    title: (m ? m[2] : subject).slice(0, 300),\n    text: body.slice(0, 20000),\n    summarize: body.length > 1500,  // minta server membuat ai_summary untuk email panjang\n    external_id: msgId ? `email:${msgId}`.slice(0, 500) : null,\n  } } });\n}\nreturn out;"
       },
       "id": "2814df33-8148-4115-a887-becb602e838f",
       "name": "Allow-list & normalisasi",
