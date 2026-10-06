@@ -28,6 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { PRIORITY } from "@/lib/constants";
 import { getUid, useNoteActions } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_authenticated/templates")({
   head: () => ({
@@ -44,6 +46,7 @@ export const Route = createFileRoute("/_authenticated/templates")({
     ],
   }),
   component: TemplatesPage,
+  errorComponent: RouteError,
 });
 
 type Payload = {
@@ -203,7 +206,7 @@ function TemplatesPage() {
   async function seed(kind: "task" | "note", name: string, payload: Payload) {
     const user_id = await getUid();
     const { error } = await supabase.from("templates").insert({ user_id, kind, name, payload });
-    if (error) toast.error(error.message);
+    if (error) toastError(error);
     else toast.success("Template disimpan");
     void qc.invalidateQueries({ queryKey: ["templates"] });
   }

@@ -22,6 +22,7 @@ import { useProjectActions, useProjects, useTasks, type Project, type Task } fro
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/projects/")({
   }),
   loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery, tasksQuery),
   component: ProjectsPage,
+  errorComponent: RouteError,
 });
 
 function progress(p: Project, tasks: Task[]) {

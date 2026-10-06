@@ -40,6 +40,7 @@ import { FocusTimer } from "@/components/tasks/FocusTimer";
 import { syncTaskToGoogle } from "@/lib/googleCalendar.functions";
 import { CheckCircle } from "@/components/tasks/CheckCircle";
 import type { TaskDefaults } from "@/components/tasks/TaskDialogProvider";
+import { toastError } from "@/lib/errors";
 
 const NONE = "none";
 
@@ -336,7 +337,7 @@ export default function TaskEditor({
                     toast.error("Hubungkan Google Calendar dari Pengaturan terlebih dahulu");
                   else toast.success("Tugas disinkronkan ke Google Calendar");
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Sinkronisasi gagal");
+                  toastError(error, "Sinkronisasi gagal");
                 }
               }}
             >
@@ -594,7 +595,7 @@ function Comments({ taskId }: { taskId: string }) {
       .from("task_comments")
       .insert({ task_id: taskId, user_id, content: draft.trim().slice(0, 2000) });
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     setDraft("");

@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { qk } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
+import { toastError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_authenticated/archive")({
   head: () => ({
@@ -33,6 +35,7 @@ export const Route = createFileRoute("/_authenticated/archive")({
     ],
   }),
   component: ArchivePage,
+  errorComponent: RouteError,
 });
 
 type Kind = "tasks" | "notes" | "projects";
@@ -119,14 +122,14 @@ function ArchivePage() {
     const { error } = await query.eq("id", it.id);
     if (!error && it.kind === "tasks" && tab === "trash")
       await supabase.from("tasks").update({ deleted_at: null }).eq("parent_id", it.id);
-    if (error) toast.error(error.message);
+    if (error) toastError(error);
     else toast.success("Dikembalikan");
     refresh();
   }
   async function purge(it: Item) {
     if (!confirm(`Hapus permanen "${it.title}"? Ini tidak bisa dibatalkan.`)) return;
     const { error } = await supabase.from(it.kind).delete().eq("id", it.id);
-    if (error) toast.error(error.message);
+    if (error) toastError(error);
     else toast.success("Dihapus permanen");
     refresh();
   }

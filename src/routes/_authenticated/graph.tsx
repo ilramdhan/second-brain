@@ -27,6 +27,7 @@ import { useNoteBlocks, useProjects } from "@/lib/data";
 import { color } from "@/lib/constants";
 import { PageContainer } from "@/components/common/PageContainer";
 import { noteBlocksQuery, preloadQueries, projectsQuery } from "@/lib/data";
+import { RouteError } from "@/components/common/RouteError";
 
 export const Route = createFileRoute("/_authenticated/graph")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/_authenticated/graph")({
   }),
   loader: ({ context }) => preloadQueries(context.queryClient, noteBlocksQuery, projectsQuery),
   component: GraphPage,
+  errorComponent: RouteError,
 });
 
 type N = SimulationNodeDatum & {

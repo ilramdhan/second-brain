@@ -7,6 +7,7 @@ import { qk } from "@/features/shared/query-keys";
 import { getUid } from "@/features/shared/session";
 import { supabase } from "@/integrations/supabase/client";
 import { insertRow, removeRows } from "@/lib/query-cache";
+import { toastError } from "@/lib/errors";
 
 export function useDeps() {
   return useQuery(depsQuery);
@@ -36,7 +37,7 @@ export function useDependencyActions() {
       .select(DEP_COLS)
       .single();
     if (error) {
-      toast.error(error.message);
+      toastError(error);
       return;
     }
     qc.setQueryData<Dependency[]>(qk.deps, (o) => insertRow(o, data));
@@ -47,7 +48,7 @@ export function useDependencyActions() {
     const { error } = await supabase.from("task_dependencies").delete().eq("id", id);
     if (error) {
       qc.setQueryData(qk.deps, prev);
-      toast.error(error.message);
+      toastError(error);
     }
   }
   return { add, remove };

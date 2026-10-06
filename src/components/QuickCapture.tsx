@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { transcribeVoice, ocrImage } from "@/lib/ai.functions";
+import { toastError } from "@/lib/errors";
 
 function fileToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -39,7 +40,7 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
     const { error } = await supabase
       .from("inbox_items")
       .insert({ user_id: user.id, content, source });
-    if (error) toast.error("Gagal menyimpan: " + error.message);
+    if (error) toastError(error, "Gagal menyimpan");
     else {
       toast.success("Masuk ke Inbox");
       void qc.invalidateQueries({ queryKey: ["inbox-count"] });
@@ -82,7 +83,7 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
             toast.error("Tidak ada suara yang terdeteksi");
           }
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Transkripsi gagal");
+          toastError(err, "Transkripsi gagal");
         } finally {
           setBusy(false);
         }
@@ -113,7 +114,7 @@ export function QuickCapture({ onCaptured }: { onCaptured?: () => void }) {
         toast.error("Tidak ada teks yang terbaca pada gambar");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "OCR gagal");
+      toastError(err, "OCR gagal");
     } finally {
       setBusy(false);
     }

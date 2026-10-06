@@ -20,6 +20,7 @@ import {
   pickColumns,
   type CompleteTaskOutcome,
 } from "@/lib/task-rules";
+import { toastError } from "@/lib/errors";
 
 export function useTasks() {
   return useQuery(tasksQuery);
@@ -88,7 +89,7 @@ export function useTaskActions() {
         _delta_ms: delta,
       });
       if (error) {
-        toast.error(error.message);
+        toastError(error);
         void crud.invalidate();
       } else if (data?.length) {
         for (const row of data) patchTaskCache(row.id, row);
@@ -113,11 +114,11 @@ export function useTaskActions() {
     });
     let result: CompleteTaskOutcome;
     try {
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       result = parseCompleteResult(data);
     } catch (e) {
       restore(qc, snap);
-      toast.error(e instanceof Error ? e.message : String(e));
+      toastError(e);
       void crud.invalidate();
       return;
     }
