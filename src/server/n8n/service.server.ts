@@ -423,9 +423,9 @@ export async function searchNotes(userId: string, q: string, limit = 5) {
  * when AI is not configured or the budget is exhausted (callers fall back to the raw text).
  */
 export async function summarizeForUser(userId: string, text: string): Promise<string | null> {
-  const { aiConfigFromEnv, aiText } = await import("@/lib/ai.server");
+  const { assertAiAvailable, aiText } = await import("@/lib/ai.server");
   try {
-    aiConfigFromEnv();
+    await assertAiAvailable();
   } catch {
     return null;
   }
@@ -442,6 +442,7 @@ export async function summarizeForUser(userId: string, text: string): Promise<st
       new Request("https://n8n.internal/summarize"),
       "Ringkas teks berikut dalam bahasa Indonesia: 3–6 poin singkat, lalu satu baris 'Tindak lanjut:' bila ada. Jangan menambah informasi.",
       [{ role: "user", content: text.slice(0, 50_000) }],
+      "summary",
     );
     return summary.trim().slice(0, 4000) || null;
   } catch (e) {
