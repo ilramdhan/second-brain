@@ -130,6 +130,13 @@ A Gantt-style timeline of projects, tasks, milestones and launch dates, with a "
 - **Version history**: a database trigger snapshots the previous version at most every 10 minutes. You can restore any snapshot from a side sheet.
 - Storage: `notes.blocks` (jsonb) is the source of truth. Markdown is mirrored into `notes.content` for search and AI.
 
+### Public read-only links (`/s/<token>`)
+
+- **Bagikan** on a note or project page opens a dialog that creates a revocable, read-only public link. Anyone with the link sees the page without signing in. Options: **expiry** (never, 7 days, 30 days), **copy**, **new link** (rotates the token; the old URL dies at once) and **revoke**. The view count and last view are shown. _Settings → Tautan publik_ lists every active link with a revoke button.
+- Who may share: a note's creator or the owner of its project; a project's owner. Trashed or archived items cannot be shared, and an existing link stops working when the item is trashed, archived or moves out of the creator's reach.
+- What visitors see: for notes, the title, the rendered blocks and the update time. `[[Links]]` become plain text; `((block refs))` and embeds show text only from notes the same person also shared, and query blocks are left out. For projects: name, description, status, dates, a read-only board of tasks (title, status, priority, due date) and milestones. No emails, ids, assignees, comments or other notes.
+- The token (256 random bits) is shown once; only its SHA-256 is stored (`public_shares`, migration 0024). Invalid, revoked and expired links all return the same 404. Pages are `noindex` (unless `allow_indexing`), `no-store`, `no-referrer`, never cached by the service worker, and rate limited per IP. See [SECURITY.md](SECURITY.md#public-share-links).
+
 ### Real-time collaboration
 
 When several users open the same note, edits sync through **Yjs** updates over a private Supabase Realtime channel (`note-collab:<noteId>`) that only the note's owner and project members can join. Presence shows how many people are active, and live cursors are rendered. Durable state is still saved to `notes.blocks`.
@@ -210,6 +217,7 @@ A full audit trail. Database triggers on every main table log insert, update and
 - **Idle auto sign-out** after N minutes. Activity in any tab resets the timer.
 - Telegram link status and unlink, Google Calendar connect and disconnect.
 - **JSON backup and restore** (projects, tasks, notes, milestones, dependencies, automations). Restoring never deletes existing data.
+- **Public links**: every active read-only link with its views, expiry and a revoke button.
 - **Meaning search (AI)**: index status and an "Indeks ulang" (re-index) button that embeds every task and note whose embedding is missing or outdated.
 
 ### Command menu
@@ -648,7 +656,7 @@ erDiagram
     }
 ```
 
-**Database functions (RPC / security definer):** `is_project_owner`, `is_project_member`, `can_access_task`, `accept_project_invites`, `list_project_people`, `log_activity`, `semantic_upsert`. **Semantic search (security invoker):** `semantic_pending`, `match_semantic_documents`.
+**Database functions (RPC / security definer):** `is_project_owner`, `is_project_member`, `can_access_task`, `accept_project_invites`, `list_project_people`, `log_activity`, `semantic_upsert`, `can_share_resource`, `record_public_share_view` (service role only). **Semantic search (security invoker):** `semantic_pending`, `match_semantic_documents`.
 **Triggers:** `handle_new_user` (auth.users), `audit_row_change` (all main tables), `snapshot_note_change` (notes).
 
 > `semantic_documents` holds one embedding per task/note (migration 0020). Authenticated users can only read it (RLS: owner or project member); writes go through `semantic_upsert`, which re-checks access and skips rows whose text changed since they were read.
@@ -672,6 +680,7 @@ Copy `.env.example` to `.env` locally (it is git-ignored) and set the same varia
 | `VITE_PROD_URL`                             | Client (build-time) | No                    | Production app linked from the demo notice (default `https://2ndbrain.ilramdhan.dev`)                                                                            |
 | `APP_MODE`                                  | Server              | Demo only             | `demo` turns on the server guards: Telegram/Google Calendar/webhooks/n8n refused, per-IP limit, `X-Robots-Tag: noindex`                                          |
 | `DEMO_IP_RATE_LIMIT`                        | Server              | No                    | Demo only: requests per minute per IP to `/_serverFn/*` and `/api/*` (default 120, in-memory per instance)                                                       |
+| `PUBLIC_SHARE_IP_RATE_LIMIT`                | Server              | No                    | Requests per minute per IP to public share pages `/s/<token>` (default 60, in-memory per instance)                                                               |
 | `DEMO_EMAIL` / `DEMO_PASSWORD`              | Server              | No                    | Demo only: account the daily reset creates if missing (falls back to `VITE_DEMO_*`, then the defaults); see `docs/DEMO.md`                                       |
 | `SUPABASE_URL`                              | Server              | Yes                   | Supabase URL for SSR, auth middleware and the admin client                                                                                                       |
 | `SUPABASE_PUBLISHABLE_KEY`                  | Server              | Yes                   | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                                                         |
@@ -776,6 +785,7 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0018 | `note_links_refs_excerpt`          | `notes.links` / `refs` / `excerpt` (GIN-indexed, backfilled) and the `note_backlinks` RPC                                                                                        |
 | 0019 | `demo_limits`                      | Demo mode only (`app_config.demo_mode = 'on'`, off by default): per-user row limits, text-size caps, `demo_write` quota and demo account protection on `auth.users`              |
 | 0020 | `semantic_search`                  | `semantic_documents` per task/note (`model`, `content_hash`, read-only RLS for members), `semantic_pending` / `semantic_upsert` / `match_semantic_documents`, cleanup trigger    |
+| 0024 | `public_shares`                    | Revocable public links (`token_hash` only), `can_share_resource`, owner-only RLS + `mfa_aal2`, `record_public_share_view` (service role), cleanup on purge, demo limit 10        |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 

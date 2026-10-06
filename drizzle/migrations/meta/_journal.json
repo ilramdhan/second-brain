@@ -169,6 +169,13 @@
       "when": 1791207296653,
       "tag": "0023_scheduled_note_automations",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791207297653,
+      "tag": "0024_public_shares",
+      "breakpoints": true
     }
   ]
 }

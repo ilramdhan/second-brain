@@ -43,6 +43,14 @@ export const CALENDAR_SYNC_RATE_LIMIT: RateLimitRule = {
   windowSeconds: 600,
 };
 
+/** Creating or regenerating public share links (each call issues a new bearer token). */
+export const SHARE_LINK_RATE_LIMIT: RateLimitRule = {
+  bucket: "share_link",
+  subject: "tautan publik",
+  max: 30,
+  windowSeconds: 600,
+};
+
 /**
  * Default demo write quota (migration 0019). Enforced in Postgres by the `zz_demo_write`
  * statement triggers through `consume_rate_limit`, only when `app_config.demo_mode = 'on'`;

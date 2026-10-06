@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { BlockEditor, InlineText } from "@/components/notes/BlockEditor";
 import { NoteLinksContext, useNoteLinksValue } from "@/components/notes/note-links";
 import { TagInput } from "@/components/common/TagInput";
+import { ShareButton } from "@/components/share/ShareDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -297,6 +298,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             >
               <Pin className={cn(note.pinned && "fill-current text-primary")} />
             </Button>
+            <ShareButton resourceType="note" resourceId={note.id} />
             <Button variant="ghost" size="sm" onClick={summarize} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
               <span className="hidden sm:inline">Buat notulen</span>

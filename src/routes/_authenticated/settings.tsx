@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SecurityPanel } from "@/components/settings/SecurityPanel";
+import { SharesPanel } from "@/components/settings/SharesPanel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePreferences, type Locale, type Theme } from "@/lib/preferences";
@@ -245,6 +246,8 @@ function SettingsPage() {
       <GoogleCalendarPanel />
 
       <BackupPanel />
+
+      <SharesPanel />
 
       <SemanticIndexPanel />
 

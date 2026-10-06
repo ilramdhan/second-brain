@@ -11,4 +11,5 @@ export const qk = {
   milestones: ["milestones"] as const,
   deps: ["deps"] as const,
   automations: ["automations"] as const,
+  shares: ["shares"] as const,
 };

@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import { NotesBoard } from "@/components/notes/NotesBoard";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
+import { ShareButton } from "@/components/share/ShareDialog";
 import { CheckCircle } from "@/components/tasks/CheckCircle";
 import { TaskViews } from "@/components/tasks/TaskViews";
 import { Timeline } from "@/components/Timeline";
@@ -133,11 +134,14 @@ function ProjectDetail() {
             )}
           </div>
         </div>
-        {/* Only the project owner may edit project settings (enforced by RLS, migration 0010). */}
+        {/* Only the project owner may edit or publish it (RLS, migrations 0010 and 0024). */}
         {project.user_id === me?.id && (
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-            <Pencil /> Ubah
-          </Button>
+          <div className="flex items-center gap-1">
+            <ShareButton resourceType="project" resourceId={project.id} />
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+              <Pencil /> Ubah
+            </Button>
+          </div>
         )}
       </header>
 
