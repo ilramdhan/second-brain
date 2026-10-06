@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📅 Google Calendar sync\n**Arah app → Google:** tiap 30 menit `POST /api/public/n8n/calendar/sync`. Server memakai OAuth Google milik app (refresh token per user, terenkripsi AES-GCM di `app_user_connections`, di-refresh di server). `CALENDAR_SYNC_MODE=linked` (default) hanya memperbarui tugas yang pernah dikirim ke Google (tombol *Kirim ke Google Calendar*) dan menghapus event tugas yang dihapus/diarsip; `all` juga membuat event untuk setiap tugas bertanggal yang berubah. **Kredensial Google user tidak pernah melewati n8n.**\n\n**Arah Google → app (opsional, single-user, disabled):** Google Calendar Trigger (kalender owner, credential OAuth n8n) → event dengan `#task` → `POST /api/public/n8n/capture` (target `task`, idempoten via `external_id`). Event buatan app punya `extendedProperties.private.second_brain_task_id` dan dilewati agar tidak loop.\n\n**Env:** `SECOND_BRAIN_URL`, `CALENDAR_SYNC_MODE`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, `SECOND_BRAIN_OWNER_EMAIL`.",
+        "content": "## 📅 Google Calendar sync\n**Arah app → Google:** tiap 30 menit `POST /api/public/n8n/calendar/sync`. Server memakai OAuth Google milik app (refresh token per user, terenkripsi AES-GCM di `app_user_connections`, di-refresh di server). `SB_CALENDAR_SYNC_MODE=linked` (default) hanya memperbarui tugas yang pernah dikirim ke Google (tombol *Kirim ke Google Calendar*) dan menghapus event tugas yang dihapus/diarsip; `all` juga membuat event untuk setiap tugas bertanggal yang berubah. **Kredensial Google user tidak pernah melewati n8n.**\n\n**Arah Google → app (opsional, single-user, disabled):** Google Calendar Trigger (kalender owner, credential OAuth n8n) → event dengan `#task` → `POST /api/public/n8n/capture` (target `task`, idempoten via `external_id`). Event buatan app punya `extendedProperties.private.second_brain_task_id` dan dilewati agar tidak loop.\n\n**Env:** `SB_APP_URL`, `SB_CALENDAR_SYNC_MODE`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`, `SB_OWNER_EMAIL`.",
         "height": 400,
         "width": 760,
         "color": "6"
@@ -34,7 +34,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/calendar/sync",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/calendar/sync",
         "options": {
           "timeout": 180000
         },
@@ -42,7 +42,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ since_minutes: 45, limit: 200, mode: $env.CALENDAR_SYNC_MODE === 'all' ? 'all' : 'linked' }) }}"
+        "jsonBody": "={{ JSON.stringify({ since_minutes: 45, limit: 200, mode: $env.SB_CALENDAR_SYNC_MODE === 'all' ? 'all' : 'linked' }) }}"
       },
       "id": "9d717a6c-0f2e-411a-9361-86a4d3905ce3",
       "name": "Sync app → Google",
@@ -72,13 +72,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/sendMessage",
         "options": {
           "timeout": 15000
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_ADMIN_CHAT_ID, text: $json.text.slice(0, 4000) }) }}"
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.SB_TELEGRAM_ADMIN_CHAT_ID, text: $json.text.slice(0, 4000) }) }}"
       },
       "id": "a67ad4b5-988c-48d3-934d-9cd99e3c5589",
       "name": "Lapor admin",
@@ -114,14 +114,14 @@
       "credentials": {
         "googleCalendarOAuth2Api": {
           "id": "REPLACE_ME",
-          "name": "Google Calendar (owner)"
+          "name": "Second Brain Google Calendar (owner)"
         }
       },
       "disabled": true
     },
     {
       "parameters": {
-        "jsCode": "// Hanya event yang ditandai #task, dan bukan event yang dibuat app sendiri.\nconst out = [];\nfor (const i of $input.all()) {\n  const e = i.json;\n  const text = `${e.summary || ''}\\n${e.description || ''}`;\n  if (!/#task\\b/i.test(text)) continue;\n  if (e.extendedProperties?.private?.second_brain_task_id) continue;\n  out.push({ json: { payload: {\n    user_email: $env.SECOND_BRAIN_OWNER_EMAIL,\n    source: 'google_calendar',\n    target: 'task',\n    text: (e.summary || 'Event').replace(/#task\\b/ig, '').trim(),\n    description: (e.description || '').replace(/#task\\b/ig, '').trim() || null,\n    start_date: e.start?.dateTime || e.start?.date || null,\n    due_date: e.end?.dateTime || e.end?.date || null,\n    external_id: `gcal:${e.id}`,\n    google_event_id: e.id,\n    url: e.htmlLink || null,\n  } } });\n}\nreturn out;"
+        "jsCode": "// Hanya event yang ditandai #task, dan bukan event yang dibuat app sendiri.\nconst out = [];\nfor (const i of $input.all()) {\n  const e = i.json;\n  const text = `${e.summary || ''}\\n${e.description || ''}`;\n  if (!/#task\\b/i.test(text)) continue;\n  if (e.extendedProperties?.private?.second_brain_task_id) continue;\n  out.push({ json: { payload: {\n    user_email: $env.SB_OWNER_EMAIL,\n    source: 'google_calendar',\n    target: 'task',\n    text: (e.summary || 'Event').replace(/#task\\b/ig, '').trim(),\n    description: (e.description || '').replace(/#task\\b/ig, '').trim() || null,\n    start_date: e.start?.dateTime || e.start?.date || null,\n    due_date: e.end?.dateTime || e.end?.date || null,\n    external_id: `gcal:${e.id}`,\n    google_event_id: e.id,\n    url: e.htmlLink || null,\n  } } });\n}\nreturn out;"
       },
       "id": "e30e8a69-c0c4-4de7-827b-cbf7dce891a6",
       "name": "Filter #task",
@@ -132,7 +132,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/capture",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/capture",
         "options": {
           "timeout": 30000
         },

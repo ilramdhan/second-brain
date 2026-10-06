@@ -12,7 +12,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/setMyCommands",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/setMyCommands",
         "options": {
           "timeout": 10000
         },
@@ -29,7 +29,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/setMyCommands",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/setMyCommands",
         "options": {
           "timeout": 10000
         },
@@ -46,7 +46,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getMe",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/getMe",
         "options": {
           "timeout": 10000
         }
@@ -60,7 +60,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/getWebhookInfo",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/getWebhookInfo",
         "options": {
           "timeout": 10000
         }
@@ -74,13 +74,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/setWebhook",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/setWebhook",
         "options": {
           "timeout": 10000
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ url: $env.SECOND_BRAIN_URL + '/api/public/telegram/webhook', secret_token: $env.TELEGRAM_WEBHOOK_SECRET, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true }) }}"
+        "jsonBody": "={{ JSON.stringify({ url: $env.SB_APP_URL + '/api/public/telegram/webhook', secret_token: $env.SB_TELEGRAM_WEBHOOK_SECRET, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true }) }}"
       },
       "id": "2c9001c8-9338-484a-bce5-308364603158",
       "name": "setWebhook → app",
@@ -92,7 +92,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/deleteWebhook",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/deleteWebhook",
         "options": {
           "timeout": 10000
         },
@@ -109,7 +109,7 @@
     },
     {
       "parameters": {
-        "content": "## 🛠️ Setup bot (jalankan manual sekali)\n1. **setMyCommands** (id + default) → menu `/` di Telegram.\n2. **getMe** + **getWebhookInfo** → cek token & webhook aktif.\n\nNode **disabled** (pilih salah satu mode, lalu enable & Execute):\n- **setWebhook → app**: mode *app* — Telegram langsung ke `SECOND_BRAIN_URL/api/public/telegram/webhook` dengan `secret_token = TELEGRAM_WEBHOOK_SECRET` (dicek app via header `x-telegram-bot-api-secret-token`). Jangan aktifkan workflow 01 di mode ini.\n- **deleteWebhook**: bersihkan webhook sebelum pindah mode. Untuk mode n8n cukup *activate* workflow 01 — Telegram Trigger mendaftarkan webhook-nya sendiri.\n\nEnv: `TELEGRAM_BOT_TOKEN` (+ `SECOND_BRAIN_URL`, `TELEGRAM_WEBHOOK_SECRET` untuk setWebhook).",
+        "content": "## 🛠️ Setup bot (jalankan manual sekali)\n1. **setMyCommands** (id + default) → menu `/` di Telegram.\n2. **getMe** + **getWebhookInfo** → cek token & webhook aktif.\n\nNode **disabled** (pilih salah satu mode, lalu enable & Execute):\n- **setWebhook → app**: mode *app* — Telegram langsung ke `SB_APP_URL/api/public/telegram/webhook` dengan `secret_token = SB_TELEGRAM_WEBHOOK_SECRET` (dicek app via header `x-telegram-bot-api-secret-token`). Jangan aktifkan workflow 01 di mode ini.\n- **deleteWebhook**: bersihkan webhook sebelum pindah mode. Untuk mode n8n cukup *activate* workflow 01 — Telegram Trigger mendaftarkan webhook-nya sendiri.\n\nEnv: `SB_TELEGRAM_BOT_TOKEN` (+ `SB_APP_URL`, `SB_TELEGRAM_WEBHOOK_SECRET` untuk setWebhook).",
         "height": 360,
         "width": 720,
         "color": "6"
