@@ -5,18 +5,21 @@ import {
   CalendarDays,
   CheckSquare,
   Inbox,
+  Monitor,
+  Moon,
   Network,
   Scale,
   Send,
   Smartphone,
+  Sun,
   Users,
   Workflow,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import { GITHUB_URL } from "@/lib/landing";
-import { usePreferences, type MessageKey } from "@/lib/preferences";
+import { demoUrl, GITHUB_URL, LICENSE_URL, SECURITY_URL } from "@/lib/landing";
+import { usePreferences, type MessageKey, type Theme } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 /*
@@ -229,47 +232,124 @@ function ChatMock() {
   );
 }
 
+const NEXT_THEME: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+const THEME_ICON = { light: Sun, dark: Moon, system: Monitor } as const;
+
+/** Cycles system → light → dark; same preference store (localStorage) as Settings. */
+function ThemeToggle() {
+  const { theme, setTheme, t } = usePreferences();
+  const Icon = THEME_ICON[theme];
+  const next = NEXT_THEME[theme];
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(next)}
+      aria-label={`${t("landingThemeLabel")}: ${t(theme)}`}
+      title={`${t("landingThemeLabel")}: ${t(theme)}`}
+    >
+      <Icon aria-hidden />
+    </Button>
+  );
+}
+
+function LanguageToggle() {
+  const { locale, setLocale, t } = usePreferences();
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-9 w-9 px-0 text-xs font-semibold"
+      onClick={() => setLocale(locale === "id" ? "en" : "id")}
+      aria-label={t("landingLanguageLabel")}
+      title={t("landingLanguageLabel")}
+      lang={locale === "id" ? "en" : "id"}
+    >
+      {locale === "id" ? "EN" : "ID"}
+    </Button>
+  );
+}
+
+const FOOTER_LINK =
+  "rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+const PAGE = "mx-auto w-full max-w-6xl px-4 sm:px-5 md:px-6";
+
 export function Landing() {
   const { t } = usePreferences();
+  const demo = demoUrl();
+  const newTab = <span className="sr-only"> {t("landingNewTab")}</span>;
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-5 md:px-6">
-        <span className="flex items-center gap-2 font-semibold tracking-tight">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {t("landingSkip")}
+      </a>
+      <header className={cn(PAGE, "flex h-16 items-center justify-between gap-2")}>
+        <Link
+          to="/"
+          className="flex items-center gap-2 rounded-md font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
           <Brain className="h-6 w-6 text-primary" aria-hidden />
           Second Brain
-        </span>
-        <Button asChild size="sm">
-          <Link to="/login">{t("landingSignIn")}</Link>
-        </Button>
+        </Link>
+        <nav aria-label="Second Brain" className="flex items-center gap-1">
+          <ThemeToggle />
+          <LanguageToggle />
+          <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub">
+              <GithubMark />
+            </a>
+          </Button>
+          <Button asChild size="sm" variant={demo ? "outline" : "default"} className="ml-1 h-9">
+            <Link to="/login">{t("landingSignIn")}</Link>
+          </Button>
+        </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-5 md:px-6">
-        <section className="py-10 text-center md:py-16">
+      <main id="main" tabIndex={-1} className={cn(PAGE, "pb-12 focus:outline-none")}>
+        <section className="py-10 text-center md:py-16" aria-labelledby="landing-title">
           <p className="text-xs font-medium tracking-wide text-primary uppercase">
             {t("landingEyebrow")}
           </p>
-          <h1 className="mx-auto mt-3 max-w-3xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl md:text-5xl">
+          <h1
+            id="landing-title"
+            className="mx-auto mt-3 max-w-3xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl md:text-5xl"
+          >
             {t("landingTitle")}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base text-pretty text-muted-foreground">
             {t("landingSubtitle")}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <Button asChild size="lg">
-              <Link to="/login">
-                {t("landingSignIn")}
-                <ArrowRight aria-hidden />
-              </Link>
-            </Button>
+            {demo ? (
+              <Button asChild size="lg">
+                <a href={demo} target="_blank" rel="noopener">
+                  {t("landingDemo")}
+                  <ArrowRight aria-hidden />
+                  {newTab}
+                </a>
+              </Button>
+            ) : (
+              <Button asChild size="lg">
+                <Link to="/login">
+                  {t("landingSignIn")}
+                  <ArrowRight aria-hidden />
+                </Link>
+              </Button>
+            )}
             <Button asChild size="lg" variant="outline">
               <a href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <GithubMark />
                 {t("landingGithub")}
+                {newTab}
               </a>
             </Button>
           </div>
         </section>
-
         <section aria-label={t("landingFeatures")}>
           <div className="grid grid-flow-dense grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <BentoCard
@@ -322,11 +402,35 @@ export function Landing() {
       </main>
 
       <footer className="border-t">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-sm text-muted-foreground sm:px-5 md:px-6">
-          <span>{t("landingFooter")}</span>
-          <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">
-            GitHub · MIT
-          </a>
+        <div
+          className={cn(
+            PAGE,
+            "flex flex-col gap-3 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between",
+          )}
+        >
+          {/* Server and browser years differ only around New Year's Eve. */}
+          <p suppressHydrationWarning>
+            © {new Date().getFullYear()} Second Brain · {t("landingFooter")}
+          </p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1">
+            <li>
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer" className={FOOTER_LINK}>
+                GitHub{newTab}
+              </a>
+            </li>
+            <li>
+              <a href={LICENSE_URL} target="_blank" rel="noreferrer" className={FOOTER_LINK}>
+                {t("landingLicense")}
+                {newTab}
+              </a>
+            </li>
+            <li>
+              <a href={SECURITY_URL} target="_blank" rel="noreferrer" className={FOOTER_LINK}>
+                {t("landingSecurity")}
+                {newTab}
+              </a>
+            </li>
+          </ul>
         </div>
       </footer>
     </div>

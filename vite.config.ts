@@ -28,9 +28,11 @@ const REQUIRED_CLIENT_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY
 const PRECACHED_PUBLIC_FILES = [
   "offline.html",
   "manifest.webmanifest",
+  "favicon.svg",
   "favicon.png",
   "icon-192.png",
   "icon-512.png",
+  "icon-maskable-512.png",
 ];
 
 function pwa(): PluginOption {
