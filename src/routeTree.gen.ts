@@ -27,6 +27,7 @@ import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticated/timeline'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthSetPasswordRouteImport } from './routes/auth/set-password'
 import { Route as AuthenticatedNotesIndexRouteImport } from './routes/_authenticated/notes.index'
 import { Route as AuthenticatedNotesNoteIdRouteImport } from './routes/_authenticated/notes.$noteId'
@@ -134,6 +135,11 @@ const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
   id: '/today',
   path: '/today',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
   id: '/auth/set-password',
@@ -245,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/timeline': typeof AuthenticatedTimelineRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/_authenticated/notes/$noteId': typeof AuthenticatedNotesNoteIdRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
@@ -357,6 +366,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/timeline'
     | '/today'
+    | '/auth/callback'
     | '/auth/set-password'
     | '/notes/$noteId'
     | '/projects/$projectId'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/timeline'
     | '/today'
+    | '/auth/callback'
     | '/auth/set-password'
     | '/notes/$noteId'
     | '/projects/$projectId'
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/_authenticated/templates'
     | '/_authenticated/timeline'
     | '/_authenticated/today'
+    | '/auth/callback'
     | '/auth/set-password'
     | '/_authenticated/notes/$noteId'
     | '/_authenticated/projects/$projectId'
@@ -455,6 +467,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicHooksRemindersRoute: typeof ApiPublicHooksRemindersRoute
@@ -597,6 +610,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/today'
       preLoaderRoute: typeof AuthenticatedTodayRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/auth/set-password': {
       id: '/auth/set-password'
@@ -770,6 +790,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   AuthSetPasswordRoute: AuthSetPasswordRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicHooksRemindersRoute: ApiPublicHooksRemindersRoute,
