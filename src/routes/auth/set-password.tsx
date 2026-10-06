@@ -43,27 +43,23 @@ type State =
 /**
  * Resolves the session an email link carries. supabase-js reads implicit links
  * (`#access_token=…&type=invite|recovery`) by itself when the client initializes and clears the
- * hash, so the URL is parsed first. PKCE `?code=` and `?token_hash=` links are exchanged here.
+ * hash, so the URL is parsed first. PKCE `?code=` links are exchanged here. (`?token_hash=` links
+ * from custom templates are not supported: the templates must use `{{ .ConfirmationURL }}`.)
  */
 async function resolveLink(href: string): Promise<State> {
   const link = parseAuthLinkParams(href);
   // Only a real email link unlocks the form: opening the page directly (or with a link that
   // failed) must not let whoever holds a stored session change its password.
-  if (link.error || !(link.hasTokens || link.code || link.tokenHash)) return { step: "invalid" };
-  if (link.code || link.tokenHash) {
+  if (link.error || !(link.hasTokens || link.code)) return { step: "invalid" };
+  if (link.code) {
     // Supabase may already have exchanged a PKCE code during init; a second exchange then fails.
     const { data: existing } = await supabase.auth.getSession();
     if (!existing.session) {
-      const result = link.tokenHash
-        ? await supabase.auth.verifyOtp({
-            token_hash: link.tokenHash,
-            type: link.kind === "invite" ? "invite" : "recovery",
-          })
-        : await supabase.auth.exchangeCodeForSession(link.code!);
+      const result = await supabase.auth.exchangeCodeForSession(link.code);
       if (result.error) return { step: "invalid" };
     }
     const url = new URL(href);
-    for (const key of ["code", "token_hash", "type"]) url.searchParams.delete(key);
+    for (const key of ["code", "type"]) url.searchParams.delete(key);
     window.history.replaceState(window.history.state, "", url.pathname + url.search);
   }
   const { data, error } = await supabase.auth.getSession();

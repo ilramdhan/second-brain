@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const auth = vi.hoisted(() => ({
   getSession: vi.fn(),
   exchangeCodeForSession: vi.fn(),
-  verifyOtp: vi.fn(),
   updateUser: vi.fn(),
   resetPasswordForEmail: vi.fn(),
   rpc: vi.fn(),
@@ -18,7 +17,6 @@ vi.mock("@/integrations/supabase/client", () => ({
     auth: {
       getSession: auth.getSession,
       exchangeCodeForSession: auth.exchangeCodeForSession,
-      verifyOtp: auth.verifyOtp,
       updateUser: auth.updateUser,
       resetPasswordForEmail: auth.resetPasswordForEmail,
     },

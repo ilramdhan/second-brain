@@ -62,8 +62,6 @@ export type AuthLinkParams = {
   error: { code: string; description: string } | null;
   /** PKCE code (`?code=`), when the project uses the PKCE flow. */
   code: string | null;
-  /** `?token_hash=&type=` links (custom email templates that use `{{ .TokenHash }}`). */
-  tokenHash: string | null;
   /** Implicit-flow tokens are present in the hash (supabase-js stores them on init). */
   hasTokens: boolean;
   /** `sub` of the access token in the hash, to check the stored session belongs to the link. */
@@ -86,7 +84,7 @@ export function jwtSubject(token: string | null): string | null {
 /**
  * Reads what a Supabase email link put in the URL: implicit tokens or errors in the hash
  * (`#access_token=…&type=invite`, `#error_code=otp_expired`), or a PKCE `?code=` /
- * `?token_hash=&type=` in the query. Must run before the Supabase client initializes, because
+ * in the query. Must run before the Supabase client initializes, because
  * supabase-js clears the hash once it has read it.
  */
 export function parseAuthLinkParams(href: string): AuthLinkParams {
@@ -108,7 +106,6 @@ export function parseAuthLinkParams(href: string): AuthLinkParams {
       ? { code: errorCode, description: (get("error_description") ?? "").slice(0, 300) }
       : null,
     code: query.get("code"),
-    tokenHash: query.get("token_hash"),
     hasTokens: hash.has("access_token"),
     tokenSubject: jwtSubject(hash.get("access_token")),
   };

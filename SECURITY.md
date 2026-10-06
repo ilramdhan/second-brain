@@ -101,7 +101,7 @@ code doesn't match.
 - **Password links**: "Lupa kata sandi?" on `/login` calls `resetPasswordForEmail` and always
   shows the same message (only rate-limit errors are surfaced). `/auth/set-password` (noindex,
   never cached by the service worker) accepts a session only when the URL carries an email link
-  (implicit tokens whose `sub` matches the stored session, a PKCE `?code=` or a `?token_hash=`),
+  (implicit tokens whose `sub` matches the stored session, or a PKCE `?code=`),
   so opening it on a device with an existing session cannot change that account's password. It is
   disabled in the demo, whose account is shared.
 - **Supabase Auth settings** for these flows: Site URL = your app origin; Redirect URLs include

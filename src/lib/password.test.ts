@@ -28,14 +28,10 @@ describe("parseAuthLinkParams", () => {
     expect(link).toMatchObject({ kind: "invite", hasTokens: true, code: null, error: null });
   });
 
-  it("reads PKCE and token_hash links from the query", () => {
+  it("reads PKCE links from the query", () => {
     expect(parseAuthLinkParams("https://a.test/x?code=c1&type=recovery")).toMatchObject({
       kind: "recovery",
       code: "c1",
-    });
-    expect(parseAuthLinkParams("https://a.test/x?token_hash=h&type=invite")).toMatchObject({
-      kind: "invite",
-      tokenHash: "h",
     });
   });
 
