@@ -187,7 +187,7 @@ Press `Cmd/Ctrl + K` to search tasks, projects and notes and jump to them, or to
 
 ### PWA
 
-`manifest.webmanifest` makes the app installable (standalone mode, maskable icons). `public/sw.js` caches the app shell and static images, fonts and the manifest, and falls back to the cached shell when a page is opened offline. Server function and `/api/` requests are never cached.
+`manifest.webmanifest` makes the app installable (standalone mode, maskable icons). The service worker (`/sw.js`) is generated at build time by Workbox through `vite-plugin-pwa` (config in `vite.config.ts`) and written next to the client assets (`.vercel/output/static` on Vercel). It precaches the hashed JS/CSS, icons, manifest and `public/offline.html`; page navigations are network-first (last visited copy, then the offline page); same-origin images are cache-first. Server functions (`/_serverFn`), `/api/*`, OAuth popups and Supabase are never cached. When a new deployment is waiting, a toast ("Versi baru tersedia" → "Muat ulang") activates it (`src/components/common/PwaUpdatePrompt.tsx`). `public/sw-legacy-cleanup.js` deletes the caches of the old hand-written worker. The stored theme is applied by an inline `<head>` script before hydration (`src/lib/theme-script.ts`), so dark mode never flashes light.
 
 ### Authentication
 
@@ -297,7 +297,8 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
 ├── integrations/n8n/          # n8n workflow templates (bot, schedules, backup, calendar, email)
 ├── public/
 │   ├── manifest.webmanifest   # PWA manifest
-│   ├── sw.js                  # Service worker (shell + static asset cache)
+│   ├── offline.html           # Offline fallback page (precached by the Workbox SW)
+│   ├── sw-legacy-cleanup.js   # Deletes caches of the pre-Workbox service worker
 │   ├── favicon.ico/.svg/.png, apple-touch-icon.png, icon-192/512(-maskable).png, og-image.png
 │   └── robots.txt, sitemap.xml   # brand images are rendered from scripts/brand/*.svg
 └── src/
