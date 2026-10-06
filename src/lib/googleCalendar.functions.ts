@@ -23,12 +23,14 @@ export const googleCalendarStatus = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     // The demo never connects a real calendar: report "not configured" instead of failing.
     const { isDemoMode } = await import("@/server/demo/mode.server");
-    if (isDemoMode()) return { configured: false, connected: false };
+    const off = { connected: false, importEvents: false, lastPulledAt: null as string | null };
+    if (isDemoMode()) return { configured: false, ...off };
     const { googleOAuthConfig } = await import("@/server/googleOAuth.server");
     const configured = Boolean(googleOAuthConfig(process.env, requestOrigin()));
-    if (!configured) return { configured, connected: false };
-    const { loadTokens } = await import("@/server/googleCalendar.server");
-    return { configured, connected: Boolean(await loadTokens(context.userId)) };
+    if (!configured) return { configured, ...off };
+    const { loadTokens, syncSettings } = await import("@/server/googleCalendar.server");
+    if (!(await loadTokens(context.userId))) return { configured, ...off };
+    return { configured, connected: true, ...(await syncSettings(context.userId)) };
   });
 
 /** Returns Google's consent URL; the encrypted `state` binds the flow to this user. */
@@ -60,7 +62,7 @@ export const completeGoogleCalendarConnect = createServerFn({ method: "POST" })
     const verifier = await verifyOAuthState(data.state, context.userId);
     const tokens = await exchangeAuthorizationCode(config, data.code, verifier);
     const { saveTokens } = await import("@/server/googleCalendar.server");
-    await saveTokens(context.userId, tokens);
+    await saveTokens(context.userId, tokens, { resetSync: true });
     return { ok: true };
   });
 
@@ -77,17 +79,59 @@ export const syncTaskToGoogle = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ taskId: z.guid() }).parse(data))
   .handler(async ({ data, context }) => {
     await rejectInDemo();
-    const { loadTokens, upsertTaskEvent } = await import("@/server/googleCalendar.server");
+    const { loadTokens, upsertTaskEvent, pushedFields } =
+      await import("@/server/googleCalendar.server");
     if (!(await loadTokens(context.userId))) return { connected: false };
     // Read through RLS so a user can only sync tasks they can see.
     const { data: task, error } = await context.supabase
       .from("tasks")
-      .select("id,title,description,start_date,due_date,time_block_end,google_event_id")
+      .select("id,title,description,start_date,due_date,time_block_end,updated_at,google_event_id")
       .eq("id", data.taskId)
       .single();
     if (error) throw new Error("Tugas tidak ditemukan.");
-    const eventId = await upsertTaskEvent(context.userId, task);
-    if (eventId !== task.google_event_id)
-      await context.supabase.from("tasks").update({ google_event_id: eventId }).eq("id", task.id);
-    return { connected: true, eventId };
+    const event = await upsertTaskEvent(context.userId, task);
+    // Event link + etag (echo marker for the pull); bookkeeping only, `updated_at` is unchanged.
+    await context.supabase
+      .from("tasks")
+      .update(pushedFields(event, task.updated_at))
+      .eq("id", task.id);
+    return { connected: true, eventId: event.id };
+  });
+
+/** Settings "Sinkronkan sekarang": pull Google changes, then push this user's linked tasks. */
+export const syncGoogleCalendarNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await rejectInDemo();
+    const { enforceRateLimit, CALENDAR_SYNC_RATE_LIMIT } =
+      await import("@/server/rateLimit.server");
+    await enforceRateLimit(context.supabase, CALENDAR_SYNC_RATE_LIMIT);
+    const { loadTokens } = await import("@/server/googleCalendar.server");
+    if (!(await loadTokens(context.userId))) throw new Error("Google Calendar belum terhubung.");
+    const { syncCalendars } = await import("@/server/n8n/calendarSync.server");
+    const r = await syncCalendars({
+      userId: context.userId,
+      sinceMinutes: 43_200,
+      limit: 200,
+      mode: "linked",
+      direction: "both",
+    });
+    const pullError = r.pull.users.find((u) => u.error)?.error;
+    if (pullError) throw new Error(pullError);
+    return {
+      pulled: r.pull.applied,
+      pushed: r.synced,
+      failed: r.failed + r.pull.failed,
+    };
+  });
+
+/** Per-connection opt-in "Impor acara Google sebagai tugas" (default off). */
+export const setGoogleCalendarImport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ enabled: z.boolean() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await rejectInDemo();
+    const { setImportEvents } = await import("@/server/googleCalendar.server");
+    await setImportEvents(context.userId, data.enabled);
+    return { ok: true };
   });
