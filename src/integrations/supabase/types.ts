@@ -62,6 +62,9 @@ export type Database = {
           connector_id: string;
           created_at: string;
           id: string;
+          import_events: boolean;
+          last_pulled_at: string | null;
+          sync_token: string | null;
           updated_at: string;
           user_id: string;
         };
@@ -70,6 +73,9 @@ export type Database = {
           connector_id: string;
           created_at?: string;
           id?: string;
+          import_events?: boolean;
+          last_pulled_at?: string | null;
+          sync_token?: string | null;
           updated_at?: string;
           user_id: string;
         };
@@ -78,6 +84,9 @@ export type Database = {
           connector_id?: string;
           created_at?: string;
           id?: string;
+          import_events?: boolean;
+          last_pulled_at?: string | null;
+          sync_token?: string | null;
           updated_at?: string;
           user_id?: string;
         };
@@ -847,7 +856,9 @@ export type Database = {
           description: string | null;
           due_date: string | null;
           estimate_minutes: number;
+          google_etag: string | null;
           google_event_id: string | null;
+          google_synced_at: string | null;
           id: string;
           milestone_id: string | null;
           parent_id: string | null;
@@ -874,7 +885,9 @@ export type Database = {
           description?: string | null;
           due_date?: string | null;
           estimate_minutes?: number;
+          google_etag?: string | null;
           google_event_id?: string | null;
+          google_synced_at?: string | null;
           id?: string;
           milestone_id?: string | null;
           parent_id?: string | null;
@@ -901,7 +914,9 @@ export type Database = {
           description?: string | null;
           due_date?: string | null;
           estimate_minutes?: number;
+          google_etag?: string | null;
           google_event_id?: string | null;
+          google_synced_at?: string | null;
           id?: string;
           milestone_id?: string | null;
           parent_id?: string | null;
