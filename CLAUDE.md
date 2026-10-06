@@ -47,7 +47,8 @@ Before finishing a change, run `bun run lint` and `bun run test`, and run `bun r
 ```
 src/routes/__root.tsx            HTML shell, SW registration
 src/routes/_authenticated.tsx    auth guard + app shell (nav, Cmd+K, Q quick task, capture, idle logout)
-src/routes/_authenticated/*      pages: index(Today) inbox tasks calendar timeline projects.* notes.* graph
+src/routes/index.tsx             public landing (/; signed-in users → /today)
+src/routes/_authenticated/*      pages: today inbox tasks calendar timeline projects.* notes.* graph
                                  canvas automations reports templates archive activity settings
 src/routes/api/public/*          public HTTP endpoints: telegram/webhook (app mode), hooks/reminders (cron
                                  fallback), n8n/* (x-api-key)
