@@ -326,6 +326,17 @@ describe("buildDemoSeed: every page has data", () => {
       expect(a.run_count).toBe(runs.length);
     }
     expect(seed.automation_runs.length).toBeGreaterThan(3);
+    // 9.4: one scheduled rule (never due on the demo) and one note-trigger rule.
+    const scheduled = seed.automations.filter(
+      (a) => (a.trigger as { type: string }).type === "schedule",
+    );
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0]).toMatchObject({ schedule_cron: "0 8 * * 1", next_run_at: null });
+    expect(
+      seed.automations.some((a) => (a.trigger as { type: string }).type === "note_tagged"),
+    ).toBe(true);
+    for (const a of seed.automations)
+      if ((a.trigger as { type: string }).type !== "schedule") expect(a.schedule_cron).toBeNull();
     expect(seed.activity_logs.length).toBeGreaterThan(10);
     expect(new Set(seed.activity_logs.map((l) => l.action))).toEqual(
       new Set(["insert", "update", "delete"]),

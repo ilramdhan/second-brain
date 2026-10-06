@@ -190,7 +190,7 @@ Diambil dari ANALYSIS §13, dikerjakan setelah Phase 1–5 stabil:
 1. Semantic search memakai tabel embedding yang sudah ada (UI belum ada).
 2. Login Google/magic link, 2FA, reset password. _✅ Reset password & undangan: PR #58. ✅ Google (Supabase provider, `VITE_AUTH_GOOGLE`), magic link (`shouldCreateUser: false`), `/auth/callback`, 2FA TOTP (Pengaturan → Keamanan, langkah TOTP saat masuk, guard aal2 di klien + server function + RLS restrictive migration 0022): PR phase-9/auth-oauth-mfa._
 3. Sinkronisasi Google Calendar dua arah. ✅ _9.3: pull inkremental `syncToken` (410 → full resync), last-write-wins, anti-gema etag/`google_synced_at`, impor opsional per koneksi, "Sinkronkan sekarang" + n8n `calendar/sync` `direction` (migration 0021)._
-4. Otomasi terjadwal (cron per rule) dan trigger untuk catatan.
+4. Otomasi terjadwal (cron per rule) dan trigger untuk catatan. ✅ _9.4: trigger `schedule` (cron 5 bagian + zona waktu, parser lokal `src/lib/cron.ts`, `next_run_at`), tick n8n `POST /n8n/automations/tick` tiap 5 menit (workflow 10, klaim compare-and-swap per jendela), aksi terjadwal create_task / move_overdue / digest; trigger catatan `note_created`/`note_updated`/`note_tagged` dengan aksi tag, proyek, buat tugas, notifikasi (migration 0023)._
 5. Sharing read-only publik (link bertoken, bisa dicabut).
 6. Laporan & grafik (fokus, burndown, throughput), habit tracker.
 7. UX keyboard-first (j/k, aksi cepat di command palette, cheat-sheet).

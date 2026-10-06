@@ -1378,6 +1378,8 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
     actions: Json;
     enabled: boolean;
     runs: [string, number, boolean, string][];
+    /** Scheduled rules (9.4): cron in the demo zone. Never run on the demo (no n8n tick). */
+    cron?: string;
   }[] = [
     {
       key: "urgent",
@@ -1431,6 +1433,25 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
       enabled: true,
       runs: [["bug-struk-retry", -2, true, "telegram dilewati (demo)"]],
     },
+    {
+      key: "weekly-review",
+      name: "Senin 08:00 → tugas weekly review",
+      trigger: { type: "schedule" },
+      conditions: [],
+      actions: [{ type: "create_task", title: "Weekly review {{date}}", due_in_days: 0 }],
+      enabled: true,
+      runs: [],
+      cron: "0 8 * * 1",
+    },
+    {
+      key: "note-rapat",
+      name: "Catatan #rapat → tugas tindak lanjut",
+      trigger: { type: "note_tagged", to: "rapat" },
+      conditions: [],
+      actions: [{ type: "create_task", title: "Tindak lanjut: {{title}}", due_in_days: 2 }],
+      enabled: true,
+      runs: [],
+    },
   ];
   const automations: TablesInsert<"automations">[] = automationSpecs.map((a, i) => ({
     id: id(`automation:${a.key}`),
@@ -1442,6 +1463,10 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
     enabled: a.enabled,
     run_count: a.runs.length,
     last_run_at: a.runs.length ? at(Math.max(...a.runs.map((r) => r[1])), 14) : null,
+    schedule_cron: a.cron ?? null,
+    schedule_tz: a.cron ? tz : null,
+    // Demo rules never run (the n8n tick is a 404 there), so no next run is stored.
+    next_run_at: null,
     created_at: at(-20 + i, 10),
   }));
   const titleOf = (key: string) => taskSpecs.find((t) => t.key === key)?.title ?? key;

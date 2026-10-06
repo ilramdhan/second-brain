@@ -144,13 +144,29 @@ A basic visual board: add idea cards, edit their title and content, select two c
 
 ### Automations (`/automations`)
 
-If-this-then-that rules for tasks, evaluated server-side in `runAutomations`:
+If-this-then-that rules for tasks and notes, plus scheduled rules, all evaluated server-side. A rule's trigger decides its kind:
+
+**Task rules** (`runAutomations` → `runAutomationRules`, after every task write in `useTaskActions` and the n8n task writes)
 
 - **Triggers**: task created, status changed (optionally to a specific value), priority changed, assignee changed, due date changed.
-- **Conditions**: priority, status, project, tag or assignee, with `eq`, `neq` or `contains`.
+- **Conditions**: priority, status, project, tag, assignee or title, with `eq`, `neq` or `contains`.
 - **Actions**: set a field (priority, status or assignee), add a tag, shift the due date by N days, post a comment, send a Telegram message, or POST a JSON payload to an **HTTPS webhook** (payload `{ text, content, rule, event, project, task }`, compatible with Slack, Discord and n8n).
 - Templates support `{{title}} {{status}} {{priority}} {{assignee}} {{project}} {{due}}`.
-- Each run is logged to `automation_runs`, and `run_count` and `last_run_at` are updated. Actions write directly to the database, so they never trigger rules again.
+
+**Note rules** (`runAutomations` → `runNoteAutomationRules`, after `useNoteActions` creates/updates, inbox processing and every server-side `createNote` from n8n: bot, capture, email)
+
+- **Triggers**: note created, note updated (at most once per note every 30 minutes, since the editor autosaves), a tag added to a note (optionally a specific tag).
+- **Conditions**: tag, title contains, project.
+- **Actions**: add a tag, link to a project, create a task from the note (title with `{{title}} {{tags}} {{project}}`, links back to the note), Telegram, webhook (minimal `{ note: { id, title, tags, project_id, url } }`, no body).
+
+**Scheduled rules** (cron per rule, run by the n8n tick)
+
+- A 5-field cron (`minute hour day month weekday`) and a time zone (default `APP_TIMEZONE`). The form offers presets (daily at HH:MM, weekly on a day, monthly on a date) or a custom cron with a readable description and the next three runs. One small local parser (`src/lib/cron.ts`, no dependency) powers the preview and the server validation; DST gaps are skipped and repeated hours run once.
+- The server stores `next_run_at` on every save (`scheduleAutomation`). n8n workflow 10 calls `POST /api/public/n8n/automations/tick` every 5 minutes: due rules are claimed with a compare-and-swap on `next_run_at` (the same window never runs twice, even with overlapping ticks or retries; missed windows run once), their actions run for the rule owner, then the next run is computed. Vercel Cron is not used (Hobby allows one run a day).
+- **Actions** (they have no task or note to act on): create a task (`{{date}} {{weekday}} {{rule}}`, priority, project, due in N days), move overdue tasks (yours or one project's) to To do / In progress / Review (never Done: completion has its own rules), send a digest (morning, overdue, evening, weekly) to Telegram or an HTTPS webhook.
+- On the public demo, scheduled rules can be created but never run (the tick endpoint is a 404).
+
+Each run is logged to `automation_runs` (with `task_id` or `note_id`), and `run_count` and `last_run_at` are updated. Actions write directly to the database, so they never trigger rules again: a tag added by a rule does not fire `note_tagged`, and a task created by a rule runs no task rules.
 
 ### Focus timer & reports (`/reports`)
 
@@ -357,12 +373,16 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   ├── googleCalendarPull.server.ts       # Google → app pull (syncToken, 410 resync, import)
     │   ├── googleCalendarMapping.server.ts    # Event ↔ task mapping, last-write-wins, echo rules
     │   ├── automationEngine.server.ts         # Automation rule engine (browser + n8n paths)
+    │   ├── noteAutomationEngine.server.ts     # Note rules (note_created/updated/tagged)
+    │   ├── scheduledAutomations.server.ts     # Scheduled rules: n8n tick, next_run_at
+    │   ├── automationActions.server.ts        # Shared action validation + create_task/telegram
     │   ├── reminders.server.ts, telegramLink.server.ts
     │   ├── n8n/                               # n8n endpoint auth, zod schemas, services, digests
     │   └── cronAuth, rateLimit, ssrf, securityHeaders, telegram* helpers
     ├── lib/
     │   ├── data.ts                # Query hooks, CRUD/soft-delete, task actions, dependencies, date helpers
-    │   ├── automations.functions.ts # runAutomations / notifyUnblocked server fns
+    │   ├── automations.functions.ts # runAutomations / scheduleAutomation / notifyUnblocked
+    │   ├── cron.ts                  # 5-field cron parser + next runs (form + server)
     │   ├── automation-types.ts    # Shared trigger/condition/action types
     │   ├── ai.functions.ts        # AI server fns (brain dump, paraphrase, minutes, transcribe, OCR)
     │   ├── ai.server.ts           # AI provider client (AI SDK, AI_* env)
@@ -820,17 +840,18 @@ The `webhook` action sends `POST` with JSON `{ text, content, rule, event, proje
 
 Templates and the full endpoint contracts are in [`integrations/n8n/`](integrations/n8n/README.md). All `/api/public/n8n/*` endpoints require `x-api-key: $N8N_API_KEY` (constant-time, fail-closed), validate input with zod, and act for one resolved user (Telegram chat or email) with the service-role client.
 
-| Endpoint                             | Workflow | Purpose                                                                            |
-| ------------------------------------ | -------- | ---------------------------------------------------------------------------------- |
-| `POST /api/public/n8n/bot`           | 01       | Telegram commands, buttons, OCR/voice text (idempotent per `update_id`)            |
-| `POST /api/public/n8n/capture`       | 07, 08   | Inbox / task / note from email, Google Calendar or webhooks (`external_id` dedupe) |
-| `GET /api/public/n8n/digest`         | 02       | `kind=morning\|evening\|overdue\|weekly` messages per linked user                  |
-| `POST /api/public/n8n/reminders`     | 02       | Due-soon/overdue reminders with ✅ / snooze buttons                                |
-| `POST /api/public/n8n/maintenance`   | 02       | Purge trash > N days, expired link codes, old rate-limit rows and n8n events       |
-| `GET /api/public/n8n/backup`         | 05       | Paged, gzipped JSON export per user (restorable in Settings)                       |
-| `POST /api/public/n8n/calendar/sync` | 07       | App → Google Calendar for connected users                                          |
-| `POST /api/public/n8n/events`        | 03       | n8n errors → `activity_logs`                                                       |
-| `POST /api/public/n8n/demo/reset`    | 09       | Demo deployment only: daily reset of the demo account (see `docs/DEMO.md`)         |
+| Endpoint                                | Workflow | Purpose                                                                            |
+| --------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `POST /api/public/n8n/bot`              | 01       | Telegram commands, buttons, OCR/voice text (idempotent per `update_id`)            |
+| `POST /api/public/n8n/capture`          | 07, 08   | Inbox / task / note from email, Google Calendar or webhooks (`external_id` dedupe) |
+| `GET /api/public/n8n/digest`            | 02       | `kind=morning\|evening\|overdue\|weekly` messages per linked user                  |
+| `POST /api/public/n8n/reminders`        | 02       | Due-soon/overdue reminders with ✅ / snooze buttons                                |
+| `POST /api/public/n8n/maintenance`      | 02       | Purge trash > N days, expired link codes, old rate-limit rows and n8n events       |
+| `GET /api/public/n8n/backup`            | 05       | Paged, gzipped JSON export per user (restorable in Settings)                       |
+| `POST /api/public/n8n/calendar/sync`    | 07       | App → Google Calendar for connected users                                          |
+| `POST /api/public/n8n/events`           | 03       | n8n errors → `activity_logs`                                                       |
+| `POST /api/public/n8n/automations/tick` | 10       | Runs due scheduled automation rules once per window, computes `next_run_at`        |
+| `POST /api/public/n8n/demo/reset`       | 09       | Demo deployment only: daily reset of the demo account (see `docs/DEMO.md`)         |
 
 Automatic backups (workflow 05): daily or weekly → `.json.gz` in a Google Drive folder → keep the newest `SB_BACKUP_RETENTION` files → summary email via Resend SMTP (attachment up to `SB_BACKUP_EMAIL_ATTACH_MAX_MB`) → Telegram/email alert on failure. `docs/n8n/` is reference material from another project and is not part of this app.
 
