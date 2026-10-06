@@ -1,0 +1,105 @@
+# End-to-end tests (Playwright + axe). See CONTRIBUTING.md → "End-to-end tests".
+#
+# - pull_request: builds the app locally (node-server preset, dummy VITE_* values) and runs the
+#   unauthenticated specs (landing + login render and axe). The authenticated smoke test is
+#   skipped because there is no real backend.
+# - deployment_status: when Vercel reports a successful Preview deployment, runs every spec
+#   against that URL. The login → task → note smoke test runs only if the optional secrets
+#   E2E_EMAIL / E2E_PASSWORD (a dedicated test account) are set.
+# - workflow_dispatch: run against any URL by hand.
+#
+# Optional secrets:
+#   E2E_EMAIL, E2E_PASSWORD           - test account for the authenticated smoke test
+#   VERCEL_AUTOMATION_BYPASS_SECRET   - Vercel → Settings → Deployment Protection →
+#                                       "Protection Bypass for Automation"; sent as the
+#                                       x-vercel-protection-bypass header for protected previews
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Deployment URL to test (leave empty to build and test locally)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.deployment.id || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local:
+    name: E2E (local build)
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.base_url == '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NITRO_PRESET: node-server
+      # Dummy public values so the build can inline VITE_* variables; no backend is contacted
+      # by the unauthenticated specs.
+      VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+      SUPABASE_URL: https://ci-placeholder.supabase.co
+      SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Build (node-server)
+        run: bun run build
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Run Playwright
+        run: bunx playwright test
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-local
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  preview:
+    name: E2E (deployment)
+    if: >-
+      (github.event_name == 'deployment_status' &&
+       github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.environment_url != '' &&
+       contains(github.event.deployment.environment, 'Preview')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.base_url != '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_BASE_URL: ${{ github.event.deployment_status.environment_url || inputs.base_url }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.deployment.sha || github.sha }}
+      - uses: ./.github/actions/setup
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Run Playwright against ${{ env.E2E_BASE_URL }}
+        run: |
+          if [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ]; then
+            echo "::notice::E2E_EMAIL / E2E_PASSWORD not set; the authenticated smoke test is skipped."
+          fi
+          bunx playwright test
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-deployment
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
