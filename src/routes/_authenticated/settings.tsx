@@ -144,7 +144,7 @@ function SettingsPage() {
 
       <section className="mb-4 rounded-md border bg-card p-5">
         <h2 className="mb-4 font-semibold">{t("appearance")}</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div>
             <p className="mb-2 text-xs text-muted-foreground">{t("theme")}</p>
             <Tabs value={theme} onValueChange={(value) => setTheme(value as Theme)}>

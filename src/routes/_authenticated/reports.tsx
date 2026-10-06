@@ -3,15 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { addWeeks, endOfWeek, format, startOfWeek } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Timer } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
+import { FocusBreakdown, FocusEmpty, FocusSummary } from "@/components/reports/FocusReport";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { color } from "@/lib/constants";
 import { useProjects, useTasks } from "@/lib/data";
-import { cn } from "@/lib/utils";
 import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 
@@ -33,12 +32,6 @@ export const Route = createFileRoute("/_authenticated/reports")({
   component: ReportsPage,
   errorComponent: RouteError,
 });
-
-const fmt = (sec: number) => {
-  const h = Math.floor(sec / 3600),
-    m = Math.round((sec % 3600) / 60);
-  return h ? `${h} j ${m} m` : `${m} m`;
-};
 
 function ReportsPage() {
   const [offset, setOffset] = useState(0);
@@ -89,7 +82,6 @@ function ReportsPage() {
         .reduce((s, e) => s + e.duration_seconds, 0),
     };
   });
-  const maxDay = Math.max(1, ...days.map((x) => x.sec));
 
   return (
     <PageContainer>
@@ -97,10 +89,11 @@ function ReportsPage() {
         title="Laporan Fokus"
         subtitle={`${format(from, "d MMM", { locale: localeId })} – ${format(to, "d MMM yyyy", { locale: localeId })}`}
         actions={
-          <div className="flex gap-1">
+          <div className="flex gap-1" role="group" aria-label="Pilih minggu">
             <Button
               variant="outline"
               size="icon"
+              className="h-11 w-11 sm:h-9 sm:w-9"
               onClick={() => setOffset(offset - 1)}
               aria-label="Minggu sebelumnya"
             >
@@ -108,7 +101,7 @@ function ReportsPage() {
             </Button>
             <Button
               variant="outline"
-              size="sm"
+              className="h-11 sm:h-9"
               onClick={() => setOffset(0)}
               disabled={offset === 0}
             >
@@ -117,6 +110,7 @@ function ReportsPage() {
             <Button
               variant="outline"
               size="icon"
+              className="h-11 w-11 sm:h-9 sm:w-9"
               onClick={() => setOffset(offset + 1)}
               disabled={offset >= 0}
               aria-label="Minggu berikutnya"
@@ -126,84 +120,28 @@ function ReportsPage() {
           </div>
         }
       />
-      <div className="grid gap-4 md:grid-cols-3">
-        <section className="rounded-md border bg-card p-5">
-          <p className="text-xs text-muted-foreground">Total fokus</p>
-          <p className="mt-1 text-2xl font-semibold">{fmt(total)}</p>
-          <p className="text-xs text-muted-foreground">{focus.length} sesi</p>
-        </section>
-        <section className="rounded-md border bg-card p-5 md:col-span-2">
-          <p className="mb-3 text-xs text-muted-foreground">Per hari</p>
-          <div className="flex h-28 items-end gap-2">
-            {days.map(({ d, sec }) => (
-              <div key={d.toISOString()} className="flex flex-1 flex-col items-center gap-1">
-                <div
-                  className="w-full rounded-sm bg-primary/70"
-                  style={{ height: `${(sec / maxDay) * 88}px`, minHeight: sec ? 4 : 0 }}
-                  title={fmt(sec)}
-                />
-                <span className="text-[10px] capitalize text-muted-foreground">
-                  {format(d, "EEE", { locale: localeId })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      <FocusSummary total={total} sessions={focus.length} days={days} />
       {isLoading ? (
         <p className="mt-6 text-sm text-muted-foreground">Memuat…</p>
       ) : total === 0 ? (
-        <div className="mt-6 rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          <Timer className="mx-auto mb-2 h-6 w-6" />
-          Belum ada sesi fokus minggu ini. Mulai timer dari detail tugas.
-        </div>
+        <FocusEmpty />
       ) : (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <section className="rounded-md border bg-card p-5">
-            <h2 className="mb-3 font-semibold">Per proyek</h2>
-            <ul className="space-y-3">
-              {byProject.map(([pid, sec]) => {
-                const p = projects.find((x) => x.id === pid);
-                return (
-                  <li key={pid}>
-                    <div className="mb-1 flex justify-between text-sm">
-                      <span className="flex items-center gap-2 truncate">
-                        {p && <span className={cn("h-2 w-2 rounded-full", color(p.color).dot)} />}
-                        {p?.name ?? "Tanpa proyek"}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {fmt(sec)} · {Math.round((sec / total) * 100)}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${(sec / total) * 100}%` }}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-          <section className="rounded-md border bg-card p-5">
-            <h2 className="mb-3 font-semibold">Tugas teratas</h2>
-            <ul className="divide-y">
-              {byTask.map(([tid, sec]) => {
-                const t = tasks.find((x) => x.id === tid);
-                return (
-                  <li key={tid} className="flex justify-between gap-3 py-2 text-sm">
-                    <span className="truncate">{t?.title ?? "Tugas terhapus"}</span>
-                    <span className="shrink-0 text-muted-foreground">
-                      {fmt(sec)}
-                      {t?.estimate_minutes ? ` / est. ${t.estimate_minutes} m` : ""}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        </div>
+        <FocusBreakdown
+          total={total}
+          byProject={byProject.map(([pid, sec]) => {
+            const p = projects.find((x) => x.id === pid);
+            return { id: pid, sec, label: p?.name ?? "Tanpa proyek", color: p?.color };
+          })}
+          byTask={byTask.map(([tid, sec]) => {
+            const t = tasks.find((x) => x.id === tid);
+            return {
+              id: tid,
+              sec,
+              label: t?.title ?? "Tugas terhapus",
+              suffix: t?.estimate_minutes ? ` / est. ${t.estimate_minutes} m` : undefined,
+            };
+          })}
+        />
       )}
     </PageContainer>
   );

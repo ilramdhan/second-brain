@@ -580,7 +580,7 @@ function YearView({
 }) {
   const months = Array.from({ length: 12 }, (_, i) => new Date(cursor.getFullYear(), i, 1));
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {months.map((m) => {
         const days = eachDayOfInterval({
           start: startOfWeek(m, WEEK_OPTS),

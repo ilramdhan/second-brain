@@ -127,7 +127,7 @@ function ProjectsPage() {
       </div>
 
       {view === "grid" && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((p) => (
             <ProjectCard
               key={p.id}
@@ -224,7 +224,7 @@ function ProjectCard({
         <button
           onClick={onEdit}
           onPointerDown={(e) => e.stopPropagation()}
-          className="relative z-10 rounded-md p-1 text-muted-foreground opacity-100 hover:bg-accent md:opacity-0 md:group-hover:opacity-100"
+          className="relative z-10 -m-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-100 hover:bg-accent md:m-0 md:h-7 md:w-7 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
           aria-label="Ubah proyek"
         >
           <Pencil className="h-3.5 w-3.5" />
