@@ -34,7 +34,7 @@ export async function loadTokens(userId: string): Promise<StoredGoogleTokens | n
     .eq("connector_id", GOOGLE_CALENDAR_CONNECTOR)
     .maybeSingle();
   if (!data) return null;
-  let tokens: StoredGoogleTokens | null = null;
+  let tokens: StoredGoogleTokens | null;
   try {
     tokens = parseStoredTokens(await decryptToken(data.connection_key_ciphertext));
   } catch {

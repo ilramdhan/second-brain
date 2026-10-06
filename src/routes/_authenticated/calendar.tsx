@@ -433,11 +433,20 @@ function DayCell({
 
 function CalendarChip({ task, day, className }: { task: Task; day: string; className: string }) {
   const { openTask } = useTaskDialog();
-  const move = useDraggable({
+  const {
+    setNodeRef: setMoveNode,
+    attributes: moveAttributes,
+    listeners: moveListeners,
+    isDragging,
+  } = useDraggable({
     id: `move:${task.id}:${day}`,
     data: { task, mode: "move", from: day },
   });
-  const resize = useDraggable({
+  const {
+    setNodeRef: setResizeNode,
+    attributes: resizeAttributes,
+    listeners: resizeListeners,
+  } = useDraggable({
     id: `resize:${task.id}:${day}`,
     data: { task, mode: "resize", from: day },
   });
@@ -445,24 +454,24 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
   const isEnd = r && dayKey(r.end) === day;
   return (
     <div
-      ref={move.setNodeRef}
-      {...move.attributes}
-      {...move.listeners}
+      ref={setMoveNode}
+      {...moveAttributes}
+      {...moveListeners}
       onClick={() => openTask(task.id)}
       className={cn(
         "relative flex cursor-grab touch-manipulation items-center truncate rounded-md py-0.5 pl-1.5 pr-3 text-[10px] font-medium leading-tight sm:text-[11px]",
         className,
         task.status === "done" && "line-through opacity-60",
-        move.isDragging && "opacity-30",
+        isDragging && "opacity-30",
       )}
       title={task.title}
     >
       <span className="truncate">{task.title}</span>
       {isEnd && (
         <span
-          ref={resize.setNodeRef}
-          {...resize.attributes}
-          {...resize.listeners}
+          ref={setResizeNode}
+          {...resizeAttributes}
+          {...resizeListeners}
           onClick={(e) => e.stopPropagation()}
           className="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize rounded-r-md hover:bg-foreground/15"
           aria-label="Perpanjang tugas"

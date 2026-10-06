@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef, useLayoutEffect } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { CalendarDays, ListChecks, Lock, Repeat, User } from "lucide-react";
@@ -48,7 +48,10 @@ export function useTaskRowLookups(allTasks: Task[], projects: Project[]): TaskRo
   const { data: deps = [] } = useDeps();
   const { setStatus } = useTaskActions();
   const setStatusRef = useRef(setStatus);
-  setStatusRef.current = setStatus;
+  // Synced after commit (not during render) so stable callbacks read the latest values.
+  useLayoutEffect(() => {
+    setStatusRef.current = setStatus;
+  });
   const toggle = useCallback(
     (task: Task) => void setStatusRef.current(task, task.status === "done" ? "todo" : "done"),
     [],

@@ -327,7 +327,7 @@ export function BlockEditor({
   }
 
   function onInput(b: Block, el: HTMLTextAreaElement) {
-    let text = el.value;
+    const text = el.value;
     const caret = el.selectionStart;
     if (b.type === "p") {
       const s = shortcut(text);
@@ -349,7 +349,6 @@ export function BlockEditor({
     else if (b.type === "embed")
       setMenu({ kind: "ref", query: text.replace(/^\(\(/, ""), index: 0 });
     else setMenu(null);
-    text = "";
   }
 
   function onKey(b: Block, e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -444,12 +443,16 @@ export function BlockEditor({
     setDrag(null);
   }
 
-  let num = 0;
+  // Running number for consecutive "numbered" blocks (resets on any other block type).
+  const numbers: number[] = [];
+  blocks.forEach((b, i) => {
+    numbers.push(b.type === "numbered" ? (i > 0 ? numbers[i - 1]! : 0) + 1 : 0);
+  });
   return (
     <NoteLinksContext.Provider value={noteLinks}>
       <div className="space-y-0.5 pb-24" onDragEnd={() => setDrag(null)}>
-        {blocks.map((b) => {
-          num = b.type === "numbered" ? num + 1 : 0;
+        {blocks.map((b, bi) => {
+          const num = numbers[bi];
           const editing = focus?.id === b.id;
           const textCls = {
             p: "text-[15px] leading-relaxed",

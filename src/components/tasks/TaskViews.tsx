@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { addDays, format, isToday, isTomorrow, startOfDay } from "date-fns";
+import { addDays, format, isToday, isTomorrow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { CalendarClock, KanbanSquare, List, Plus } from "lucide-react";
 
@@ -125,13 +125,13 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
 }
 
 function Upcoming({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }) {
-  const today = startOfDay(new Date());
-  const todayKey = dayKeyOf(today);
+  const todayKey = dayKeyOf(new Date());
   // One pass instead of 14 `tasks.filter` calls per render.
   const buckets = useMemo(
     () => upcomingBuckets(tasks, new Date(`${todayKey}T00:00:00`)),
     [tasks, todayKey],
   );
+  const today = new Date(`${todayKey}T00:00:00`);
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
 
   return (
