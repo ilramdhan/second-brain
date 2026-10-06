@@ -7,11 +7,16 @@ const auth = vi.hoisted(() => ({
   getSession: vi.fn(),
   onAuthStateChange: vi.fn(),
   rpc: vi.fn(),
+  aal: vi.fn(),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    auth: { getSession: auth.getSession, onAuthStateChange: auth.onAuthStateChange },
+    auth: {
+      getSession: auth.getSession,
+      onAuthStateChange: auth.onAuthStateChange,
+      mfa: { getAuthenticatorAssuranceLevel: auth.aal },
+    },
     rpc: auth.rpc,
   },
 }));
@@ -19,6 +24,7 @@ vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 
 import {
   handleAuthEvent,
+  hasStoredSession,
   LOGIN_PATH,
   requireSession,
   resetAuthStateForTests,
@@ -33,6 +39,10 @@ beforeEach(() => {
   auth.getSession.mockReset();
   auth.onAuthStateChange.mockReset();
   auth.rpc.mockReset().mockResolvedValue({ error: null });
+  auth.aal.mockReset().mockResolvedValue({
+    data: { currentLevel: "aal1", nextLevel: "aal1" },
+    error: null,
+  });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -63,6 +73,50 @@ describe("requireSession", () => {
     await expect(requireSession(qc, "/")).resolves.toMatchObject({ user: { id: "u1" } });
     await requireSession(qc, "/tasks");
     expect(auth.onAuthStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  describe("aal2 guard (TOTP two-factor)", () => {
+    const levels = (currentLevel: string, nextLevel: string) =>
+      auth.aal.mockResolvedValue({ data: { currentLevel, nextLevel }, error: null });
+
+    it("sends an aal1 session of a user with a verified factor back to /login", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: session("u1") } });
+      levels("aal1", "aal2");
+      const thrown = await requireSession(new QueryClient(), "/notes/n1").catch((e: unknown) => e);
+      expect(isRedirect(thrown)).toBe(true);
+      const opts = (thrown as { options: { to: string; search: { redirect?: string } } }).options;
+      expect(opts.to).toBe(LOGIN_PATH);
+      expect(opts.search.redirect).toBe("/notes/n1");
+    });
+
+    it("lets an aal2 session in", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: session("u1") } });
+      levels("aal2", "aal2");
+      await expect(requireSession(new QueryClient(), "/")).resolves.toMatchObject({
+        user: { id: "u1" },
+      });
+    });
+
+    it("lets users without a factor in at aal1", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: session("u1") } });
+      levels("aal1", "aal1");
+      await expect(requireSession(new QueryClient(), "/")).resolves.toBeTruthy();
+    });
+
+    it("fails closed when the assurance level cannot be read", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: session("u1") } });
+      auth.aal.mockResolvedValue({ data: null, error: { message: "boom" } });
+      const thrown = await requireSession(new QueryClient(), "/").catch((e: unknown) => e);
+      expect(isRedirect(thrown)).toBe(true);
+    });
+
+    it("does not count a half-signed-in session as signed in on public pages", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: session("u1") } });
+      levels("aal1", "aal2");
+      await expect(hasStoredSession()).resolves.toBe(false);
+      levels("aal2", "aal2");
+      await expect(hasStoredSession()).resolves.toBe(true);
+    });
   });
 });
 

@@ -4,7 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const auth = vi.hoisted(() => ({ getSession: vi.fn() }));
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { auth: { getSession: auth.getSession, onAuthStateChange: vi.fn() } },
+  supabase: {
+    auth: {
+      getSession: auth.getSession,
+      onAuthStateChange: vi.fn(),
+      mfa: {
+        getAuthenticatorAssuranceLevel: vi
+          .fn()
+          .mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null }),
+      },
+    },
+  },
 }));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 
