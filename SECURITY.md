@@ -195,6 +195,12 @@ code doesn't match.
   `TOKEN_ENCRYPTION_KEY`, base64 of 32 bytes) and stored in `app_user_connections`, which only
   `service_role` can access. Tokens never reach the browser or n8n and are not shared between
   users. `invalid_grant` on refresh deletes the connection; disconnect revokes the token at Google.
+- Two-way sync keeps the same single scope. The Calendar `syncToken`, the import opt-in and the
+  last pull time live in the same service-role-only `app_user_connections` row (RLS on, no
+  policies, no client grants; checked by `supabase/tests/gcal_sync.sql`). Pulled events only
+  touch tasks the connected user can reach (own rows or projects they belong to), and only the
+  title and schedule are copied; imported events become tasks owned by that user. The manual
+  "Sinkronkan sekarang" action has its own per-user limit (`gcal_sync`, 10 per 10 minutes).
 
 ### Public API routes
 
