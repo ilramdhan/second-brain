@@ -243,6 +243,30 @@ These routes have no user session and authenticate the caller themselves:
 | `/api/public/n8n/*`                      | Fails closed: header `x-api-key` must match `N8N_API_KEY` (or `N8N_API_KEY_PREVIOUS` during rotation) in constant time; 500 when no key is configured, 401 otherwise. Bodies and queries are validated with zod, bodies are capped at 1 MB. The service-role client is scoped to the user resolved from `profiles.telegram_chat_id` or the sender email; tasks/notes of shared projects are included only for owners and members. |
 | `GET`/`POST /api/public/hooks/reminders` | Requires `Authorization: Bearer <token>` matching `SECOND_BRAIN_CRON_SECRET`, `SECOND_BRAIN_CRON_SECRET_PREVIOUS` (rotation) or `CRON_SECRET` (Vercel Cron), compared in constant time. The legacy `app_config.cron_token` still works and is only looked up when a bearer token is present and no env secret matched.                                                                                                            |
 
+### Public share links
+
+Notes and projects can be published as read-only pages at `/s/<token>` (migration 0024,
+`src/server/publicShare.server.ts`). The token is the only credential, so the design assumes it
+will eventually be forwarded, pasted into chats or seen by a browser extension:
+
+| Threat                                      | Mitigation                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Guessing or enumerating tokens              | 256-bit random tokens (base64url). Per-IP limit on the page (`PUBLIC_SHARE_IP_RATE_LIMIT`, default 60/min, in memory per instance). Malformed, unknown, revoked and expired tokens all return the same 404 page, so there is no oracle.                                                                                   |
+| Database leak exposing live links           | Only `sha256(token)` is stored (`public_shares.token_hash`); the raw token is shown once in the dialog and cannot be recovered. Losing it means "New link".                                                                                                                                                               |
+| Over-sharing private data                   | The page gets a DTO built field by field on the server: no user ids, emails, row or block ids, assignees, comments, tags or properties. Trashed/archived rows are excluded. Query blocks are dropped.                                                                                                                     |
+| Pivoting from a shared note to private ones | `[[links]]` render as plain text (no URL). `((refs))`/embeds resolve to text only from the same note or another active public link of the same owner; anything else shows "content not shared".                                                                                                                           |
+| Members publishing someone else's work      | `can_share_resource()` (RLS on insert and on token rotation): a note's creator or its project owner, a project's owner. Re-checked on every read, so a link dies when the item is trashed, archived or leaves the creator's reach.                                                                                        |
+| Anonymous database access                   | No `anon` policy or grant. The page uses the service role inside a server function, scoped to the one share row and the one resource it names. `record_public_share_view` is executable by the service role only.                                                                                                         |
+| Revoked links still working                 | Revoke is a row update checked on every request; responses are `Cache-Control: private, no-store`, the loader never reuses cached data, and the service worker excludes `/s/*` from its caches. Revoked rows are frozen (cannot be re-enabled).                                                                           |
+| Token leaking via Referer, logs or search   | `Referrer-Policy: no-referrer` (header and meta) on the page; outbound links are `rel="noopener noreferrer nofollow ugc"`. The page loads data through a POST server function, so the token is not in `/_serverFn` URLs. `noindex, nofollow` unless the owner enabled indexing (never in the demo), and no canonical URL. |
+| Script injection from note content          | Content is rendered as React text nodes (no HTML), only `http(s)` URLs become links, and the page adds no inline scripts beyond the app shell, so it stays within the existing CSP.                                                                                                                                       |
+| Abuse of link creation / demo               | Creating or rotating links is rate limited per user (`share_link`, 30 per 10 min); in demo mode the database caps `public_shares` at 10 rows per account (`demo_limit:public_shares`) plus the demo write quota.                                                                                                          |
+| 2FA bypass with an aal1 session             | `public_shares` has the restrictive `mfa_aal2` policy like every other RLS table.                                                                                                                                                                                                                                         |
+
+Residual risks: anyone holding a link can read the page and copy what it shows until it is
+revoked or expires; view counts are approximate (per-instance throttle, one view per IP per 30
+minutes); the per-IP limit is per serverless instance.
+
 ### Telegram account linking
 
 - A chat is linked to an account only with a one-time code issued to the signed-in user in
@@ -409,6 +433,8 @@ both match).
 - Keep Supabase _Authentication → Multi-Factor → TOTP_ enabled, apply migration 0022 (database
   enforcement of `aal2` for users with 2FA), and encourage owners/admins to turn on two-step
   verification in _Settings → Keamanan_.
+- Review _Settings → Tautan publik_ from time to time and revoke public links that are no longer
+  needed; prefer the 7- or 30-day expiry for anything sensitive.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
 - Disable _Authentication → Sign In / Providers → "Allow new users to sign up"_ in Supabase unless
   the instance is meant to be public, and leave `VITE_ALLOW_SIGNUP` unset. Add users through
