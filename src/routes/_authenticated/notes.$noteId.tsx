@@ -264,16 +264,16 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   }
 
   return (
-    <PageContainer className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_17rem]">
+    <PageContainer className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_17rem]">
       <article className="min-w-0">
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <Button asChild variant="ghost" size="sm" className="-ml-2">
             <Link to="/notes">
               <ArrowLeft /> Catatan
             </Link>
           </Button>
-          <div className="flex items-center gap-1">
-            <span className="mr-2 text-[11px] text-muted-foreground">
+          <div className="-mr-2 ml-auto flex items-center gap-0.5 sm:gap-1">
+            <span className="mr-1 text-[11px] text-muted-foreground sm:mr-2">
               {saving === "idle" ? "Tersimpan" : saving === "saving" ? "Menyimpan…" : "Mengetik…"}
             </span>
             {collaboration.peers.length > 0 && (

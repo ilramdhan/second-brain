@@ -13,6 +13,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -226,7 +227,7 @@ function AutomationsPage() {
       </ul>
 
       <Dialog open={edit.open} onOpenChange={(o) => setEdit((e) => ({ ...e, open: o }))}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           {edit.open && (
             <RuleForm
               key={edit.rule?.id ?? edit.rule?.name ?? "new"}
@@ -305,7 +306,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
     if (opts)
       return (
         <Select value={value} onValueChange={onChange}>
-          <SelectTrigger className="h-9">
+          <SelectTrigger aria-label="Nilai" className="h-9">
             <SelectValue placeholder="Pilih…" />
           </SelectTrigger>
           <SelectContent>
@@ -323,6 +324,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Nilai"
+        aria-label="Nilai"
       />
     );
   };
@@ -340,6 +342,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nama aturan"
+          aria-label="Nama aturan"
           className="h-11 font-medium"
         />
 
@@ -347,12 +350,12 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             1. Jika
           </h3>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Select
               value={trigger.type}
               onValueChange={(v) => setTrigger({ type: v as Trigger["type"] })}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Pemicu">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -368,7 +371,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                 value={trigger.to ?? ANY}
                 onValueChange={(v) => setTrigger({ ...trigger, to: v === ANY ? undefined : v })}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Nilai pemicu">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -389,7 +392,10 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
             2. Dan syarat (opsional)
           </h3>
           {conds.map((c, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
+            <div
+              key={i}
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]"
+            >
               <Select
                 value={c.field}
                 onValueChange={(v) =>
@@ -400,7 +406,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   )
                 }
               >
-                <SelectTrigger className="h-9">
+                <SelectTrigger aria-label="Kolom syarat" className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,7 +423,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   setConds(conds.map((x, j) => (j === i ? { ...x, op: v as Condition["op"] } : x)))
                 }
               >
-                <SelectTrigger className="h-9 w-24">
+                <SelectTrigger aria-label="Operator" className="h-9 w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -473,7 +479,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                     );
                   }}
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger aria-label="Jenis aksi" className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -506,7 +512,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                       setAct(i, { ...a, field: v as typeof a.field, value: "" })
                     }
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger aria-label="Kolom yang diubah" className="h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -524,6 +530,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   value={a.value}
                   onChange={(e) => setAct(i, { ...a, value: e.target.value })}
                   placeholder="nama-tag"
+                  aria-label="Nama tag"
                 />
               )}
               {a.type === "shift_due" && (
@@ -542,6 +549,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   value={a.text}
                   onChange={(e) => setAct(i, { ...a, text: e.target.value })}
                   placeholder="Teks. Bisa pakai {{title}} {{status}} {{priority}} {{project}} {{assignee}} {{due}}"
+                  aria-label="Teks pesan"
                 />
               )}
               {a.type === "webhook" && (
@@ -550,6 +558,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   value={a.url}
                   onChange={(e) => setAct(i, { ...a, url: e.target.value })}
                   placeholder="https://hooks.slack.com/… atau URL n8n/Discord"
+                  aria-label="URL webhook"
                 />
               )}
             </div>
@@ -568,26 +577,21 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
           </p>
         </section>
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2 border-t pt-4">
-        {rule?.id ? (
+      <DialogFooter>
+        {rule?.id && (
           <Button
             variant="ghost"
-            size="sm"
             onClick={remove}
-            className="text-destructive hover:text-destructive"
+            className="text-destructive hover:text-destructive sm:mr-auto"
           >
             <Trash2 /> Hapus
           </Button>
-        ) : (
-          <span />
         )}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Batal
-          </Button>
-          <Button onClick={save}>Simpan</Button>
-        </div>
-      </div>
+        <Button variant="outline" onClick={onClose}>
+          Batal
+        </Button>
+        <Button onClick={save}>Simpan</Button>
+      </DialogFooter>
     </>
   );
 }

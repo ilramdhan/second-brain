@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -41,7 +42,7 @@ export function ProjectDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         {open && (
           <ProjectForm
             key={project?.id ?? "new"}
@@ -134,8 +135,10 @@ function ProjectForm({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Tujuan, ruang lingkup, catatan singkat…"
           rows={3}
+          className="min-h-24"
         />
-        <div className="grid grid-cols-2 gap-3">
+        {/* One column on phones so selects and date pickers never collapse. */}
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Kategori PARA">
             <Select value={para} onValueChange={setPara}>
               <SelectTrigger>
@@ -164,7 +167,7 @@ function ProjectForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Induk (sub-proyek dari)" className="col-span-2">
+          <Field label="Induk (sub-proyek dari)" className="sm:col-span-2">
             <Select value={parent} onValueChange={setParent}>
               <SelectTrigger>
                 <SelectValue />
@@ -187,7 +190,7 @@ function ProjectForm({
           <Field label="Tenggat">
             <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
-          <Field label="Launch date" className="col-span-2 sm:col-span-1">
+          <Field label="Launch date">
             <Input type="date" value={launch} onChange={(e) => setLaunch(e.target.value)} />
           </Field>
         </div>
@@ -201,7 +204,7 @@ function ProjectForm({
                 onClick={() => setCol(k)}
                 aria-label={c.label}
                 className={cn(
-                  "h-7 w-7 rounded-full ring-offset-2 ring-offset-background transition",
+                  "h-9 w-9 rounded-full ring-offset-2 ring-offset-background transition sm:h-7 sm:w-7",
                   c.dot,
                   col === k && "ring-2 ring-ring",
                 )}
@@ -210,26 +213,21 @@ function ProjectForm({
           </div>
         </div>
       </div>
-      <div className="mt-2 flex items-center justify-between gap-2 border-t pt-4">
-        {project ? (
+      <DialogFooter>
+        {project && (
           <Button
             variant="ghost"
-            size="sm"
             onClick={remove}
-            className="text-destructive hover:text-destructive"
+            className="text-destructive hover:text-destructive sm:mr-auto"
           >
             <Trash2 /> Hapus
           </Button>
-        ) : (
-          <span />
         )}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Batal
-          </Button>
-          <Button onClick={save}>{project ? "Simpan" : "Buat proyek"}</Button>
-        </div>
-      </div>
+        <Button variant="outline" onClick={onClose}>
+          Batal
+        </Button>
+        <Button onClick={save}>{project ? "Simpan" : "Buat proyek"}</Button>
+      </DialogFooter>
     </>
   );
 }
