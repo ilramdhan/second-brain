@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { AUTHOR, OG_IMAGE, SITE_NAME } from "@/lib/landing";
 import { PreferencesProvider } from "@/lib/preferences";
+import { DEFAULT_PREFERENCES, type InitialPreferences } from "@/lib/preference-cookies";
+import { getInitialPreferences } from "@/lib/preferences-ssr";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 import { PwaUpdatePrompt } from "@/components/common/PwaUpdatePrompt";
 
@@ -135,6 +137,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
+  // Language/theme from the `sb_lang`/`sb_theme` cookies (the request cookies during SSR), so
+  // the server renders the visitor's language and hydration matches it. Synchronous and cheap.
+  loader: () => getInitialPreferences(),
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -142,8 +147,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Loader data can be missing when the root itself failed (error shell): fall back to "id".
+  const locale = (Route.useLoaderData() as InitialPreferences | undefined)?.locale ?? "id";
   return (
-    <html lang="id" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Before any stylesheet paints: apply the stored/system theme (no light flash). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
@@ -162,6 +169,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const initial = (Route.useLoaderData() as InitialPreferences | undefined) ?? DEFAULT_PREFERENCES;
   // Optional Sentry + web-vitals; a no-op without VITE_SENTRY_DSN (src/lib/monitoring.ts).
   useEffect(() => {
     initMonitoring();
@@ -169,7 +177,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PreferencesProvider>
+      <PreferencesProvider initialLocale={initial.locale} initialTheme={initial.theme}>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster position="top-center" richColors />
