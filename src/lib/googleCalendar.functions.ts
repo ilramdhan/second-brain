@@ -63,7 +63,7 @@ export const disconnectGoogleCalendar = createServerFn({ method: "POST" })
 
 export const syncTaskToGoogle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ taskId: z.string().uuid() }).parse(data))
+  .inputValidator((data) => z.object({ taskId: z.guid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { loadTokens, upsertTaskEvent } = await import("@/server/googleCalendar.server");
     if (!(await loadTokens(context.userId))) return { connected: false };

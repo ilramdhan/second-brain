@@ -27,7 +27,7 @@ export const runAutomations = createServerFn({ method: "POST" })
     z
       .object({
         event: z.enum(["created", "updated"]),
-        taskId: z.string().uuid(),
+        taskId: z.guid(),
         before: snapshot.optional(),
       })
       .parse(d),
@@ -46,9 +46,7 @@ export const runAutomations = createServerFn({ method: "POST" })
 export const notifyUnblocked = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z
-      .object({ taskIds: z.array(z.string().uuid()).max(50), blockerTitle: z.string().max(300) })
-      .parse(d),
+    z.object({ taskIds: z.array(z.guid()).max(50), blockerTitle: z.string().max(300) }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { data: tasks } = await context.supabase

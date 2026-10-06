@@ -21,12 +21,12 @@ export type BackupTable = (typeof BACKUP_TABLES)[number];
 export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
 export const MAX_ROWS_PER_TABLE = 10_000;
 
-const uuid = z.string().uuid();
+const uuid = z.guid();
 // Accept any string Date can parse (Postgres returns "2026-01-01T00:00:00.123456+00:00").
 const dateish = z
   .string()
   .max(40)
-  .refine((v) => !Number.isNaN(Date.parse(v)), { message: "Tanggal tidak valid" });
+  .refine((v) => !Number.isNaN(Date.parse(v)), { error: "Tanggal tidak valid" });
 const ts = dateish;
 const optTs = ts.nullish();
 const optDate = dateish.nullish();
@@ -34,7 +34,7 @@ const str = (max: number) => z.string().max(max);
 const optStr = (max: number) => z.string().max(max).nullish();
 const tags = z.array(z.string().max(100)).max(100);
 const json = z.unknown().refine((v) => JSON.stringify(v ?? null).length <= 1_000_000, {
-  message: "JSON terlalu besar",
+  error: "JSON terlalu besar",
 });
 
 // `.strip()` (zod default) drops unknown keys, e.g. columns added by a tampered file.
@@ -120,7 +120,7 @@ const schemas = {
     actions: json.optional(),
     created_at: ts.optional(),
   }),
-} satisfies Record<BackupTable, z.ZodTypeAny>;
+} satisfies Record<BackupTable, z.ZodType>;
 
 export type BackupRow = Record<string, unknown> & { id: string; user_id: string };
 export type PreparedBackup = Record<BackupTable, BackupRow[]>;
@@ -156,7 +156,7 @@ export function selectBackupEnvelope(input: unknown, userId: string): unknown {
  */
 export function prepareBackup(input: unknown, userId: string): PreparedBackup {
   const envelope = z
-    .object({ version: z.literal(1), tables: z.record(z.unknown()) })
+    .object({ version: z.literal(1), tables: z.record(z.string(), z.unknown()) })
     .safeParse(selectBackupEnvelope(input, userId));
   if (!envelope.success) throw new BackupError("Format backup tidak dikenali");
 
