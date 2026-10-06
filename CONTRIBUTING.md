@@ -211,6 +211,9 @@ and React. **Don't register any of them twice**; duplicates break the app.
      for project-scoped data.
    - `GRANT … TO authenticated;` and `GRANT ALL … TO service_role;`
    - An `audit_row_change` trigger if the table should appear in the activity log.
+   - The restrictive two-factor policy from migration 0021:
+     `CREATE POLICY mfa_aal2 ON public.<table> AS RESTRICTIVE FOR ALL TO authenticated USING ((SELECT public.mfa_satisfied())) WITH CHECK ((SELECT public.mfa_satisfied()));`
+     (`supabase/tests/mfa_aal2.sql` checks every RLS table has it).
    - `deleted_at` / `archived_at` columns if users can delete or archive rows.
 3. Any `SECURITY DEFINER` function must set `SET search_path = public` and must check
    `auth.uid()` itself, because it bypasses RLS.
