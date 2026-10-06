@@ -733,6 +733,48 @@ export type Database = {
           },
         ];
       };
+      public_shares: {
+        Row: {
+          allow_indexing: boolean;
+          created_at: string;
+          expires_at: string | null;
+          id: string;
+          last_viewed_at: string | null;
+          resource_id: string;
+          resource_type: string;
+          revoked_at: string | null;
+          token_hash: string;
+          user_id: string;
+          view_count: number;
+        };
+        Insert: {
+          allow_indexing?: boolean;
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          last_viewed_at?: string | null;
+          resource_id: string;
+          resource_type: string;
+          revoked_at?: string | null;
+          token_hash: string;
+          user_id?: string;
+          view_count?: number;
+        };
+        Update: {
+          allow_indexing?: boolean;
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          last_viewed_at?: string | null;
+          resource_id?: string;
+          resource_type?: string;
+          revoked_at?: string | null;
+          token_hash?: string;
+          user_id?: string;
+          view_count?: number;
+        };
+        Relationships: [];
+      };
       rate_limits: {
         Row: {
           bucket: string;
@@ -1089,6 +1131,10 @@ export type Database = {
       accept_project_invites: { Args: never; Returns: number };
       can_access_canvas_board: { Args: { _board_id: string }; Returns: boolean };
       can_access_note: { Args: { _note_id: string }; Returns: boolean };
+      can_share_resource: {
+        Args: { _resource_id: string; _resource_type: string };
+        Returns: boolean;
+      };
       can_access_task: {
         Args: { _task_id: string; _user_id: string };
         Returns: boolean;
@@ -1170,6 +1216,7 @@ export type Database = {
         }[];
       };
       note_collab_topic_note_id: { Args: { _topic: string }; Returns: string };
+      record_public_share_view: { Args: { _share_id: string }; Returns: undefined };
       semantic_note_text: {
         Args: { _content: string; _tags: string[]; _title: string };
         Returns: string;
