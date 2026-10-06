@@ -161,6 +161,16 @@ If-this-then-that rules for tasks, evaluated server-side in `runAutomations`:
 
 In **Settings**, each user connects their own Google Calendar through a popup Google OAuth 2.0 flow owned by the deployment (authorization code + PKCE, `access_type=offline`, scope `calendar.events` only). The refresh token is encrypted with AES-GCM (`TOKEN_ENCRYPTION_KEY`) and stored server-side in `app_user_connections`, so it never reaches the browser; access tokens are refreshed on the server and the token is revoked on disconnect. From the task dialog, you can push a scheduled task to Google Calendar as an event. The event is created the first time and updated after that (`tasks.google_event_id`).
 
+The sync is **two-way** (migration `0021_gcal_two_way_sync`):
+
+- **Google → app**: an incremental pull with the Calendar API `syncToken` (stored per connection in `app_user_connections.sync_token`; a `410 GONE` drops it and runs one full resync). When a linked event's title or time changes in Google, the task's title and schedule follow (start → `start_date`/`due_date`, end → `time_block_end`/`due_date`, all-day events map to the local day in `APP_TIMEZONE`). Updates go through the server-side task rules: dependents are auto-shifted when the deadline moves later, the reminder is reset and automations run. Descriptions stay app-owned.
+- **Deleted events**: when a linked event is deleted in Google, the link is cleared and the task keeps its dates (a deadline is app data; the task can be sent to Google again).
+- **Conflicts**: last write wins, comparing Google's `updated` with the task's `updated_at` since the last sync (`tasks.google_synced_at`).
+- **No echo loops**: each push stores the returned event `etag` (`tasks.google_etag`); a pulled event with the same etag is skipped, and a change pulled from Google marks the task as synced so it is not pushed back.
+- **Import (opt-in)**: **Settings → Google Calendar → Impor acara Google sebagai tugas** (default off) also turns new, non-recurring, upcoming events that are not linked yet into tasks.
+- **Trigger**: **Settings → Sinkronkan sekarang** (rate limited to 10 per 10 minutes), or the n8n workflow 07 calling `POST /api/public/n8n/calendar/sync` (`direction` `both` by default: pull, then push). Push notifications (watch channels) are not used: they need a public HTTPS callback per user and channel renewal, and the 30-minute pull is enough for task scheduling.
+- Google Calendar stays disabled in the demo.
+
 ### Telegram bot
 
 - Users link their account in **Settings → Bot Telegram → Hubungkan Telegram**, which shows a one-time code (valid for 10 minutes, single use), and send `/link <code>` to the bot. After that, any message they send goes to their Inbox.
@@ -335,6 +345,8 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
     │   ├── tokenCrypto.server.ts              # AES-GCM encryption of stored tokens (TOKEN_ENCRYPTION_KEY)
     │   ├── googleOAuth.server.ts              # Google OAuth 2.0 + PKCE, encrypted state, refresh/revoke
     │   ├── googleCalendar.server.ts           # Per-user token store + Calendar event upsert/delete
+    │   ├── googleCalendarPull.server.ts       # Google → app pull (syncToken, 410 resync, import)
+    │   ├── googleCalendarMapping.server.ts    # Event ↔ task mapping, last-write-wins, echo rules
     │   ├── automationEngine.server.ts         # Automation rule engine (browser + n8n paths)
     │   ├── reminders.server.ts, telegramLink.server.ts
     │   ├── n8n/                               # n8n endpoint auth, zod schemas, services, digests
@@ -810,7 +822,7 @@ Automatic backups (workflow 05): daily or weekly → `.json.gz` in a Google Driv
 
 ### Google Calendar
 
-See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalendarStatus`, `startGoogleCalendarConnect`, `completeGoogleCalendarConnect`, `disconnectGoogleCalendar`, `syncTaskToGoogle`; scheduled sync via `POST /api/public/n8n/calendar/sync`. Events carry `extendedProperties.private.second_brain_task_id`.
+See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalendarStatus`, `startGoogleCalendarConnect`, `completeGoogleCalendarConnect`, `disconnectGoogleCalendar`, `syncTaskToGoogle`, `syncGoogleCalendarNow`, `setGoogleCalendarImport`; scheduled two-way sync via `POST /api/public/n8n/calendar/sync` (pull: `src/server/googleCalendarPull.server.ts`, mapping and conflict rules: `src/server/googleCalendarMapping.server.ts`). Events carry `extendedProperties.private.second_brain_task_id`.
 
 ---
 
@@ -818,7 +830,7 @@ See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalen
 
 - Vitest + jsdom + Testing Library (`vitest.config.ts`, setup in `src/test/setup.ts`). Test files match `src/**/*.{test,spec}.{ts,tsx}`.
 - Unit tests cover pure server helpers (cron/n8n auth, Telegram link codes and Bot API client, Google OAuth state/PKCE/token crypto, n8n zod schemas, digest/reminder builders, time zones, SSRF guard, rate limits, security headers, backup validation) plus a routing smoke test.
-- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers, demo limits, semantic search). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
+- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers, demo limits, semantic search, Google Calendar sync state). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
 
 ```bash
 bun run test

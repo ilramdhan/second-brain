@@ -8,7 +8,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { loadBlocks, noteIndexFields, toMarkdown } from "@/lib/blocks";
-import { parseCompleteResult } from "@/lib/task-rules";
+import { dueShiftMs, parseCompleteResult } from "@/lib/task-rules";
 
 import { runAutomationRules, type AutomationEvent } from "../automationEngine.server";
 import { appTimezone } from "./time.server";
@@ -208,10 +208,11 @@ async function updateTaskRow(
   before: Task,
   patch: TablesUpdate<"tasks">,
   origin: string | null,
-) {
+): Promise<string> {
+  const updatedAt = new Date().toISOString();
   const { error } = await supabaseAdmin
     .from("tasks")
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update({ ...patch, updated_at: updatedAt })
     .eq("id", before.id);
   if (error) throw new Error(`task update failed: ${error.message}`);
   await runAutomationRules(
@@ -220,6 +221,25 @@ async function updateTaskRow(
     { event: "updated", taskId: before.id, before: snapshotOf(before) },
     origin,
   ).catch((e) => console.error("[n8n] automations failed", e));
+  return updatedAt;
+}
+
+/**
+ * Applies a change pulled from Google Calendar (title/schedule) with the same rules as an edit in
+ * the app: dependents are auto-shifted when the deadline moved later, the reminder is reset by the
+ * patch and automations run as an "updated" event. The status never changes here, so the blocked
+ * check and recurrence (both tied to completion) do not apply. Returns the new `updated_at`.
+ */
+export async function updateTaskFromCalendar(
+  userId: string,
+  before: Task,
+  patch: TablesUpdate<"tasks">,
+  origin: string | null,
+): Promise<string> {
+  const updatedAt = await updateTaskRow(userId, before, patch, origin);
+  const delta = dueShiftMs(before.due_date, patch.due_date ?? before.due_date);
+  if (delta > 0) await shiftDependents(userId, before.id, delta);
+  return updatedAt;
 }
 
 /**

@@ -122,6 +122,8 @@ export const calendarSyncSchema = z.object({
   user_id: z.guid().optional(),
   /** linked = only tasks already sent to Google; all = every dated task changed in the window */
   mode: z.enum(["linked", "all"]).default("linked"),
+  /** push = app → Google only (old behaviour); pull = Google → app only; both = pull, then push */
+  direction: z.enum(["push", "pull", "both"]).default("both"),
 });
 
 export const eventSchema = z.object({

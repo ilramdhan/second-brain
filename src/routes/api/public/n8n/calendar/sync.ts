@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// App → Google Calendar sync for every connected user (workflow 07, every 30 min).
+// Two-way Google Calendar sync for every connected user (workflow 07, every 30 min):
+// Google → app pull (sync token), then app → Google push.
 export const Route = createFileRoute("/api/public/n8n/calendar/sync")({
   server: {
     handlers: {
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/api/public/n8n/calendar/sync")({
               sinceMinutes: body.since_minutes,
               limit: body.limit,
               mode: body.mode,
+              direction: body.direction,
               ...(body.user_id ? { userId: body.user_id } : {}),
             }),
           );

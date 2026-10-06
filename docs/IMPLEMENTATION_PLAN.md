@@ -189,7 +189,7 @@ Diambil dari ANALYSIS §13, dikerjakan setelah Phase 1–5 stabil:
 
 1. Semantic search memakai tabel embedding yang sudah ada (UI belum ada).
 2. Login Google/magic link, 2FA, reset password.
-3. Sinkronisasi Google Calendar dua arah.
+3. Sinkronisasi Google Calendar dua arah. ✅ _9.3: pull inkremental `syncToken` (410 → full resync), last-write-wins, anti-gema etag/`google_synced_at`, impor opsional per koneksi, "Sinkronkan sekarang" + n8n `calendar/sync` `direction` (migration 0021)._
 4. Otomasi terjadwal (cron per rule) dan trigger untuk catatan.
 5. Sharing read-only publik (link bertoken, bisa dicabut).
 6. Laporan & grafik (fokus, burndown, throughput), habit tracker.

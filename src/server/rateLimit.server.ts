@@ -35,6 +35,14 @@ export const SEMANTIC_INDEX_RATE_LIMIT: RateLimitRule = {
   windowSeconds: 600,
 };
 
+/** Settings "Sinkronkan sekarang" (each call lists the calendar and pushes changed tasks). */
+export const CALENDAR_SYNC_RATE_LIMIT: RateLimitRule = {
+  bucket: "gcal_sync",
+  subject: "sinkronisasi Google Calendar",
+  max: 10,
+  windowSeconds: 600,
+};
+
 /**
  * Default demo write quota (migration 0019). Enforced in Postgres by the `zz_demo_write`
  * statement triggers through `consume_rate_limit`, only when `app_config.demo_mode = 'on'`;
