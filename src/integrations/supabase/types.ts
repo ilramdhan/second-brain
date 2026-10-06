@@ -1065,6 +1065,13 @@ export type Database = {
         Args: { _bucket: string; _max: number; _user_id: string; _window_seconds: number };
         Returns: boolean;
       };
+      demo_enforced: { Args: never; Returns: boolean };
+      demo_int_setting: {
+        Args: { _default: number; _key: string; _max: number; _min: number };
+        Returns: number;
+      };
+      demo_mode_enabled: { Args: never; Returns: boolean };
+      demo_setting: { Args: { _default?: string; _key: string }; Returns: string };
       is_canvas_board_owner: { Args: { _board_id: string }; Returns: boolean };
       is_project_member: {
         Args: { _project_id: string; _user_id: string };
