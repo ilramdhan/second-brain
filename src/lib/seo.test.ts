@@ -89,8 +89,8 @@ describe("demoUrl", () => {
   });
 
   it("accepts an absolute https URL", () => {
-    expect(demoUrl(" https://2ndbrain-demo.ilramdhan.dev ")).toBe(
-      "https://2ndbrain-demo.ilramdhan.dev/",
+    expect(demoUrl(" https://demo-2ndbrain.ilramdhan.dev ")).toBe(
+      "https://demo-2ndbrain.ilramdhan.dev/",
     );
   });
 });

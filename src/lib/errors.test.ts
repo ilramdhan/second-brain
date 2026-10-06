@@ -97,3 +97,20 @@ describe("toastError / isConfigError", () => {
     expect(isConfigError(new Error("other"))).toBe(false);
   });
 });
+
+describe("demo messages", () => {
+  it("shows demo guard and demo limit messages as-is", () => {
+    expect(errorMessage(new Error("Tidak tersedia di demo: Telegram."))).toBe(
+      "Tidak tersedia di demo: Telegram.",
+    );
+    // Raised by the demo database triggers (P0001) and wrapped in a PostgREST error.
+    expect(errorMessage(pg("P0001", "Batas demo: maksimal 300 tugas."))).toBe(
+      "Batas demo: maksimal 300 tugas.",
+    );
+    // Not swallowed by the generic rate-limit mapping either.
+    expect(
+      errorMessage(new Error("Batas demo: terlalu banyak permintaan. Coba lagi sebentar lagi.")),
+    ).toMatch(/^Batas demo: terlalu banyak/);
+    expect(errorKey(pg("P0001", "Batas demo: kuota tulis habis"))).toBeUndefined();
+  });
+});

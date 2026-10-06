@@ -1,7 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const auth = vi.hoisted(() => ({ getSession: vi.fn(), signUp: vi.fn() }));
+const auth = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  signUp: vi.fn(),
+  signInWithPassword: vi.fn(),
+}));
 const router = vi.hoisted(() => ({ navigate: vi.fn(), search: {} as { redirect?: string } }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -9,7 +13,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     auth: {
       getSession: auth.getSession,
       signUp: auth.signUp,
-      signInWithPassword: vi.fn(),
+      signInWithPassword: auth.signInWithPassword,
       onAuthStateChange: vi.fn(),
     },
   },
@@ -79,6 +83,46 @@ describe("/login", () => {
     render(<LoginPage />);
     expect(screen.getByRole("button", { name: "Belum punya akun? Daftar" })).toBeInTheDocument();
     expect(screen.queryByText(/Pendaftaran ditutup/)).not.toBeInTheDocument();
+  });
+
+  it("shows the demo account, fills it in and never offers sign-up in demo mode", async () => {
+    vi.stubEnv("VITE_APP_MODE", "demo");
+    vi.stubEnv("VITE_ALLOW_SIGNUP", "true");
+    render(<LoginPage />);
+
+    expect(screen.getByText("demo@ilramdhan.dev / demo2ndbrain")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Daftar/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pendaftaran ditutup/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Isi otomatis" }));
+    expect(screen.getByLabelText("Email")).toHaveValue("demo@ilramdhan.dev");
+    expect(screen.getByLabelText("Kata sandi")).toHaveValue("demo2ndbrain");
+  });
+
+  it("signs in as the demo account in one click", async () => {
+    vi.stubEnv("VITE_APP_MODE", "demo");
+    vi.stubEnv("VITE_DEMO_EMAIL", "guest@demo.test");
+    vi.stubEnv("VITE_DEMO_PASSWORD", "guestpass");
+    auth.signInWithPassword.mockResolvedValue({ data: { user: { id: "demo" } }, error: null });
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Masuk sebagai demo" }));
+
+    await waitFor(() =>
+      expect(auth.signInWithPassword).toHaveBeenCalledWith({
+        email: "guest@demo.test",
+        password: "guestpass",
+      }),
+    );
+    await waitFor(() =>
+      expect(router.navigate).toHaveBeenCalledWith({ to: "/today", replace: true }),
+    );
+  });
+
+  it("hides the demo controls outside demo mode", () => {
+    vi.stubEnv("VITE_APP_MODE", "");
+    render(<LoginPage />);
+    expect(screen.queryByRole("button", { name: "Masuk sebagai demo" })).not.toBeInTheDocument();
   });
 
   it("lets guests stay on the form", async () => {

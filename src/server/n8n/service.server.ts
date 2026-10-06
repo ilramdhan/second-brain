@@ -275,6 +275,8 @@ export async function completeTask(
 }
 
 async function notifyUnblockedServer(taskIds: string[], blockerTitle: string) {
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) return; // no Telegram in the public demo
   const { data: tasks } = await supabaseAdmin
     .from("tasks")
     .select("id,title,user_id,assignee_id")

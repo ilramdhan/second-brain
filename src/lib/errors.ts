@@ -52,6 +52,27 @@ const PATTERNS: [RegExp, MessageKey][] = [
   [/timed? ?out|timeout/i, "errTimeout"],
 ];
 
+/**
+ * Demo-mode messages written for people (Phase 10): "Tidak tersedia di demo…" from
+ * `assertNotDemo` and "Batas demo: …" from the demo row limits / write quota (database triggers,
+ * raised as P0001) and the per-IP limiter. They are shown as-is, even when they arrive inside a
+ * PostgREST error, because they tell the visitor exactly which demo limit they hit.
+ */
+const DEMO_MESSAGE = /^(Tidak tersedia di demo|Batas demo\b)/i;
+
+function rawMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && typeof (error as ErrorLike).message === "string")
+    return (error as ErrorLike).message as string;
+  return "";
+}
+
+/** The visitor-facing demo message carried by `error`, if any. */
+export function demoMessage(error: unknown): string | undefined {
+  const text = rawMessage(error).trim();
+  return DEMO_MESSAGE.test(text) ? text.slice(0, 300) : undefined;
+}
+
 /** Text that looks like an internal/technical error rather than a message for people. */
 const TECHNICAL =
   /violates|constraint|relation "|column "|syntax error|function .*\(|duplicate key|^\w+Error\b|undefined|null|stack|PGRST|SQLSTATE|\bat\s+\S+\.(ts|js)/i;
@@ -73,6 +94,7 @@ export function isConfigError(error: unknown): boolean {
 
 /** Message key for a known error class, or `undefined` when the error is not recognised. */
 export function errorKey(error: unknown): MessageKey | undefined {
+  if (demoMessage(error)) return undefined;
   if (error instanceof Response) return statusKey(error.status);
   if (!error || typeof error !== "object") {
     return typeof error === "string" ? PATTERNS.find(([re]) => re.test(error))?.[1] : undefined;
@@ -115,18 +137,14 @@ function isDatabaseError(error: unknown): boolean {
  * recognised and its own text is not fit to show (database errors, technical messages).
  */
 export function errorMessage(error: unknown, fallback?: string): string {
+  const demo = demoMessage(error);
+  if (demo) return demo;
   const key = errorKey(error);
   if (key) return translate(key);
   const generic = fallback ?? translate("errGeneric");
   if (isDatabaseError(error)) return generic;
 
-  const message =
-    typeof error === "string"
-      ? error
-      : error && typeof error === "object" && typeof (error as ErrorLike).message === "string"
-        ? ((error as ErrorLike).message as string)
-        : "";
-  const text = message.trim();
+  const text = rawMessage(error).trim();
   if (!text || text.length > 200 || TECHNICAL.test(text)) return generic;
   return text;
 }

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
+import { demoCredentials, isDemo } from "@/lib/app-mode";
 import { APP_HOME, safeRedirect } from "@/lib/auth";
 import {
   publicPageHead,
@@ -13,6 +14,7 @@ import {
   useRedirectSignedInVisitor,
 } from "@/lib/landing";
 import { toastError } from "@/lib/errors";
+import { translate as t } from "@/lib/preferences";
 
 export const Route = createFileRoute("/login")({
   // `redirect` is the page the auth guard bounced the visitor from; only same-origin paths.
@@ -35,23 +37,48 @@ function LoginPage() {
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
   useRedirectSignedInVisitor(redirect);
+  // The public demo (VITE_APP_MODE=demo) shows its shared account and never offers sign-up.
+  const demo = isDemo();
+  const demoAccount = demoCredentials();
   // Self-service sign-up is hidden unless VITE_ALLOW_SIGNUP=true (see signupAllowed()).
-  const allowSignup = signupAllowed();
+  const allowSignup = !demo && signupAllowed();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function fillDemo() {
+    setMode("login");
+    setEmail(demoAccount.email);
+    setPassword(demoAccount.password);
+  }
+
+  async function signIn(credentials: { email: string; password: string }) {
+    const { data, error } = await supabase.auth.signInWithPassword(credentials);
+    if (error) throw error;
+    void logActivity("signed_in", "auth", data.user.id, {}, "auth");
+    if (redirect) await navigate({ href: redirect, replace: true });
+    else await navigate({ to: APP_HOME, replace: true });
+  }
+
+  async function signInAsDemo() {
+    fillDemo();
+    setLoading(true);
+    try {
+      await signIn(demoAccount);
+    } catch (err) {
+      toastError(err, "Gagal masuk");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === "login") {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        void logActivity("signed_in", "auth", data.user.id, {}, "auth");
-        if (redirect) await navigate({ href: redirect, replace: true });
-        else await navigate({ to: APP_HOME, replace: true });
+        await signIn({ email, password });
       } else if (allowSignup) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -88,6 +115,38 @@ function LoginPage() {
             Buang semua pikiran ke sini. Biar AI yang merapikan.
           </p>
         </div>
+
+        {demo ? (
+          <section
+            aria-labelledby="demo-account"
+            className="mb-4 space-y-3 rounded-2xl border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100"
+          >
+            <p id="demo-account">
+              {t("demoLoginHint")}{" "}
+              <span className="font-mono font-medium">
+                {demoAccount.email} / {demoAccount.password}
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={fillDemo}
+                disabled={loading}
+                className="rounded-lg border border-current/30 bg-background/60 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+              >
+                {t("demoAutofill")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void signInAsDemo()}
+                disabled={loading}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+              >
+                {t("demoSignIn")}
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <form
           onSubmit={handleSubmit}
@@ -137,7 +196,7 @@ function LoginPage() {
             >
               {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
             </button>
-          ) : (
+          ) : demo ? null : (
             <p className="text-center text-xs text-muted-foreground">
               Pendaftaran ditutup. Akun dibuat oleh pemilik instance; minta undangan untuk
               bergabung.

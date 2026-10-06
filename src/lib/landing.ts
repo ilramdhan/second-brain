@@ -1,6 +1,7 @@
 import { redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { robotsFor } from "@/lib/app-mode";
 import { REPO_URL } from "@/lib/app-version";
 
 /** Public production origin, used for canonical and Open Graph URLs on the public pages. */
@@ -67,7 +68,8 @@ export function publicPageHead({ title, description, path, robots = "index, foll
     meta: [
       { title },
       { name: "description", content: description },
-      { name: "robots", content: robots },
+      // The demo deployment (VITE_APP_MODE=demo) is never indexed, whatever the page asks for.
+      { name: "robots", content: robotsFor(robots) },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:title", content: title },

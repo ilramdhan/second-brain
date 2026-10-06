@@ -198,6 +198,15 @@ const messages = {
     aboutRepo: "Repositori GitHub",
     aboutDocs: "Dokumentasi",
     aboutReportBug: "Laporkan bug",
+    demoBannerText:
+      "Mode demo — data direset setiap hari pukul 00.00 WIB, beberapa fitur dimatikan",
+    demoBannerProd: "Pakai versi asli",
+    demoBannerGithub: "Kode di GitHub",
+    demoBannerLabel: "Pemberitahuan mode demo",
+    demoDisabled: "Tidak tersedia di demo",
+    demoLoginHint: "Akun demo:",
+    demoAutofill: "Isi otomatis",
+    demoSignIn: "Masuk sebagai demo",
   },
   en: {
     today: "Today",
@@ -391,6 +400,14 @@ const messages = {
     aboutRepo: "GitHub repository",
     aboutDocs: "Documentation",
     aboutReportBug: "Report a bug",
+    demoBannerText: "Demo mode — data resets every day at 00:00 WIB, some features are disabled",
+    demoBannerProd: "Use the real app",
+    demoBannerGithub: "Code on GitHub",
+    demoBannerLabel: "Demo mode notice",
+    demoDisabled: "Not available in the demo",
+    demoLoginHint: "Demo account:",
+    demoAutofill: "Fill in",
+    demoSignIn: "Sign in as demo",
   },
 } as const;
 

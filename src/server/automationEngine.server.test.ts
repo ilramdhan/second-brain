@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Action, Condition, Trigger } from "@/lib/automation-types";
 
@@ -384,5 +384,34 @@ describe("runAutomationRules: actions", () => {
       [{ field: "priority", op: "eq", value: "low" }],
     );
     expect((await run([first, second], created)).res.ran).toBe(2);
+  });
+});
+
+describe("runAutomationRules: demo mode", () => {
+  const created = { event: "created" as const, taskId: "t1" };
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("skips telegram and webhook actions without failing the rule", async () => {
+    vi.stubEnv("APP_MODE", "demo");
+    vi.stubEnv("VITE_APP_MODE", "demo");
+    const { res, task, runs } = await run(
+      [
+        rule({ type: "task_created" }, [
+          { type: "telegram", text: "Hi" },
+          { type: "webhook", url: "https://hook.example.com/x" },
+          tag,
+        ]),
+      ],
+      created,
+      { profiles: [{ id: USER, telegram_chat_id: "42" }] },
+    );
+    expect(sendTelegram).not.toHaveBeenCalled();
+    expect(safeWebhookPost).not.toHaveBeenCalled();
+    expect(res).toEqual({ ran: 1, changed: true });
+    expect(task["tags"]).toContain("auto");
+    expect(runs[0]).toMatchObject({
+      ok: true,
+      detail: "Write spec → telegram dilewati (demo); webhook dilewati (demo); ubah tags",
+    });
   });
 });
