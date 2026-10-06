@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -54,6 +54,7 @@ function ProjectsPage() {
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useTasks();
   const { update } = useProjectActions();
+  const navigate = useNavigate();
   const [view, setView] = useState("grid");
   const [para, setPara] = useState("all");
   const [dialog, setDialog] = useState<{
@@ -150,6 +151,8 @@ function ProjectsPage() {
           getColumn={(p) => p.status}
           onMove={(p, status) => update(p.id, { status })}
           onAdd={(status) => setDialog({ open: true, project: null, defaults: { status } })}
+          onOpen={(p) => navigate({ to: "/projects/$projectId", params: { projectId: p.id } })}
+          itemLabel={(p) => p.name}
           renderCard={(p) => (
             <ProjectCard
               project={p}

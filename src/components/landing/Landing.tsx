@@ -183,12 +183,12 @@ function CollabMock() {
       <div className="mt-2 flex items-center gap-0.5">
         <div className="h-1.5 w-1/2 rounded-full bg-foreground/20" />
         <span className="h-3 w-0.5 bg-tone-rose motion-safe:animate-pulse" />
-        <span className="rounded bg-tone-rose px-1 text-[9px] text-white">Rani</span>
+        <span className="rounded bg-tone-rose px-1 text-[9px] text-primary-foreground">Rani</span>
       </div>
       <div className="mt-2 flex items-center gap-0.5">
         <div className="h-1.5 w-1/3 rounded-full bg-foreground/20" />
         <span className="h-3 w-0.5 bg-tone-violet motion-safe:animate-pulse" />
-        <span className="rounded bg-tone-violet px-1 text-[9px] text-white">Adi</span>
+        <span className="rounded bg-tone-violet px-1 text-[9px] text-primary-foreground">Adi</span>
       </div>
     </div>
   );

@@ -4,7 +4,9 @@
     "src/**/*.tsx",
     "vite.config.ts",
     "vitest.config.ts",
-    "eslint.config.js"
+    "eslint.config.js",
+    "playwright.config.ts",
+    "e2e/**/*.ts"
   ],
   "compilerOptions": {
     "target": "ES2022",

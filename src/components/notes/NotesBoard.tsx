@@ -145,6 +145,8 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
           getColumn={(n) => n.status}
           onMove={(n, status) => update(n.id, { status })}
           onAdd={(status) => newNote(status)}
+          onOpen={open}
+          itemLabel={(n) => n.title || "Tanpa judul"}
           renderCard={(n) => (
             <NoteCard note={n} projects={projects} onClick={() => open(n)} compact />
           )}

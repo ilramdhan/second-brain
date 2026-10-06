@@ -9,6 +9,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Playwright specs (e2e/) run with `bun run test:e2e`, never under Vitest.
+    exclude: ["e2e/**", "node_modules/**"],
   },
   resolve: {
     alias: {

@@ -323,6 +323,38 @@ bun run build      # required for routing, server function, config or dependency
 CI runs the same checks plus a Prettier check, a migration-journal check, CodeQL and dependency
 review.
 
+### End-to-end tests
+
+[Playwright](https://playwright.dev) specs live in `e2e/` (Vitest ignores that folder) and use
+[`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm) for accessibility checks.
+Config: `playwright.config.ts`.
+
+| Spec                 | What it checks                                                                                   | Needs                       |
+| -------------------- | ------------------------------------------------------------------------------------------------ | --------------------------- |
+| `e2e/public.spec.ts` | `/` and `/login` render with no serious/critical axe violations (light and dark), guest redirect | nothing (dummy env is fine) |
+| `e2e/smoke.spec.ts`  | login → create task (quick add) → create note, then moves both to the trash                      | `E2E_EMAIL`, `E2E_PASSWORD` |
+
+Run them locally against a production build (Chromium only is enough):
+
+```bash
+bunx playwright install chromium
+NITRO_PRESET=node-server bun run build   # Playwright starts .output/server/index.mjs on :3100
+bun run test:e2e
+```
+
+Or against a running deployment, which skips the local server:
+
+```bash
+E2E_BASE_URL=https://<preview>.vercel.app bun run test:e2e
+# authenticated smoke test, with a dedicated test account (never one with real data):
+E2E_BASE_URL=… E2E_EMAIL=… E2E_PASSWORD=… bun run test:e2e
+```
+
+Without `E2E_EMAIL` / `E2E_PASSWORD` the smoke test is skipped, not failed. If the deployment uses
+Vercel Deployment Protection, set `VERCEL_AUTOMATION_BYPASS_SECRET`; it is sent as the
+`x-vercel-protection-bypass` header. On failure, `bunx playwright show-trace test-results/…/trace.zip`
+replays the run.
+
 ---
 
 ## Branches and commits
@@ -454,13 +486,14 @@ Reviewers (and authors, before requesting review) check:
 
 GitHub Actions workflows live in `.github/workflows/`:
 
-| Workflow                | Trigger                     | What it does                                                                                                                                                                                                |
-| ----------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                | push / PR to `main`         | ESLint, Prettier check (currently non-blocking, see below), `tsc --noEmit`, Vitest, `vite build` with placeholder `VITE_*` values plus a stale `routeTree.gen.ts` check, and `scripts/check-migrations.mjs` |
-| `codeql.yml`            | push / PR to `main`, weekly | CodeQL `security-extended` analysis for JavaScript/TypeScript                                                                                                                                               |
-| `dependency-review.yml` | PR to `main`                | Fails on new dependencies with high or critical advisories                                                                                                                                                  |
-| `deploy.yml`            | push / PR to `main`         | Optional Vercel CLI deploy (preview for PRs, production for `main`)                                                                                                                                         |
-| `release-please.yml`    | push to `main`, manual      | Opens or updates the release PR; merging it tags `vX.Y.Z`, updates `CHANGELOG.md` and publishes a GitHub Release                                                                                            |
+| Workflow                | Trigger                                                  | What it does                                                                                                                                                                                                                                                                                              |
+| ----------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                | push / PR to `main`                                      | ESLint, Prettier check (currently non-blocking, see below), `tsc --noEmit`, Vitest, `vite build` with placeholder `VITE_*` values plus a stale `routeTree.gen.ts` check, and `scripts/check-migrations.mjs`                                                                                               |
+| `codeql.yml`            | push / PR to `main`, weekly                              | CodeQL `security-extended` analysis for JavaScript/TypeScript                                                                                                                                                                                                                                             |
+| `dependency-review.yml` | PR to `main`                                             | Fails on new dependencies with high or critical advisories                                                                                                                                                                                                                                                |
+| `deploy.yml`            | push / PR to `main`                                      | Optional Vercel CLI deploy (preview for PRs, production for `main`)                                                                                                                                                                                                                                       |
+| `e2e.yml`               | PR to `main`, Vercel preview `deployment_status`, manual | Playwright + axe. PRs: local `node-server` build with placeholder env, unauthenticated specs. Successful Vercel Preview deployments: all specs against the preview URL (smoke test only with the optional `E2E_EMAIL` / `E2E_PASSWORD` secrets, `VERCEL_AUTOMATION_BYPASS_SECRET` for protected previews) |
+| `release-please.yml`    | push to `main`, manual                                   | Opens or updates the release PR; merging it tags `vX.Y.Z`, updates `CHANGELOG.md` and publishes a GitHub Release                                                                                                                                                                                          |
 
 Shared setup (Bun from `.bun-version`, install cache, `bun install --frozen-lockfile`) is in
 `.github/actions/setup`.
