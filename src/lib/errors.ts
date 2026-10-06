@@ -113,8 +113,8 @@ export function errorKey(error: unknown): MessageKey | undefined {
   if (e.code === "user_already_exists") return "errUserExists";
 
   const byPattern = PATTERNS.find(([re]) => re.test(message))?.[1];
-  // The AI rate limiter's own message names the exact budget; keep it.
-  if (name === "RateLimitError" || /^Batas penggunaan AI/.test(message)) return undefined;
+  // The rate limiter's own message names the exact budget (AI, invites); keep it.
+  if (name === "RateLimitError" || /^Batas penggunaan /.test(message)) return undefined;
   if (byPattern) return byPattern;
 
   if (typeof e.code === "string" && CODE_KEYS[e.code]) return CODE_KEYS[e.code];

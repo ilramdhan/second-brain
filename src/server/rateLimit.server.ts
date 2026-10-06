@@ -2,10 +2,27 @@
 // The function uses auth.uid(), so it must be called with the caller's RLS client
 // (`context.supabase` from requireSupabaseAuth), never with the service-role client.
 
-export type RateLimitRule = { bucket: string; max: number; windowSeconds: number };
+export type RateLimitRule = {
+  bucket: string;
+  max: number;
+  windowSeconds: number;
+  /** What is being limited, used in the messages ("AI" by default, e.g. "undangan anggota"). */
+  subject?: string;
+};
 
 /** Shared budget for every AI gateway call (brain dump, paraphrase, summary, OCR, voice). */
 export const AI_RATE_LIMIT: RateLimitRule = { bucket: "ai", max: 30, windowSeconds: 600 };
+
+/**
+ * Project member invites (`inviteProjectMember`): each call may send an email through Supabase
+ * Auth, whose default SMTP allows only a few emails per hour, so the budget is small.
+ */
+export const MEMBER_INVITE_RATE_LIMIT: RateLimitRule = {
+  bucket: "member_invite",
+  max: 20,
+  windowSeconds: 3600,
+  subject: "undangan anggota",
+};
 
 /**
  * Background embedding of edited tasks/notes for semantic search (each call embeds up to a few
@@ -45,7 +62,7 @@ export function formatWindow(seconds: number): string {
 }
 
 export function rateLimitMessage(rule: RateLimitRule): string {
-  return `Batas penggunaan AI tercapai (${rule.max} permintaan per ${formatWindow(rule.windowSeconds)}). Coba lagi sebentar lagi.`;
+  return `Batas penggunaan ${rule.subject ?? "AI"} tercapai (${rule.max} permintaan per ${formatWindow(rule.windowSeconds)}). Coba lagi sebentar lagi.`;
 }
 
 type RpcClient = {
@@ -58,7 +75,7 @@ type RpcClient = {
 /**
  * Consumes one unit of `rule` for the current user. Throws `RateLimitError` when the budget is
  * exhausted. Fails closed: if the limiter itself errors, the call is rejected too, so a broken
- * or missing migration cannot turn into unlimited AI spend.
+ * or missing migration cannot turn into unlimited AI spend (or unlimited invite emails).
  */
 export async function enforceRateLimit(client: RpcClient, rule: RateLimitRule): Promise<void> {
   const { data, error } = await client.rpc("consume_rate_limit", {
@@ -68,7 +85,9 @@ export async function enforceRateLimit(client: RpcClient, rule: RateLimitRule): 
   });
   if (error) {
     console.error("rate limit check failed:", error.message);
-    throw new RateLimitError("Layanan AI sedang tidak tersedia. Coba lagi nanti.");
+    throw new RateLimitError(
+      `Layanan ${rule.subject ?? "AI"} sedang tidak tersedia. Coba lagi nanti.`,
+    );
   }
   if (data !== true) throw new RateLimitError(rateLimitMessage(rule));
 }

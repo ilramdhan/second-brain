@@ -5,6 +5,7 @@ const auth = vi.hoisted(() => ({
   getSession: vi.fn(),
   signUp: vi.fn(),
   signInWithPassword: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
 }));
 const router = vi.hoisted(() => ({ navigate: vi.fn(), search: {} as { redirect?: string } }));
 
@@ -14,6 +15,7 @@ vi.mock("@/integrations/supabase/client", () => ({
       getSession: auth.getSession,
       signUp: auth.signUp,
       signInWithPassword: auth.signInWithPassword,
+      resetPasswordForEmail: auth.resetPasswordForEmail,
       onAuthStateChange: vi.fn(),
     },
   },
@@ -166,5 +168,48 @@ describe("/login", () => {
     await waitFor(() =>
       expect(router.navigate).toHaveBeenCalledWith({ to: "/today", replace: true }),
     );
+  });
+
+  describe("forgot password", () => {
+    const GENERIC = /Jika email tersebut terdaftar/;
+
+    async function requestReset(email: string) {
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      fireEvent.click(screen.getByRole("button", { name: "Lupa kata sandi?" }));
+      expect(screen.getByRole("heading", { name: "Atur ulang kata sandi" })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: email } });
+      fireEvent.click(screen.getByRole("button", { name: "Kirim tautan" }));
+    }
+
+    it("emails a link to /auth/set-password and shows a generic message", async () => {
+      auth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+      await requestReset(" User@Example.test ");
+      expect(await screen.findByRole("status")).toHaveTextContent(GENERIC);
+      expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("user@example.test", {
+        redirectTo: `${window.location.origin}/auth/set-password`,
+      });
+    });
+
+    it("shows the same message when the email is unknown (no enumeration)", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      auth.resetPasswordForEmail.mockResolvedValue({
+        data: null,
+        error: { status: 400, code: "user_not_found", message: "User not found" },
+      });
+      await requestReset("nobody@example.test");
+      expect(await screen.findByRole("status")).toHaveTextContent(GENERIC);
+    });
+
+    it("rejects an invalid email without calling Supabase", async () => {
+      await requestReset("not-an-email");
+      expect(await screen.findByText("Email tidak valid.")).toBeInTheDocument();
+      expect(auth.resetPasswordForEmail).not.toHaveBeenCalled();
+    });
+
+    it("is not offered in the demo (shared account)", () => {
+      vi.stubEnv("VITE_APP_MODE", "demo");
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      expect(screen.queryByRole("button", { name: "Lupa kata sandi?" })).toBeNull();
+    });
   });
 });
