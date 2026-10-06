@@ -1,0 +1,90 @@
+{
+  "name": "Second Brain – Demo Reset",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🔄 Second Brain — Reset demo harian (opsional)\nHanya untuk deployment **demo** (`APP_MODE=demo`, mis. `https://demo-2ndbrain.ilramdhan.dev`). Vercel Cron di project demo sudah menjalankan reset yang sama setiap 00:00 WIB; workflow ini cadangan/alternatif. Menjalankan keduanya aman (reset idempoten).\n\nTiap hari 00:00 (zona workflow Asia/Jakarta) → `POST $SB_DEMO_APP_URL/api/public/n8n/demo/reset` (x-api-key) → buat akun demo bila belum ada, hapus permanen data akun demo, isi ulang data contoh.\n\n**Env:** `SB_DEMO_APP_URL` (tanpa `/` di akhir). **Credential:** Header Auth \"Second Brain Demo API\" (`x-api-key` = `N8N_API_KEY` project **demo**, bukan produksi).\nLangkah lengkap: `docs/DEMO.md`.",
+        "height": 340,
+        "width": 620,
+        "color": "6"
+      },
+      "id": "9a0d4c4e-2f61-4b8e-9d1a-5c1e0b7f9001",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -400]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 0
+            }
+          ]
+        }
+      },
+      "id": "9a0d4c4e-2f61-4b8e-9d1a-5c1e0b7f9002",
+      "name": "Tiap hari 00:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SB_DEMO_APP_URL }}/api/public/n8n/demo/reset",
+        "options": {
+          "timeout": 60000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}"
+      },
+      "id": "9a0d4c4e-2f61-4b8e-9d1a-5c1e0b7f9003",
+      "name": "Reset demo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain Demo API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Tiap hari 00:00": {
+      "main": [
+        [
+          {
+            "node": "Reset demo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

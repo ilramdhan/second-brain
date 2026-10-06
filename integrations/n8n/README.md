@@ -19,6 +19,7 @@ Workflow [n8n](https://n8n.io) siap-impor untuk Second Brain: bot Telegram (teks
 | `07-second-brain-calendar-sync.json`        | Tiap 30 mnt `POST /n8n/calendar/sync` (app → Google, token OAuth per user di server); opsional Google → app (event `#task` → tugas)                                                                                                | `SB_APP_URL`, `SB_CALENDAR_SYNC_MODE`\*, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`, `SB_OWNER_EMAIL`\*                | x-api-key, (Google Calendar (owner))     |
 | `08-second-brain-email-to-inbox.json`       | Email (**Gmail Trigger** OAuth2, tiap menit, `in:inbox is:unread`, pengirim di allow-list) → Inbox / tugas (`task: …`) / catatan (`note: …`), ringkasan AI untuk email panjang; lalu tandai dibaca + label `SecondBrain/Processed` | `SB_APP_URL`, `SB_EMAIL_ALLOWED_SENDERS`, `SB_GMAIL_PROCESSED_LABEL`\*                                                           | Gmail (capture), x-api-key               |
 | `08b-second-brain-email-to-inbox-imap.json` | Alternatif 08 untuk penyedia **non-Gmail** (IMAP, format Resolved, tandai dibaca); payload & allow-list sama. Aktifkan salah satu saja                                                                                             | `SB_APP_URL`, `SB_EMAIL_ALLOWED_SENDERS`                                                                                         | IMAP Inbox, x-api-key                    |
+| `09-second-brain-demo-reset.json`           | **Hanya deployment demo** (opsional; Vercel Cron demo sudah melakukannya): tiap hari 00:00 WIB `POST /n8n/demo/reset` → akun demo dibuat bila belum ada, data akun demo dihapus permanen dan diisi ulang. Lihat `docs/DEMO.md`     | `SB_DEMO_APP_URL`                                                                                                                | Demo API                                 |
 
 \* opsional. Nama node berbahasa Indonesia, sticky note menjelaskan alur di dalam tiap workflow.
 
@@ -68,6 +69,7 @@ Template ini aman dipasang di **satu instance n8n yang juga menjalankan aplikasi
 | `SB_OWNER_EMAIL`                | `anda@email.com`                                          | Akun pemilik untuk Google → app (07)                                                                             |
 | `SB_EMAIL_ALLOWED_SENDERS`      | `anda@email.com,kantor@email.com`                         | Allow-list pengirim email (08, 08b); kosong = tolak semua                                                        |
 | `SB_GMAIL_PROCESSED_LABEL`      | `SecondBrain/Processed`                                   | Nama label Gmail yang ditambahkan setelah capture sukses (08); label harus sudah dibuat di Gmail                 |
+| `SB_DEMO_APP_URL`               | `https://demo-2ndbrain.ilramdhan.dev`                     | Hanya 09: base URL deployment **demo** (`APP_MODE=demo`), tanpa `/` di akhir                                     |
 
 Contoh blok `environment:` Docker Compose (instance bersama):
 
@@ -103,6 +105,7 @@ Di sisi **web app** (Vercel → Environment Variables) set `N8N_API_KEY` (`opens
 | **Google Sheets OAuth2** — "Second Brain Google Sheets"             |                                                                                                                                    | 06 (disabled)               |
 | **Google Calendar OAuth2** — "Second Brain Google Calendar (owner)" | akun pemilik                                                                                                                       | 07 (Google → app, disabled) |
 | **Gmail OAuth2** — "Second Brain Gmail (capture)"                   | OAuth client Google Cloud (Gmail API aktif), login sebagai kotak masuk capture; lihat [Gmail (email → Inbox)](#gmail-email--inbox) | 08                          |
+| **Header Auth** — "Second Brain Demo API"                           | Name `x-api-key`, Value = `N8N_API_KEY` project Vercel **demo** (berbeda dari produksi)                                            | 09                          |
 | **IMAP** — "Second Brain IMAP Inbox"                                | kotak masuk non-Gmail khusus capture (host/port SSL penyedia)                                                                      | 08b                         |
 
 Semua credential di JSON bertanda `"id": "REPLACE_ME"`; setelah impor, buka node bertanda ⚠️ dan pilih credential yang benar. Ganti juga `REPLACE_ME_SHEET_ID` (06).
@@ -135,7 +138,7 @@ Alur: email belum dibaca dari pengirim di allow-list → `POST /n8n/capture` →
 
 1. Set env di atas pada n8n (Docker: `environment:` / `.env`), termasuk `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` dan `GENERIC_TIMEZONE`, lalu restart n8n. n8n harus bisa diakses via HTTPS publik (`WEBHOOK_URL`).
 2. Buat credential (tabel di atas, semua bernama "Second Brain …").
-3. **Workflows → Import from File** dengan urutan: **03** (error handler) → **04** → **01** → **02** → **05** → **06** → **07** → **08** (atau **08b** untuk non-Gmail).
+3. **Workflows → Import from File** dengan urutan: **03** (error handler) → **04** → **01** → **02** → **05** → **06** → **07** → **08** (atau **08b** untuk non-Gmail). **09** hanya bila Anda menjalankan deployment demo.
 4. Di tiap workflow 01, 02, 05, 06, 07, 08/08b: **Settings → Error workflow = "Second Brain – Error Handler"**.
 5. Ganti credential `REPLACE_ME`, simpan, jalankan **04** secara manual, lalu **Activate** workflow lain.
 6. Uji: kirim `/help` ke bot (01), _Execute workflow_ manual di 05 (pakai trigger **Jalankan manual**) dan cek file di Drive + email.
@@ -221,18 +224,19 @@ Semua endpoint ada di `src/routes/api/public/n8n/*` (logika di `src/server/n8n/*
 - Respons Telegram **tidak** dikirim oleh server (kecuali notifikasi automations/unblock); server mengembalikan instruksi balasan, n8n yang mengirim.
 - Tanggal "hari ini" mengikuti `APP_TIMEZONE` (default `Asia/Jakarta`).
 
-| Method & path                            | Auth                                                              | Workflow    |
-| ---------------------------------------- | ----------------------------------------------------------------- | ----------- |
-| `POST /api/public/n8n/bot`               | `x-api-key`                                                       | 01          |
-| `POST /api/public/n8n/capture`           | `x-api-key`                                                       | 07, 08, 08b |
-| `GET /api/public/n8n/digest`             | `x-api-key`                                                       | 02          |
-| `POST /api/public/n8n/reminders`         | `x-api-key`                                                       | 02          |
-| `POST /api/public/n8n/maintenance`       | `x-api-key`                                                       | 02          |
-| `GET /api/public/n8n/backup`             | `x-api-key`                                                       | 05          |
-| `POST /api/public/n8n/calendar/sync`     | `x-api-key`                                                       | 07          |
-| `POST /api/public/n8n/events`            | `x-api-key`                                                       | 03          |
-| `POST /api/public/telegram/webhook`      | `x-telegram-bot-api-secret-token`                                 | mode app    |
-| `GET`/`POST /api/public/hooks/reminders` | `Authorization: Bearer <SECOND_BRAIN_CRON_SECRET \| CRON_SECRET>` | fallback    |
+| Method & path                            | Auth                                                              | Workflow             |
+| ---------------------------------------- | ----------------------------------------------------------------- | -------------------- |
+| `POST /api/public/n8n/bot`               | `x-api-key`                                                       | 01                   |
+| `POST /api/public/n8n/capture`           | `x-api-key`                                                       | 07, 08, 08b          |
+| `GET /api/public/n8n/digest`             | `x-api-key`                                                       | 02                   |
+| `POST /api/public/n8n/reminders`         | `x-api-key`                                                       | 02                   |
+| `POST /api/public/n8n/maintenance`       | `x-api-key`                                                       | 02                   |
+| `GET /api/public/n8n/backup`             | `x-api-key`                                                       | 05                   |
+| `POST /api/public/n8n/calendar/sync`     | `x-api-key`                                                       | 07                   |
+| `POST /api/public/n8n/events`            | `x-api-key`                                                       | 03                   |
+| `GET`/`POST /api/public/n8n/demo/reset`  | `x-api-key` (POST) atau `Authorization: Bearer <CRON_SECRET>`     | 09, Vercel Cron demo |
+| `POST /api/public/telegram/webhook`      | `x-telegram-bot-api-secret-token`                                 | mode app             |
+| `GET`/`POST /api/public/hooks/reminders` | `Authorization: Bearer <SECOND_BRAIN_CRON_SECRET \| CRON_SECRET>` | fallback             |
 
 ### `POST /api/public/n8n/bot`
 
@@ -364,6 +368,14 @@ Body `{ "tasks": ["purge_trash", "link_codes", "rate_limits", "n8n_events"], "pu
 - `recurring` diterima demi kompatibilitas (instance berikutnya dibuat saat tugas diselesaikan) dan selalu `0`.
 
 Response `{ "ok": true, "purged": { "tasks": 4, "notes": 1, "projects": 0 }, "link_codes_deleted": 3, "rate_limits_deleted": 10, "n8n_events_deleted": 120 }`.
+
+### `POST /api/public/n8n/demo/reset`
+
+Hanya ada bila `APP_MODE=demo`; di deployment lain selalu `404 {"error":"not found"}` (dicek sebelum auth). Auth: `POST` dengan `x-api-key` (workflow 09) **atau** `GET`/`POST` dengan `Authorization: Bearer <CRON_SECRET>` (Vercel Cron di project demo, `0 17 * * *` UTC = 00:00 WIB, didaftarkan oleh `vite.config.ts` hanya pada build demo). Body diabaikan.
+
+Langkah: `ensureDemoUser()` (buat akun demo + dua akun rekan tim contoh bila belum ada, lalu `app_config` `demo_user_email` dan `demo_mode = 'on'`) → hapus permanen semua baris milik akun demo (urutan FK) → isi ulang data contoh untuk semua halaman dengan tanggal relatif hari ini (`APP_TIMEZONE`). Idempoten.
+
+Response `{ "ok": true, "user_id": "…", "created_user": false, "today": "2026-10-06", "inserted": { "tasks": 48, … }, "ms": 2400 }`; gagal → `500 {"error":"reset failed"}` (detail di log). Panduan lengkap: [`docs/DEMO.md`](../../docs/DEMO.md).
 
 ### `GET /api/public/n8n/backup?userId=all|<uuid>&include=all|active&versions=0|1&page=0&page_size=10`
 
