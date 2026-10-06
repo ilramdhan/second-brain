@@ -53,6 +53,9 @@ function pwa(): PluginOption {
     devOptions: { enabled: false },
     workbox: {
       globPatterns: ["assets/**/*.{js,css,woff2}"],
+      // The optional Sentry chunk (src/lib/sentry-browser.ts) is only fetched when
+      // VITE_SENTRY_DSN is set; don't make every install download it.
+      globIgnores: ["assets/sentry-browser-*.js"],
       // Nitro copies public/ into the static dir only after the client build, so these are not
       // globbed; their revision is a content hash so an edit re-downloads them.
       additionalManifestEntries: PRECACHED_PUBLIC_FILES.map((file) => ({
