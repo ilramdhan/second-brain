@@ -96,3 +96,5 @@ jobs:
           node-version-file: .nvmrc
       - name: Check drizzle journal consistency
         run: node scripts/check-migrations.mjs
+      - name: Check n8n workflow templates
+        run: node scripts/check-n8n.mjs

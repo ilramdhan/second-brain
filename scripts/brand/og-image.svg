@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <!--
+    Open Graph / Twitter banner (1200x630). Colours are the light-theme tokens from
+    src/styles.css converted from oklch to sRGB: background #fbfaf7, card #ffffff,
+    foreground #1a2026, muted-foreground #636a71, primary #156161, border #e2e1de,
+    inbox #d5f2f1, tone-* chips. Rasterised to public/og-image.png by scripts/brand/render.mjs.
+  -->
+  <defs>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#e2e1de"/>
+    </pattern>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#1a2026" flood-opacity="0.06"/>
+    </filter>
+    <g id="brain" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 18V5"/>
+      <path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"/>
+      <path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"/>
+      <path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"/>
+      <path d="M18 18a4 4 0 0 0 2-7.464"/>
+      <path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"/>
+      <path d="M6 18a4 4 0 0 1-2-7.464"/>
+      <path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"/>
+    </g>
+  </defs>
+
+  <rect width="1200" height="630" fill="#fbfaf7"/>
+  <rect x="600" width="600" height="630" fill="url(#dots)"/>
+
+  <!-- Left: brand + tagline -->
+  <g transform="translate(72 88)">
+    <rect width="64" height="64" rx="16" fill="#156161"/>
+    <use href="#brain" transform="translate(12 12) scale(1.6667)" stroke="#f5f9f9" stroke-width="1.9"/>
+    <text x="84" y="44" font-size="34" font-weight="700" fill="#1a2026" letter-spacing="-0.8">Second Brain</text>
+  </g>
+  <text x="72" y="236" font-size="15" font-weight="600" fill="#156161" letter-spacing="2">OPEN SOURCE · PWA · MIT</text>
+  <text font-size="54" font-weight="700" fill="#1a2026" letter-spacing="-1.6">
+    <tspan x="72" y="300">Otak kedua untuk</tspan>
+    <tspan x="72" y="364">tugas dan catatan</tspan>
+    <tspan x="72" y="428">Anda</tspan>
+  </text>
+  <text font-size="22" fill="#636a71">
+    <tspan x="72" y="486">Tangkap ide, AI merapikannya. Tugas, catatan</tspan>
+    <tspan x="72" y="518">berblok, dan proyek tim di satu tempat.</tspan>
+  </text>
+  <g transform="translate(72 556)" font-size="16" font-weight="600">
+    <rect width="214" height="40" rx="10" fill="#156161"/>
+    <text x="107" y="26" text-anchor="middle" fill="#f5f9f9">2ndbrain.ilramdhan.dev</text>
+  </g>
+
+  <!-- Right: bento grid (4-column rhythm, varied spans, like the landing page) -->
+  <g filter="url(#shadow)">
+    <!-- Inbox & AI capture: 2 cols -->
+    <g transform="translate(640 64)">
+      <rect width="488" height="168" rx="20" fill="#ffffff" stroke="#e2e1de" stroke-width="1.5"/>
+      <rect x="24" y="22" width="32" height="32" rx="9" fill="#156161" fill-opacity="0.1"/>
+      <rect x="32" y="31" width="16" height="13" rx="3" fill="none" stroke="#156161" stroke-width="2.2"/>
+      <text x="68" y="44" font-size="18" font-weight="600" fill="#1a2026">Inbox &amp; AI capture</text>
+      <rect x="24" y="70" width="440" height="36" rx="9" fill="#fbfaf7" stroke="#e2e1de" stroke-width="1.5"/>
+      <text x="38" y="93" font-size="14" fill="#636a71">rapat tim desain jumat 10.00 #proyek-web !tinggi</text>
+      <rect x="24" y="120" width="80" height="26" rx="7" fill="#3a75af" fill-opacity="0.15"/>
+      <text x="64" y="138" font-size="13" text-anchor="middle" fill="#3a75af">Jum 10.00</text>
+      <rect x="112" y="120" width="96" height="26" rx="7" fill="#1e7777" fill-opacity="0.15"/>
+      <text x="160" y="138" font-size="13" text-anchor="middle" fill="#1e7777">proyek-web</text>
+      <rect x="216" y="120" width="66" height="26" rx="7" fill="#c92f33" fill-opacity="0.15"/>
+      <text x="249" y="138" font-size="13" text-anchor="middle" fill="#c92f33">tinggi</text>
+    </g>
+
+    <!-- Kanban: 2 cols, taller -->
+    <g transform="translate(640 252)">
+      <rect width="300" height="198" rx="20" fill="#ffffff" stroke="#e2e1de" stroke-width="1.5"/>
+      <text x="24" y="40" font-size="18" font-weight="600" fill="#1a2026">Kanban</text>
+      <g font-size="12" fill="#636a71">
+        <circle cx="28" cy="66" r="4" fill="#69737d"/><text x="38" y="70">To do</text>
+        <circle cx="116" cy="66" r="4" fill="#c38c37"/><text x="126" y="70">Doing</text>
+        <circle cx="204" cy="66" r="4" fill="#458554"/><text x="214" y="70">Done</text>
+      </g>
+      <g fill="#fbfaf7" stroke="#e2e1de" stroke-width="1.5">
+        <rect x="24" y="82" width="80" height="44" rx="8"/>
+        <rect x="24" y="134" width="80" height="44" rx="8"/>
+        <rect x="112" y="82" width="80" height="44" rx="8"/>
+        <rect x="200" y="82" width="80" height="44" rx="8"/>
+        <rect x="200" y="134" width="80" height="44" rx="8"/>
+      </g>
+      <g fill="#1a2026" fill-opacity="0.18">
+        <rect x="34" y="94" width="52" height="6" rx="3"/>
+        <rect x="34" y="146" width="40" height="6" rx="3"/>
+        <rect x="122" y="94" width="60" height="6" rx="3"/>
+        <rect x="210" y="94" width="46" height="6" rx="3"/>
+        <rect x="210" y="146" width="56" height="6" rx="3"/>
+      </g>
+      <g fill="#1a2026" fill-opacity="0.08">
+        <rect x="34" y="108" width="26" height="6" rx="3"/>
+        <rect x="34" y="160" width="26" height="6" rx="3"/>
+        <rect x="122" y="108" width="26" height="6" rx="3"/>
+        <rect x="210" y="108" width="26" height="6" rx="3"/>
+        <rect x="210" y="160" width="26" height="6" rx="3"/>
+      </g>
+    </g>
+
+    <!-- Graph -->
+    <g transform="translate(960 252)">
+      <rect width="168" height="198" rx="20" fill="#ffffff" stroke="#e2e1de" stroke-width="1.5"/>
+      <text x="22" y="40" font-size="18" font-weight="600" fill="#1a2026">Graph</text>
+      <g stroke="#e2e1de" stroke-width="2">
+        <line x1="84" y1="116" x2="40" y2="78"/>
+        <line x1="84" y1="116" x2="136" y2="82"/>
+        <line x1="84" y1="116" x2="38" y2="160"/>
+        <line x1="84" y1="116" x2="132" y2="164"/>
+        <line x1="38" y1="160" x2="86" y2="180"/>
+        <line x1="132" y1="164" x2="86" y2="180"/>
+      </g>
+      <circle cx="84" cy="116" r="14" fill="#156161"/>
+      <g fill="#156161" fill-opacity="0.4">
+        <circle cx="40" cy="78" r="8"/>
+        <circle cx="136" cy="82" r="9"/>
+        <circle cx="38" cy="160" r="9"/>
+        <circle cx="132" cy="164" r="8"/>
+        <circle cx="86" cy="180" r="6"/>
+      </g>
+    </g>
+
+    <!-- Telegram chat: 1 col -->
+    <g transform="translate(640 470)">
+      <rect width="232" height="96" rx="20" fill="#ffffff" stroke="#e2e1de" stroke-width="1.5"/>
+      <rect x="64" y="18" width="148" height="28" rx="10" fill="#156161"/>
+      <text x="138" y="37" font-size="13" text-anchor="middle" fill="#f5f9f9">/task bayar listrik</text>
+      <rect x="20" y="54" width="160" height="28" rx="10" fill="#f1f0ec"/>
+      <text x="100" y="73" font-size="13" text-anchor="middle" fill="#1a2026">Tugas dibuat ✓</text>
+    </g>
+
+    <!-- Automations: 1 col -->
+    <g transform="translate(892 470)">
+      <rect width="236" height="96" rx="20" fill="#ffffff" stroke="#e2e1de" stroke-width="1.5"/>
+      <text x="22" y="38" font-size="18" font-weight="600" fill="#1a2026">Automations</text>
+      <rect x="22" y="54" width="76" height="26" rx="8" fill="#156161"/>
+      <text x="60" y="72" font-size="12" text-anchor="middle" fill="#f5f9f9">Selesai</text>
+      <path d="M106 67h14m-5-5 5 5-5 5" fill="none" stroke="#636a71" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="128" y="54" width="86" height="26" rx="8" fill="#fbfaf7" stroke="#e2e1de" stroke-width="1.5"/>
+      <text x="171" y="72" font-size="12" text-anchor="middle" fill="#1a2026">Webhook</text>
+    </g>
+  </g>
+</svg>

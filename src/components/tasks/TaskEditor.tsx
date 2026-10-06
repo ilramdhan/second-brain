@@ -514,7 +514,7 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
       {subs.length > 0 && (
         <div className="h-1 overflow-hidden rounded-full bg-secondary">
           <div
-            className="h-full bg-success transition-all"
+            className="h-full bg-success motion-safe:transition-all"
             style={{ width: `${(done / subs.length) * 100}%` }}
           />
         </div>

@@ -47,3 +47,9 @@ docs/n8n/
 
 # Claude Code local worktrees and session files
 .claude/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

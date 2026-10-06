@@ -192,7 +192,7 @@ These routes have no user session and authenticate the caller themselves:
 - The bot gives the same reply for wrong, expired and used codes and never looks up users by
   email. App mode (`/api/public/telegram/webhook`) and n8n mode (`/api/public/n8n/bot`) share the
   same redemption code (`src/server/telegramLink.server.ts`); n8n additionally enforces
-  `TELEGRAM_ALLOWED_CHAT_IDS` (empty = deny all).
+  `SB_TELEGRAM_ALLOWED_CHAT_IDS` (n8n env) (empty = deny all).
 
 ### n8n integration
 
@@ -339,7 +339,7 @@ both match).
 - Keep `SUPABASE_SERVICE_ROLE_KEY`, `TOKEN_ENCRYPTION_KEY`, `GOOGLE_CLIENT_SECRET`,
   `TELEGRAM_BOT_TOKEN` and `N8N_API_KEY` only in server environment variables; never in `VITE_*`.
 - Use a long random `N8N_API_KEY` (`openssl rand -hex 32`), keep n8n behind HTTPS, set
-  `TELEGRAM_ALLOWED_CHAT_IDS` and `EMAIL_ALLOWED_SENDERS`, and rotate via `N8N_API_KEY_PREVIOUS`.
+  `SB_TELEGRAM_ALLOWED_CHAT_IDS` and `SB_EMAIL_ALLOWED_SENDERS`, and rotate via `N8N_API_KEY_PREVIOUS`.
 - Restrict Supabase Auth redirect URLs to your own domains.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.
 - Set `SECOND_BRAIN_CRON_SECRET` or `CRON_SECRET` (`openssl rand -hex 32`) for the reminder cron and

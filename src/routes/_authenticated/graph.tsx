@@ -12,6 +12,7 @@ import {
 import { Minus, Plus, RotateCcw } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -89,6 +90,9 @@ function GraphPage() {
   const nodeEls = useRef(new Map<string, SVGGElement>());
   const linkEls = useRef<(SVGLineElement | null)[]>([]);
   const frame = useRef(0);
+  // With prefers-reduced-motion the layout is computed up front and painted once instead of
+  // animating the simulation, and dragged nodes move without re-heating it.
+  const reducedMotion = usePrefersReducedMotion();
 
   /** Writes the current simulation positions to the SVG (at most once per animation frame). */
   const paint = useCallback(() => {
@@ -161,13 +165,20 @@ function GraphPage() {
         if (!frame.current) frame.current = requestAnimationFrame(paint);
       });
     simRef.current = sim;
+    if (reducedMotion) {
+      sim.stop();
+      // Settle the layout synchronously (same number of ticks d3 would run while animating).
+      const ticks = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay()));
+      sim.tick(ticks);
+      frame.current = requestAnimationFrame(paint);
+    }
     setShown({ nodes, links });
     return () => {
       sim.stop();
       cancelAnimationFrame(frame.current);
       frame.current = 0;
     };
-  }, [graph, paint]);
+  }, [graph, paint, reducedMotion]);
   // After any React render (hover, zoom, new graph) put elements at the latest positions,
   // since React itself only renders them at their initial coordinates.
   useLayoutEffect(paint);
@@ -220,7 +231,7 @@ function GraphPage() {
       vy: view.y,
       moved: false,
     };
-    if (id) simRef.current?.alphaTarget(0.3).restart();
+    if (id && !reducedMotion) simRef.current?.alphaTarget(0.3).restart();
   }
   function onMove(e: React.PointerEvent) {
     const d = drag.current;
@@ -239,6 +250,11 @@ function GraphPage() {
         const p = toSvg(e.clientX, e.clientY);
         n.fx = p.x;
         n.fy = p.y;
+        if (reducedMotion) {
+          n.x = p.x;
+          n.y = p.y;
+          if (!frame.current) frame.current = requestAnimationFrame(paint);
+        }
       }
     }
   }
@@ -246,7 +262,7 @@ function GraphPage() {
     const d = drag.current;
     drag.current = null;
     if (d?.kind === "node") {
-      simRef.current?.alphaTarget(0);
+      if (!reducedMotion) simRef.current?.alphaTarget(0);
       const n = nodesRef.current.find((x) => x.id === d.id);
       if (n) {
         n.fx = null;

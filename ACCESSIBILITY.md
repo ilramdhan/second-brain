@@ -39,79 +39,91 @@ been confirmed by a full manual audit with assistive technology.
 - **Keyboard shortcuts** for power users: `Cmd/Ctrl+K` command menu (cmdk, accessible combobox)
   and `Q` for quick task. `Q` is ignored while a modifier key is held, while focus is in an input,
   textarea, select or contenteditable element, and while a dialog is open.
-- **Alternative to drag and drop.** Every task can be opened in the full editor, where status,
-  dates, project and milestone can be changed with standard form controls. This is the
-  non-dragging alternative WCAG 2.5.7 asks for, as long as the card itself can be opened from the
-  keyboard (see gaps).
+- **Keyboard drag and drop** (2.1.1, 2.5.7). Kanban boards (tasks, notes, projects) and calendar
+  chips register dnd-kit's `KeyboardSensor` with a custom coordinate getter
+  (`src/lib/dnd-a11y.ts`, used instead of `sortableKeyboardCoordinates` because
+  `@dnd-kit/sortable` isn't installed): focus a card or chip, press `Space` to pick it up, use
+  the arrow keys to jump to the next column (`←`/`→`) or day (`←`/`→` one day, `↑`/`↓` one
+  week), then `Space` or `Enter` to drop or `Escape` to cancel. `Enter` on a card or chip that
+  isn't being dragged opens it. The calendar chip's "change due date" handle is a separate
+  draggable that works the same way. Screen readers get Indonesian instructions and
+  live-region announcements (picked up / over column or date / dropped / cancelled) through
+  dnd-kit's `accessibility` prop.
+- **Keyboard timeline** (2.1.1, 2.5.7). Timeline bars are focusable buttons named
+  "<task>, <date range>": `←`/`→` move the task a day, `Shift`+`←`/`→` change the due date,
+  `Enter`/`Space` open the editor. A visible hint below the chart describes the keys and a
+  polite live region announces the new range.
+- **Alternative to drag and drop.** Every task can also be opened in the full editor, where
+  status, dates, project and milestone can be changed with standard form controls.
 - **Notes editor** blocks are native `<textarea>` elements, so typing, selection and screen
   reader editing behave natively.
 
 ### Color contrast
 
-Theme tokens are defined in OKLCH in `src/styles.css` (`:root` and `.dark`). Computed contrast
-ratios for the main pairs:
+Theme tokens are defined in OKLCH in `src/styles.css` (`:root` and `.dark`). Phase 8.3 adjusted
+the tokens that failed WCAG AA; computed ratios (alpha tints composited over `card`):
 
-| Pair                                       | Light  | Dark      | AA (4.5:1 text)                                                      |
-| ------------------------------------------ | ------ | --------- | -------------------------------------------------------------------- |
-| `foreground` on `background`               | 15.8:1 | 16.0:1    | Pass                                                                 |
-| `muted-foreground` on `background`         | 5.3:1  | 6.4:1     | Pass                                                                 |
-| `muted-foreground` on `card`               | 5.5:1  | 5.9:1     | Pass                                                                 |
-| `primary-foreground` on `primary`          | 6.8:1  | 7.5:1     | Pass                                                                 |
-| `primary` on `background` (links, accents) | 6.9:1  | 7.7:1     | Pass                                                                 |
-| `destructive-foreground` on `destructive`  | 5.1:1  | **3.3:1** | Light pass, **dark fails** for normal text                           |
-| `border` on `background`                   | 1.25:1 | n/a       | Decorative only; fails 3:1 if used as the only boundary of a control |
+| Pair                                                         | Light     | Dark      | Result                                           |
+| ------------------------------------------------------------ | --------- | --------- | ------------------------------------------------ |
+| `foreground` on `background`                                 | 15.8:1    | 16.0:1    | Pass                                             |
+| `muted-foreground` on `background` / `card`                  | 5.3:1     | 5.9:1     | Pass                                             |
+| `muted-foreground` on `secondary`                            | 4.8:1     | 5.2:1     | Pass                                             |
+| `primary-foreground` on `primary`                            | 6.8:1     | 7.5:1     | Pass                                             |
+| `primary` on `background` (links, accents)                   | 6.9:1     | 7.7:1     | Pass                                             |
+| `destructive-foreground` on `destructive`                    | 5.1:1     | 5.5:1     | Pass (dark was 3.3:1; foreground is now dark)    |
+| `success` / `warning` as text on `card`                      | 5.7 / 4.8 | 5.5 / 7.5 | Pass (light warning was 2.7:1, success-fg 4.4:1) |
+| `priority-high` / `priority-medium` badge (text on 15% tint) | 4.8 / 5.0 | 4.7 / 5.7 | Pass (light medium was 2.4:1)                    |
+| project tone text on its 15% tint (7 tones)                  | ≥ 4.7     | ≥ 4.6     | Pass (light tones were 2.5–4.3:1)                |
+| `primary-foreground` on solid tone (timeline bars)           | ≥ 5.4     | ≥ 6.3     | Pass (light amber/rose/green were 2.8–4.4:1)     |
+| `input` (form-control border) on `background`                | 3.2:1     | 3.2:1     | Pass 1.4.11 non-text 3:1 (was 1.25 / 1.5)        |
+| `border` on `background`                                     | 1.25:1    | 1.3:1     | Decorative separators only; controls use `input` |
 
-Reduced-opacity text such as `text-muted-foreground/60` placeholders, `opacity-50` / `opacity-60`
-for completed tasks and timeline bars, and project color tints on cards **is not covered by the
-table** and is likely below 4.5:1 in places.
+The e2e suite runs axe `color-contrast` on `/` and `/login` in both themes (see Testing).
+Reduced-opacity text such as `text-muted-foreground/60` placeholders and `opacity-50` /
+`opacity-60` for completed tasks is still not covered and may fall below 4.5:1.
 
 ### Motion
 
-Animations come from `tw-animate-css` (dialog and popover enter/exit) and Tailwind `transition-*`
-utilities. Neither respects `prefers-reduced-motion` automatically, and the app does not add
-`motion-reduce:` variants or a global reduced-motion rule yet. The graph view runs a d3-force
-simulation that animates on load.
+`prefers-reduced-motion: reduce` is respected:
+
+- A global rule at the end of `src/styles.css` shortens all CSS animations and transitions
+  (tw-animate-css dialog/popover enter/exit, Tailwind `transition-*`) to ~0 ms and turns off
+  smooth scrolling. Durations are near-zero rather than `none` so Radix still receives the
+  `animationend` events it uses to unmount closed content.
+- Decorative animation uses `motion-safe:` (landing mockups, the auth loading pulse, the tilted
+  kanban drag overlay, subtask progress bar).
+- The note graph (`/graph`) settles its d3-force layout synchronously (`sim.tick(n)`) and paints
+  once instead of animating, and dragging a node moves only that node without re-heating the
+  simulation (`usePrefersReducedMotion`, `src/hooks/use-reduced-motion.ts`).
 
 ## Known gaps
 
 Ordered roughly by impact. Each item names the WCAG success criterion it relates to.
 
-1. **Kanban and calendar drag and drop are pointer and touch only** (2.1.1 Keyboard).
-   `Kanban.tsx` and `calendar.tsx` register only `PointerSensor` and `TouchSensor`. Adding
-   dnd-kit's `KeyboardSensor` (with `sortableKeyboardCoordinates` or custom coordinates) and
-   screen-reader `announcements` would make moves keyboard-operable.
-2. **Calendar task chips can't be opened from the keyboard** (2.1.1, 4.1.2). The chip is a `<div>`
-   with dnd-kit attributes (`role="button"`, `tabIndex=0`) and an `onClick`, but no `Enter`/`Space`
-   handler, so it receives focus but does nothing on activation. Kanban cards are wrapped in the
-   same kind of focusable dnd-kit `<div>` (`DraggableCard`), which adds an extra, unnamed tab
-   stop around each card.
-3. **Timeline bars use raw pointer events only** (2.1.1, 2.5.7). Moving or resizing a bar needs a
-   pointer. The row label button opens the task editor, which is the current alternative. A
-   keyboard model (for example arrow keys to move, `Shift`+arrows to resize) is still missing.
-4. **Graph view is not accessible** (1.1.1, 2.1.1). The note graph is an SVG of `<g>` nodes with
+1. **Kanban card wrappers nest interactive content** (4.1.2). The draggable wrapper
+   (`role="button"`, named after the card) contains clickable content such as project card links,
+   so some cards have two tab stops. Flattening the card into one control would be cleaner.
+2. **Timeline start-date resize is pointer only** (2.5.7). `Shift`+arrows change the due date; the
+   start date can still be changed in the task editor.
+3. **Graph view is not accessible** (1.1.1, 2.1.1). The note graph is an SVG of `<g>` nodes with
    pointer handlers only: no focusable nodes, no names, no text alternative. Provide a list of
    notes and links as an alternative and make nodes focusable with accessible names.
-5. **Canvas boards** rely on pointer dragging to position cards (2.1.1, 2.5.7).
-6. **No reduced-motion support** (2.3.3 Animation from Interactions, AAA, but expected by many
-   users). Add a global `@media (prefers-reduced-motion: reduce)` rule and stop the graph
-   simulation from animating.
-7. **Destructive buttons in dark mode** have 3.3:1 contrast (1.4.3). Darken `--destructive` or
-   change `--destructive-foreground` in `.dark`.
-8. **Low-contrast states** such as faded completed tasks, placeholder text at 60% opacity, and
-   hover-only "add" buttons in calendar days (`opacity-0 group-hover:opacity-100`, invisible
-   until hover, but still focusable) (1.4.3, 1.4.11, 2.4.7).
-9. **No skip link** to the main content (2.4.1). The sidebar has many links before `<main>`.
-10. **Mixed-language UI.** Many strings and `aria-label`s are hard-coded in Indonesian and are not
-    translated when English is selected (3.1.2 Language of Parts).
-11. **Live updates aren't announced** (4.1.3 Status Messages). Toasts use Sonner, which has a live
-    region, but realtime collaboration changes, AI processing progress and "load more" results are
-    not announced.
-12. **Focus outline on note blocks.** The block `<textarea>` uses `outline-none` without a
-    replacement focus style, which relies on the caret alone (2.4.7, 2.4.11 Focus Not Obscured).
-13. **Global `Q` shortcut** (2.1.4 Character Key Shortcuts) cannot be turned off or remapped. It is
+4. **Canvas boards** rely on pointer dragging to position cards (2.1.1, 2.5.7).
+5. **Low-contrast states** such as faded completed tasks and placeholder text at 60% opacity
+   (1.4.3). The calendar day "add" button is still hidden until hover, but now also appears on
+   keyboard focus within the day.
+6. **No skip link** to the main content (2.4.1). The sidebar has many links before `<main>`.
+7. **Mixed-language UI.** Many strings and `aria-label`s are hard-coded in Indonesian and are not
+   translated when English is selected (3.1.2 Language of Parts).
+8. **Live updates aren't announced** (4.1.3 Status Messages). Toasts use Sonner, which has a live
+   region, but realtime collaboration changes, AI processing progress and "load more" results are
+   not announced.
+9. **Focus outline on note blocks.** The block `<textarea>` uses `outline-none` without a
+   replacement focus style, which relies on the caret alone (2.4.7, 2.4.11 Focus Not Obscured).
+10. **Global `Q` shortcut** (2.1.4 Character Key Shortcuts) cannot be turned off or remapped. It is
     already suppressed in editable fields and dialogs, which limits accidental activation by
     speech-input users, but 2.1.4 also expects a way to disable or remap it.
-14. **Target size** (2.5.8). Some icon buttons are `h-7 w-7` (28px) or smaller (for example
+11. **Target size** (2.5.8). Some icon buttons are `h-7 w-7` (28px) or smaller (for example
     `p-0.5` icon buttons in calendar cells), close to or below the 24×24 CSS px minimum when the
     spacing exception doesn't apply.
 
@@ -122,10 +134,13 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
 - **Component tests**: query by role and accessible name with Testing Library
   (`getByRole("button", { name: "…" })`). A component that can't be found that way is usually
   not accessible either.
-- **axe-core**: we plan to add [`vitest-axe`](https://github.com/chaance/vitest-axe) /
-  `jest-axe` checks to component tests, and `@axe-core/playwright` for end-to-end checks of the
-  main pages in both themes. Until then, run the
-  [axe DevTools](https://www.deque.com/axe/devtools/) browser extension on pages you change.
+- **Unit tests** for the keyboard drag-and-drop helpers (coordinate getter, column/day
+  navigation, Indonesian announcements, timeline keys) are in `src/lib/dnd-a11y.test.ts`.
+- **axe-core in CI**: `e2e/public.spec.ts` runs [`@axe-core/playwright`](https://github.com/dequelabs/axe-core-npm)
+  (WCAG 2.x A/AA tags) on `/` and `/login` in light and dark themes and fails on serious or
+  critical violations (`.github/workflows/e2e.yml`, see
+  [CONTRIBUTING.md](CONTRIBUTING.md#end-to-end-tests)). Authenticated pages aren't scanned yet;
+  run the [axe DevTools](https://www.deque.com/axe/devtools/) extension on pages you change.
 - **Lighthouse** accessibility audit as a quick smoke check (not a substitute for manual
   testing).
 

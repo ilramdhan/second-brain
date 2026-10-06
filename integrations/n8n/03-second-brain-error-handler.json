@@ -22,13 +22,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/sendMessage",
         "options": {
           "timeout": 10000
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_ADMIN_CHAT_ID, text: $json.text, disable_web_page_preview: true }) }}"
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.SB_TELEGRAM_ADMIN_CHAT_ID, text: $json.text, disable_web_page_preview: true }) }}"
       },
       "id": "4a8373bb-925a-47af-89d3-23ce8d83fb00",
       "name": "Kirim ke admin",
@@ -42,7 +42,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SECOND_BRAIN_URL }}/api/public/n8n/events",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/events",
         "options": {
           "timeout": 10000
         },
@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "content": "## 🚨 Error handler\nSet workflow ini sebagai **Error Workflow** di Settings workflow 01, 02, 05, 06, 07, 08. Notifikasi ke `TELEGRAM_ADMIN_CHAT_ID` (env: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`).\n\nNode *Log ke Second Brain* mencatat error ke `activity_logs` (source `n8n`) lewat `POST /api/public/n8n/events` (Header Auth `x-api-key`). Gagal mencatat tidak menghentikan alert.",
+        "content": "## 🚨 Error handler\nSet workflow ini sebagai **Error Workflow** di Settings workflow 01, 02, 05, 06, 07, 08. Notifikasi ke `SB_TELEGRAM_ADMIN_CHAT_ID` (env: `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`).\n\nNode *Log ke Second Brain* mencatat error ke `activity_logs` (source `n8n`) lewat `POST /api/public/n8n/events` (Header Auth `x-api-key`). Gagal mencatat tidak menghentikan alert.",
         "height": 220,
         "width": 560,
         "color": "3"

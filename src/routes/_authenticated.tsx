@@ -63,7 +63,7 @@ function DialogFallback() {
 function AuthPending() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <Brain className="h-8 w-8 animate-pulse text-primary" />
+      <Brain className="h-8 w-8 text-primary motion-safe:animate-pulse" />
     </div>
   );
 }
@@ -73,6 +73,8 @@ export const Route = createFileRoute("/_authenticated")({
   // Rendering this subtree on the client only lets `beforeLoad` check the session before any
   // page renders: signed-out visitors are redirected to /login, never shown an error page.
   ssr: false,
+  // Private app pages: never indexed (robots.txt also disallows them).
+  head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
   // Not exposed as route context: it would go stale after a token refresh. Read it via useMe().
   beforeLoad: async ({ context, location }) => {
     await requireSession(context.queryClient, location.href);

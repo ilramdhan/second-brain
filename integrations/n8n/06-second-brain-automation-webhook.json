@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## ⚡ Automation webhook receiver\nTujuan aksi **Kirim webhook** di halaman *Automations* app. App mengirim `POST` JSON `{ text, content, rule, event, project, task }` (lihat `src/server/automationEngine.server.ts`; wajib https, dicek SSRF guard).\n\nURL yang ditempel di app:\n`https://<n8n>/webhook/second-brain-automation?token=<AUTOMATION_WEBHOOK_TOKEN>&channel=telegram`\n`channel` = `telegram` | `sheets` | `discord` | `all`\n\nFan-out bawaan: Telegram admin, Google Sheets (log, disabled), Discord/Slack (disabled). Tambahkan cabang sendiri (Notion, email, dsb.).\nBalasan 200 dikirim segera agar `automation_runs` tercatat `ok`; token salah → 401 (tercatat gagal).\n\n**Env:** `AUTOMATION_WEBHOOK_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID`, `DISCORD_WEBHOOK_URL` (opsional), `SECOND_BRAIN_URL` (untuk link).",
+        "content": "## ⚡ Automation webhook receiver\nTujuan aksi **Kirim webhook** di halaman *Automations* app. App mengirim `POST` JSON `{ text, content, rule, event, project, task }` (lihat `src/server/automationEngine.server.ts`; wajib https, dicek SSRF guard).\n\nURL yang ditempel di app:\n`https://<n8n>/webhook/second-brain-automation?token=<SB_AUTOMATION_WEBHOOK_TOKEN>&channel=telegram`\n`channel` = `telegram` | `sheets` | `discord` | `all`\n\nFan-out bawaan: Telegram admin, Google Sheets (log, disabled), Discord/Slack (disabled). Tambahkan cabang sendiri (Notion, email, dsb.).\nBalasan 200 dikirim segera agar `automation_runs` tercatat `ok`; token salah → 401 (tercatat gagal).\n\n**Env:** `SB_AUTOMATION_WEBHOOK_TOKEN`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`, `SB_DISCORD_WEBHOOK_URL` (opsional), `SB_APP_URL` (untuk link).",
         "height": 380,
         "width": 720,
         "color": "6"
@@ -30,7 +30,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validasi token rahasia (query ?token=...) — aksi \"Kirim webhook\" di app tidak mengirim header auth,\n// jadi token disematkan di URL yang Anda tempel di halaman Automations.\nconst expected = String($env.AUTOMATION_WEBHOOK_TOKEN || '');\nconst q = $json.query || {};\nconst b = $json.body || {};\n// Perbandingan panjang-konstan sederhana (token di URL; tetap pakai string acak ≥ 32 karakter).\nconst given = String(q.token || '');\nlet diff = given.length ^ expected.length;\nfor (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i % Math.max(given.length, 1));\nif (!expected || diff !== 0) return [{ json: { ok: false, reason: 'unauthorized' } }];\nconst t = b.task || {};\nconst due = t.due_date ? new Date(t.due_date).toLocaleString('id-ID', { timeZone: $env.GENERIC_TIMEZONE || 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }) : '-';\nconst link = $env.SECOND_BRAIN_URL ? `${$env.SECOND_BRAIN_URL}/tasks?task=${t.id || ''}` : '';\nreturn [{ json: {\n  ok: true,\n  channel: String(q.channel || 'telegram'),\n  rule: b.rule || '-', event: b.event || '-', project: b.project || '-',\n  task: { id: t.id, title: t.title, status: t.status, priority: t.priority, assignee: t.assignee_name, due, tags: t.tags || [] },\n  text: `⚡ ${b.rule || 'Automation'} (${b.event || '-'})\\n📌 ${t.title || '-'}\\nStatus: ${t.status || '-'} · Prioritas: ${t.priority || '-'}\\nProyek: ${b.project || '-'} · Tenggat: ${due}${link ? `\\n${link}` : ''}`,\n} }];"
+        "jsCode": "// Validasi token rahasia (query ?token=...) — aksi \"Kirim webhook\" di app tidak mengirim header auth,\n// jadi token disematkan di URL yang Anda tempel di halaman Automations.\nconst expected = String($env.SB_AUTOMATION_WEBHOOK_TOKEN || '');\nconst q = $json.query || {};\nconst b = $json.body || {};\n// Perbandingan panjang-konstan sederhana (token di URL; tetap pakai string acak ≥ 32 karakter).\nconst given = String(q.token || '');\nlet diff = given.length ^ expected.length;\nfor (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i % Math.max(given.length, 1));\nif (!expected || diff !== 0) return [{ json: { ok: false, reason: 'unauthorized' } }];\nconst t = b.task || {};\nconst due = t.due_date ? new Date(t.due_date).toLocaleString('id-ID', { timeZone: $env.GENERIC_TIMEZONE || 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }) : '-';\nconst link = $env.SB_APP_URL ? `${$env.SB_APP_URL}/tasks?task=${t.id || ''}` : '';\nreturn [{ json: {\n  ok: true,\n  channel: String(q.channel || 'telegram'),\n  rule: b.rule || '-', event: b.event || '-', project: b.project || '-',\n  task: { id: t.id, title: t.title, status: t.status, priority: t.priority, assignee: t.assignee_name, due, tags: t.tags || [] },\n  text: `⚡ ${b.rule || 'Automation'} (${b.event || '-'})\\n📌 ${t.title || '-'}\\nStatus: ${t.status || '-'} · Prioritas: ${t.priority || '-'}\\nProyek: ${b.project || '-'} · Tenggat: ${due}${link ? `\\n${link}` : ''}`,\n} }];"
       },
       "id": "223cfbb3-e007-44a9-9c5d-f52f563f7cdb",
       "name": "Validasi & format",
@@ -189,13 +189,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/sendMessage",
         "options": {
           "timeout": 15000
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_ADMIN_CHAT_ID, text: $('Validasi & format').item.json.text.slice(0, 4000), disable_web_page_preview: true }) }}"
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.SB_TELEGRAM_ADMIN_CHAT_ID, text: $('Validasi & format').item.json.text.slice(0, 4000), disable_web_page_preview: true }) }}"
       },
       "id": "830a35d3-7d6c-4ee1-9d49-af0b08833021",
       "name": "Telegram admin",
@@ -242,7 +242,7 @@
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "REPLACE_ME",
-          "name": "Google Sheets Second Brain"
+          "name": "Second Brain Google Sheets"
         }
       },
       "disabled": true,
@@ -251,7 +251,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "url": "={{ $env.SB_DISCORD_WEBHOOK_URL }}",
         "options": {
           "timeout": 15000
         },

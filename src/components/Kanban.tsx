@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   useDraggable,
@@ -12,6 +13,13 @@ import {
 } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
 
+import {
+  KEYBOARD_CODES,
+  columnNavigator,
+  dndAnnouncements,
+  droppableKeyboardCoordinates,
+  screenReaderInstructions,
+} from "@/lib/dnd-a11y";
 import { cn } from "@/lib/utils";
 
 type Column = { id: string; label: string };
@@ -23,6 +31,8 @@ export function Kanban<T extends { id: string }>({
   renderCard,
   onMove,
   onAdd,
+  onOpen,
+  itemLabel,
 }: {
   columns: readonly Column[];
   items: T[];
@@ -30,12 +40,35 @@ export function Kanban<T extends { id: string }>({
   renderCard: (item: T) => React.ReactNode;
   onMove: (item: T, columnId: string) => void;
   onAdd?: ((columnId: string) => void) | undefined;
+  /** Called on Enter (keyboard activation of a card). */
+  onOpen?: ((item: T) => void) | undefined;
+  /** Accessible name of a card, used for its label and screen-reader announcements. */
+  itemLabel: (item: T) => string;
 }) {
+  const columnIds = useMemo(() => columns.map((c) => c.id), [columns]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(KeyboardSensor, {
+      keyboardCodes: KEYBOARD_CODES,
+      coordinateGetter: droppableKeyboardCoordinates(columnNavigator(columnIds), (id) => {
+        const item = items.find((i) => i.id === id);
+        return item ? getColumn(item) : null;
+      }),
+    }),
   );
   const [active, setActive] = useState<T | null>(null);
+  const nameOf = (id: unknown) => {
+    const item = items.find((i) => i.id === id);
+    return item ? itemLabel(item) : "Kartu";
+  };
+  const accessibility = {
+    screenReaderInstructions,
+    announcements: dndAnnouncements({
+      itemName: (a) => nameOf(a.id),
+      targetName: (id) => `kolom ${columns.find((c) => c.id === id)?.label ?? String(id)}`,
+    }),
+  };
 
   function onDragEnd(e: DragEndEvent) {
     setActive(null);
@@ -47,6 +80,7 @@ export function Kanban<T extends { id: string }>({
   return (
     <DndContext
       sensors={sensors}
+      accessibility={accessibility}
       onDragStart={(e) => setActive(items.find((i) => i.id === e.active.id) ?? null)}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActive(null)}
@@ -62,7 +96,12 @@ export function Kanban<T extends { id: string }>({
               onAdd={onAdd ? () => onAdd(c.id) : undefined}
             >
               {list.map((i) => (
-                <DraggableCard key={i.id} id={i.id}>
+                <DraggableCard
+                  key={i.id}
+                  id={i.id}
+                  label={itemLabel(i)}
+                  onOpen={onOpen ? () => onOpen(i) : undefined}
+                >
                   {renderCard(i)}
                 </DraggableCard>
               ))}
@@ -71,7 +110,7 @@ export function Kanban<T extends { id: string }>({
         })}
       </div>
       <DragOverlay dropAnimation={null}>
-        {active ? <div className="rotate-1 shadow-lg">{renderCard(active)}</div> : null}
+        {active ? <div className="shadow-lg motion-safe:rotate-1">{renderCard(active)}</div> : null}
       </DragOverlay>
     </DndContext>
   );
@@ -92,8 +131,9 @@ function KanbanColumn({
   return (
     <section
       ref={setNodeRef}
+      aria-label={`Kolom ${column.label}`}
       className={cn(
-        "flex w-[78vw] max-w-[300px] shrink-0 snap-start flex-col rounded-2xl border bg-secondary/40 p-2 transition-colors sm:w-72",
+        "flex w-[78vw] max-w-[300px] shrink-0 snap-start flex-col rounded-2xl border bg-secondary/40 p-2 motion-safe:transition-colors sm:w-72",
         isOver && "border-primary/40 bg-accent/60",
       )}
     >
@@ -116,14 +156,40 @@ function KanbanColumn({
   );
 }
 
-function DraggableCard({ id, children }: { id: string; children: React.ReactNode }) {
-  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({ id });
+function DraggableCard({
+  id,
+  label,
+  onOpen,
+  children,
+}: {
+  id: string;
+  label: string;
+  onOpen?: (() => void) | undefined;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+    id,
+    attributes: { roleDescription: "kartu yang dapat dipindah" },
+  });
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={cn("touch-manipulation", isDragging && "opacity-30")}
+      aria-label={label}
+      onKeyDown={(e) => {
+        listeners?.["onKeyDown"]?.(e);
+        // Enter opens the card (Space is reserved for picking it up); ignored mid-drag,
+        // where Enter drops the card instead.
+        if (e.key === "Enter" && !isDragging && e.target === e.currentTarget && onOpen) {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={cn(
+        "touch-manipulation rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isDragging && "opacity-30",
+      )}
     >
       {children}
     </div>

@@ -299,7 +299,8 @@ Only note collaboration uses Realtime: broadcast events `y-update` and `cursor`,
 │   ├── manifest.webmanifest   # PWA manifest
 │   ├── offline.html           # Offline fallback page (precached by the Workbox SW)
 │   ├── sw-legacy-cleanup.js   # Deletes caches of the pre-Workbox service worker
-│   └── favicon.png, icon-192.png, icon-512.png, robots.txt
+│   ├── favicon.ico/.svg/.png, apple-touch-icon.png, icon-192/512(-maskable).png, og-image.png
+│   └── robots.txt, sitemap.xml   # brand images are rendered from scripts/brand/*.svg
 └── src/
     ├── server.ts              # SSR entry wrapper with error page fallback
     ├── start.ts               # TanStack Start instance: global middleware
@@ -608,6 +609,7 @@ Copy `.env.example` to `.env` locally (it is git-ignored) and set the same varia
 | ------------------------------------------- | ------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `VITE_SUPABASE_URL`                         | Client (build-time) | Yes                   | Supabase project URL for the browser client                                                                                      |
 | `VITE_SUPABASE_PUBLISHABLE_KEY`             | Client (build-time) | Yes                   | Supabase anon/publishable key for the browser client                                                                             |
+| `VITE_DEMO_URL`                             | Client (build-time) | No                    | Public demo deployment; shows the "Coba Demo" button on the landing page (hidden when unset)                                     |
 | `SUPABASE_URL`                              | Server              | Yes                   | Supabase URL for SSR, auth middleware and the admin client                                                                       |
 | `SUPABASE_PUBLISHABLE_KEY`                  | Server              | Yes                   | Publishable key used by `requireSupabaseAuth` to build a per-user client                                                         |
 | `SUPABASE_SERVICE_ROLE_KEY`                 | Server (secret)     | Yes                   | Service-role client (`supabaseAdmin`) for the Telegram webhook, n8n endpoints, reminders and the encrypted token store           |
@@ -767,7 +769,7 @@ Templates and the full endpoint contracts are in [`integrations/n8n/`](integrati
 | `POST /api/public/n8n/calendar/sync` | 07       | App → Google Calendar for connected users                                          |
 | `POST /api/public/n8n/events`        | 03       | n8n errors → `activity_logs`                                                       |
 
-Automatic backups (workflow 05): daily or weekly → `.json.gz` in a Google Drive folder → keep the newest `BACKUP_RETENTION` files → summary email via Resend SMTP (attachment up to `BACKUP_EMAIL_ATTACH_MAX_MB`) → Telegram/email alert on failure. `docs/n8n/` is reference material from another project and is not part of this app.
+Automatic backups (workflow 05): daily or weekly → `.json.gz` in a Google Drive folder → keep the newest `SB_BACKUP_RETENTION` files → summary email via Resend SMTP (attachment up to `SB_BACKUP_EMAIL_ATTACH_MAX_MB`) → Telegram/email alert on failure. `docs/n8n/` is reference material from another project and is not part of this app.
 
 ### Google Calendar
 
