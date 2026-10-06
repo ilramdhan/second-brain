@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { LOCALE_COOKIE, THEME_COOKIE, writePreferenceCookie } from "./preference-cookies";
 import { THEME_STORAGE_KEY } from "./theme-script";
 
 export type Theme = "light" | "dark" | "system";
@@ -97,6 +98,15 @@ const messages = {
     landingMenuLabel: "Menu utama",
     landingMenuOpen: "Buka menu",
     landingMenuDescription: "Navigasi halaman, demo, GitHub, dan masuk.",
+    landingNavTech: "Teknologi",
+    landingTechTitle: "Dibangun dengan teknologi modern",
+    landingTechSubtitle:
+      "Stack open source yang teruji, dari framework web hingga database, otomasi, dan pemantauan.",
+    landingTechListLabel: "Daftar teknologi",
+    landingBackToTop: "Kembali ke atas",
+    loginBackHome: "Beranda",
+    loginBackHomeLabel: "Kembali ke beranda",
+    loginLogoLabel: "Second Brain — beranda",
     landingFeaturesSubtitle:
       "Semua yang Anda perlukan untuk menangkap, merapikan, dan menyelesaikan pekerjaan di satu tempat.",
     landingHowTitle: "Cara kerja",
@@ -305,6 +315,15 @@ const messages = {
     landingMenuLabel: "Main menu",
     landingMenuOpen: "Open menu",
     landingMenuDescription: "Page navigation, demo, GitHub and sign in.",
+    landingNavTech: "Tech stack",
+    landingTechTitle: "Built on a modern stack",
+    landingTechSubtitle:
+      "Proven open-source tools, from the web framework to the database, automation and monitoring.",
+    landingTechListLabel: "Technologies",
+    landingBackToTop: "Back to top",
+    loginBackHome: "Home",
+    loginBackHomeLabel: "Back to the home page",
+    loginLogoLabel: "Second Brain — home",
     landingFeaturesSubtitle:
       "Everything you need to capture, organize and finish your work in one place.",
     landingHowTitle: "How it works",
@@ -450,22 +469,52 @@ function applyTheme(theme: Theme) {
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
 }
 
-export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [locale, setLocaleState] = useState<Locale>("id");
+const LOCALE_STORAGE_KEY = "second-brain-locale";
+
+/**
+ * `initialLocale` / `initialTheme` come from the `sb_lang` / `sb_theme` cookies, read by the root
+ * loader on the server (src/lib/preferences-ssr.ts). The SSR HTML is therefore already in the
+ * visitor's language and hydration renders the same text: no ID → EN flash, no mismatch.
+ * localStorage is still read after mount for installs that predate the cookie, and the cookies
+ * are backfilled from it so the next server render matches.
+ */
+export function PreferencesProvider({
+  children,
+  initialLocale = "id",
+  initialTheme = "system",
+}: {
+  children: React.ReactNode;
+  initialLocale?: Locale;
+  initialTheme?: Theme;
+}) {
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  // Snapshot of the server values for the mount effect (it must run only once).
+  const [initial] = useState({ locale: initialLocale, theme: initialTheme });
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-    const storedLocale = localStorage.getItem("second-brain-locale") as Locale | null;
-    const nextTheme =
-      storedTheme && ["light", "dark", "system"].includes(storedTheme) ? storedTheme : "system";
-    const nextLocale = storedLocale === "en" ? "en" : "id";
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate stored preferences after mount (localStorage is not available during SSR).
+    let storedTheme: string | null = null;
+    let storedLocale: string | null = null;
+    try {
+      storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+      storedLocale = localStorage.getItem(LOCALE_STORAGE_KEY);
+    } catch {
+      // storage blocked: keep the cookie values
+    }
+    const nextTheme: Theme =
+      storedTheme === "light" || storedTheme === "dark" || storedTheme === "system"
+        ? storedTheme
+        : initial.theme;
+    const nextLocale: Locale =
+      storedLocale === "en" || storedLocale === "id" ? storedLocale : initial.locale;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reconcile with localStorage after mount (not available during SSR).
     setThemeState(nextTheme);
     setLocaleState(nextLocale);
     applyTheme(nextTheme);
     document.documentElement.lang = nextLocale;
-  }, []);
+    writePreferenceCookie(LOCALE_COOKIE, nextLocale);
+    writePreferenceCookie(THEME_COOKIE, nextTheme);
+  }, [initial]);
 
   useEffect(() => {
     if (theme !== "system") return;
@@ -480,13 +529,23 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       theme,
       setTheme: (next) => {
         setThemeState(next);
-        localStorage.setItem(THEME_STORAGE_KEY, next);
+        try {
+          localStorage.setItem(THEME_STORAGE_KEY, next);
+        } catch {
+          // storage blocked: the cookie still carries the choice
+        }
+        writePreferenceCookie(THEME_COOKIE, next);
         applyTheme(next);
       },
       locale,
       setLocale: (next) => {
         setLocaleState(next);
-        localStorage.setItem("second-brain-locale", next);
+        try {
+          localStorage.setItem(LOCALE_STORAGE_KEY, next);
+        } catch {
+          // storage blocked: the cookie still carries the choice
+        }
+        writePreferenceCookie(LOCALE_COOKIE, next);
         document.documentElement.lang = next;
       },
       t: (key) => messages[locale][key],

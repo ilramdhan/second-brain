@@ -37,6 +37,36 @@ test("authenticated routes redirect guests to /login", async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
+test("the sb_lang cookie makes the server render English (no Indonesian flash)", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await context.addCookies([{ name: "sb_lang", value: "en", url: baseURL ?? "http://127.0.0.1" }]);
+  // The raw SSR HTML, before any client script runs.
+  const html = await (await page.request.get("/")).text();
+  expect(html).toMatch(/<html[^>]*lang="en"/);
+  expect(html).toContain("A second brain for your tasks and notes");
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "A second brain for your tasks and notes",
+  );
+});
+
+test("tech stack is listed and back-to-top returns to the hero", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  const tech = page.getByRole("region", { name: "Daftar teknologi" });
+  await expect(tech.getByRole("listitem").filter({ hasText: "Supabase" })).toHaveCount(1);
+  const back = page.getByRole("button", { name: "Kembali ke atas" });
+  await expect(back).toBeHidden();
+  await page.locator("#faq").scrollIntoViewIfNeeded();
+  await expect(back).toBeVisible();
+  await back.click();
+  await expect(page.getByRole("heading", { level: 1 })).toBeInViewport();
+});
+
 test("login links back to the landing page and hides sign-up by default", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("button", { name: /Daftar/ })).toHaveCount(0);

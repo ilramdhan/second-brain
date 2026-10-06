@@ -10,6 +10,7 @@ import {
   HardDriveDownload,
   Inbox,
   Network,
+  Play,
   Scale,
   Send,
   Smartphone,
@@ -27,6 +28,7 @@ import {
   SiteHeader,
   SkipLink,
 } from "@/components/landing/SiteChrome";
+import { BackToTop, TechMarquee } from "@/components/landing/LandingExtras";
 import { Button } from "@/components/ui/button";
 import { demoUrl, GITHUB_URL, SELF_HOST_DOCS_URL } from "@/lib/landing";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
@@ -251,7 +253,7 @@ function Section({
       id={id}
       tabIndex={-1}
       aria-labelledby={`${id}-title`}
-      className="scroll-mt-20 py-12 focus:outline-none md:py-16"
+      className="py-12 focus:outline-none md:py-16"
     >
       <div className="mx-auto mb-8 max-w-2xl text-center">
         <h2 id={`${id}-title`} className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -309,7 +311,7 @@ export function Landing() {
   const { t } = usePreferences();
   const demo = demoUrl();
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div data-public-page className="min-h-screen bg-background text-foreground">
       <SkipLink />
       <SiteHeader onLanding />
 
@@ -328,12 +330,13 @@ export function Landing() {
             {t("landingSubtitle")}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {/* Demo landing (VITE_DEMO_URL), same tab; without it the primary CTA is sign-in. */}
             {demo ? (
               <Button asChild size="lg">
-                <a href={demo} target="_blank" rel="noopener">
+                <a href={demo}>
+                  <Play aria-hidden />
                   {t("landingDemo")}
                   <ArrowRight aria-hidden />
-                  <NewTab />
                 </a>
               </Button>
             ) : (
@@ -435,6 +438,10 @@ export function Landing() {
           </ul>
         </Section>
 
+        <Section id="teknologi" title="landingTechTitle" subtitle="landingTechSubtitle">
+          <TechMarquee />
+        </Section>
+
         <Section id="self-host" title="landingHostTitle" subtitle="landingHostSubtitle">
           <ol className="grid gap-4 md:grid-cols-3">
             {SELF_HOST.map((step, i) => (
@@ -483,6 +490,7 @@ export function Landing() {
       </main>
 
       <SiteFooter onLanding />
+      <BackToTop />
     </div>
   );
 }

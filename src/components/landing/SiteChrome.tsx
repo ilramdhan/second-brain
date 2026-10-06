@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Brain, Menu, Monitor, Moon, Sun } from "lucide-react";
+import { Brain, Menu, Monitor, Moon, Play, Sun } from "lucide-react";
 import { useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ export const SECTIONS = [
   { id: "fitur", label: "landingNavFeatures" },
   { id: "cara-kerja", label: "landingNavHowItWorks" },
   { id: "integrasi", label: "landingNavIntegrations" },
+  { id: "teknologi", label: "landingNavTech" },
   { id: "self-host", label: "landingNavSelfHost" },
   { id: "faq", label: "landingNavFaq" },
 ] as const satisfies readonly { id: string; label: MessageKey }[];
@@ -156,7 +157,7 @@ function SectionLink({
 const NAV_LINK =
   "rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
-/** Mobile menu (below `md`): the section links, demo, GitHub and sign-in in a shadcn Sheet. */
+/** Compact menu (below `lg`): the section links, demo, GitHub and sign-in in a shadcn Sheet. */
 function MobileMenu({ onLanding, demo }: { onLanding: boolean; demo: string | null }) {
   const { t } = usePreferences();
   const [open, setOpen] = useState(false);
@@ -170,7 +171,7 @@ function MobileMenu({ onLanding, demo }: { onLanding: boolean; demo: string | nu
           type="button"
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="lg:hidden"
           aria-label={t("landingMenuOpen")}
         >
           <Menu aria-hidden />
@@ -213,10 +214,10 @@ function MobileMenu({ onLanding, demo }: { onLanding: boolean; demo: string | nu
         </nav>
         <div className="mt-auto flex flex-col gap-2">
           {demo && (
-            <Button asChild variant="outline">
-              <a href={demo} target="_blank" rel="noopener">
+            <Button asChild>
+              <a href={demo}>
+                <Play aria-hidden />
                 {t("landingDemo")}
-                <NewTab />
               </a>
             </Button>
           )}
@@ -250,7 +251,7 @@ export function SiteHeader({ onLanding = false }: { onLanding?: boolean }) {
           <Brain className="h-6 w-6 text-primary" aria-hidden />
           Second Brain
         </Link>
-        <nav aria-label={t("landingMenuLabel")} className="hidden md:block">
+        <nav aria-label={t("landingMenuLabel")} className="hidden lg:block">
           <ul className="flex items-center gap-0.5">
             {SECTIONS.map((section) => (
               <li key={section.id}>
@@ -264,16 +265,17 @@ export function SiteHeader({ onLanding = false }: { onLanding?: boolean }) {
         <div className="flex items-center gap-1">
           <ThemeToggle />
           <LanguageToggle />
-          <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
+          <Button asChild variant="ghost" size="icon" className="hidden xl:inline-flex">
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub">
               <GithubMark />
             </a>
           </Button>
+          {/* The demo is its own deployment; it opens in the same tab like any other page. */}
           {demo && (
-            <Button asChild size="sm" variant="outline" className="ml-1 hidden h-9 lg:inline-flex">
-              <a href={demo} target="_blank" rel="noopener">
+            <Button asChild size="sm" variant="outline" className="ml-1 hidden h-9 sm:inline-flex">
+              <a href={demo}>
+                <Play aria-hidden />
                 {t("landingDemo")}
-                <NewTab />
               </a>
             </Button>
           )}

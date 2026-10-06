@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -20,6 +20,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 import { Landing } from "@/components/landing/Landing";
 import { prefersReducedMotion, SECTIONS } from "@/components/landing/SiteChrome";
+import { TECH_LOGOS } from "@/components/landing/tech-logos";
 import { APP_VERSION, GIT_SHA as BUILD_SHA, releaseTagUrl, REPO_URL } from "@/lib/app-version";
 import { GITHUB_URL, LICENSE_URL, SECURITY_URL, SELF_HOST_DOCS_URL } from "@/lib/landing";
 import { PreferencesProvider } from "@/lib/preferences";
@@ -95,13 +96,74 @@ describe("Landing", () => {
     vi.stubEnv("VITE_DEMO_URL", "https://demo-2ndbrain.ilramdhan.dev");
     renderLanding();
 
-    // Header (desktop) and hero both link to the demo, in a new tab.
+    // Header and hero both link to the demo landing (not /login), in the same tab.
     const links = screen.getAllByRole("link", { name: /Coba Demo/ });
     expect(links.length).toBeGreaterThanOrEqual(2);
+    expect(within(screen.getByRole("banner")).getByRole("link", { name: /Coba Demo/ })).toBe(
+      links[0],
+    );
     for (const link of links) {
       expect(link).toHaveAttribute("href", "https://demo-2ndbrain.ilramdhan.dev/");
-      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).not.toHaveAttribute("target");
     }
+  });
+
+  it("lists every main technology once for assistive tech; the marquee copy is hidden", () => {
+    renderLanding();
+
+    const region = screen.getByRole("region", { name: "Daftar teknologi" });
+    const items = within(region).getAllByRole("listitem");
+    expect(items.map((li) => li.querySelector("span")?.textContent)).toEqual(
+      TECH_LOGOS.map((logo) => logo.name),
+    );
+    for (const name of [
+      "TanStack Start",
+      "React",
+      "TypeScript",
+      "Supabase",
+      "PostgreSQL",
+      "Yjs",
+      "n8n",
+      "Playwright",
+      "Sentry",
+    ]) {
+      // Exactly one copy is exposed to assistive tech (the duplicate track is aria-hidden).
+      expect(
+        within(region)
+          .getAllByRole("listitem")
+          .filter((li) => li.textContent?.endsWith(name)),
+      ).toHaveLength(1);
+    }
+    const lists = region.querySelectorAll("ul");
+    expect(lists).toHaveLength(2);
+    expect(lists[1]).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("heading", { level: 2, name: /teknologi modern/ })).toBeInTheDocument();
+  });
+
+  it("shows a back-to-top button after one viewport of scrolling", () => {
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    renderLanding();
+
+    const button = screen.getByRole("button", { name: "Kembali ke atas" });
+    expect(button).toHaveAttribute("data-visible", "false");
+    expect(button).toHaveClass("invisible");
+    expect(button).toHaveAttribute("tabindex", "-1");
+
+    Object.defineProperty(window, "scrollY", {
+      value: window.innerHeight + 10,
+      configurable: true,
+    });
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(button).toHaveAttribute("data-visible", "true");
+    expect(button).toHaveAttribute("tabindex", "0");
+    fireEvent.click(button);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    vi.unstubAllGlobals();
   });
 
   it("toggles theme and language through the shared preference store", () => {
