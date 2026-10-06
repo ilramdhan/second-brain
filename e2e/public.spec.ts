@@ -17,7 +17,7 @@ for (const scheme of ["light", "dark"] as const) {
       await page.goto("/login");
       await expect(page.getByLabel("Email")).toBeVisible();
       await expect(page.getByLabel("Kata sandi")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Masuk" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Masuk", exact: true })).toBeVisible();
       await expectNoSeriousA11yViolations(page, `/login (${scheme})`);
     });
 

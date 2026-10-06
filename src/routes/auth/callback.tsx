@@ -38,21 +38,27 @@ export type CallbackResult =
 export async function resolveCallback(href: string): Promise<CallbackResult> {
   const link = parseAuthLinkParams(href);
   if (link.error) return { kind: "error", key: authCallbackErrorKey(link.error) };
-  if (link.code) {
-    const { data: existing } = await supabase.auth.getSession();
-    if (!existing.session) {
-      const { error } = await supabase.auth.exchangeCodeForSession(link.code);
-      if (error) {
-        return {
-          kind: "error",
-          key: authCallbackErrorKey({ code: error.code ?? "", description: error.message }),
-        };
-      }
-    }
-  }
   const { data, error } = await supabase.auth.getSession();
-  const session = data.session;
-  if (error || !session) return { kind: "error", key: "authCallbackExpired" };
+  if (error) return { kind: "error", key: "authCallbackExpired" };
+  let session = data.session;
+  if (!session) {
+    // No session stored yet: only a PKCE code from Supabase can create one. Without a code (or
+    // with an unknown one) the exchange fails and the link counts as invalid.
+    if (!link.code) return { kind: "error", key: "authCallbackExpired" };
+    const exchanged = await supabase.auth.exchangeCodeForSession(link.code);
+    if (exchanged.error || !exchanged.data.session) {
+      return {
+        kind: "error",
+        key: exchanged.error
+          ? authCallbackErrorKey({
+              code: exchanged.error.code ?? "",
+              description: exchanged.error.message,
+            })
+          : "authCallbackExpired",
+      };
+    }
+    session = exchanged.data.session;
+  }
   // A rejected implicit link leaves any older stored session in place: never use that one.
   if (link.hasTokens && link.tokenSubject && link.tokenSubject !== session.user.id) {
     return { kind: "error", key: "authCallbackExpired" };
