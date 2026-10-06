@@ -25,6 +25,16 @@ been confirmed by a full manual audit with assistive technology.
   restoration, `Escape` to close, arrow-key navigation, and correct ARIA roles and states.
 - **Named dialogs.** The global task editor (`TaskDialogProvider`) and the mobile navigation sheet
   render a `DialogTitle` / `SheetTitle`, so screen readers announce what opened.
+- **Mobile-first dialogs and sheets.** `src/components/ui/dialog.tsx` and `sheet.tsx` render a
+  rounded card (an inset card for dialogs, a `rounded-t-2xl` bottom sheet) capped to the dynamic
+  viewport minus the safe-area insets. The content scrolls between a sticky header (title and a
+  44×44 px close button, labelled "Tutup" by default) and a sticky footer (actions). On phones the
+  footer stacks full-width 44 px buttons with the primary action on top. The close button comes last
+  in the DOM, so focus still starts in the first form field.
+- **Back to top.** Every authenticated page and the landing page share
+  `src/components/common/BackToTop.tsx`. It appears after one viewport of scrolling, is hidden from
+  the tab order until then, scrolls instantly with `prefers-reduced-motion`, moves focus to
+  `<main id="main">`, and sits above the mobile bottom bar and its capture button.
 - **Landmarks.** The app shell (`src/routes/_authenticated.tsx`) uses `<aside>`, `<nav>` (desktop
   sidebar, mobile bottom bar and mobile menu) and a single `<main>`.
 - **Language.** `<html lang="id">` by default, and `src/lib/preferences.tsx` updates
@@ -123,8 +133,10 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
 10. **Global `Q` shortcut** (2.1.4 Character Key Shortcuts) cannot be turned off or remapped. It is
     already suppressed in editable fields and dialogs, which limits accidental activation by
     speech-input users, but 2.1.4 also expects a way to disable or remap it.
-11. **Target size** (2.5.8). Some icon buttons are `h-7 w-7` (28px) or smaller (for example
-    `p-0.5` icon buttons in calendar cells), close to or below the 24×24 CSS px minimum when the
+11. **Target size** (2.5.8). Task check circles and switches now have a 44 px hit area,
+    segmented tabs are 44 px tall on phones, and dialog fields are 44 px tall below `sm`. Some
+    icon buttons are still `h-7 w-7` (28px) or smaller (for example `p-0.5` icon buttons in
+    calendar cells, note block handles), close to or below the 24×24 CSS px minimum when the
     spacing exception doesn't apply.
 
 ## Testing approach

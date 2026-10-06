@@ -1,7 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DemoBanner } from "@/components/demo/DemoBanner";
+import {
+  DEMO_NOTICE_KEY,
+  DemoBanner,
+  DemoNotice,
+  SELF_HOST_URL,
+} from "@/components/demo/DemoBanner";
 import { DemoDisabled } from "@/components/demo/DemoDisabled";
 import { PreferencesProvider } from "@/lib/preferences";
 
@@ -57,24 +62,60 @@ describe("DemoDisabled", () => {
   });
 });
 
-describe("DemoBanner", () => {
+describe("DemoNotice", () => {
+  afterEach(() => sessionStorage.clear());
+
   it("renders nothing outside the demo", () => {
     const { container } = wrap(<DemoBanner active={false} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("explains the daily reset and links to production and GitHub", () => {
+  it("explains the daily reset and links to self-hosting and production", () => {
     vi.stubEnv("VITE_PROD_URL", "https://prod.example.com");
-    wrap(<DemoBanner active />);
+    wrap(<DemoNotice active />);
     expect(screen.getByRole("complementary", { name: "Pemberitahuan mode demo" })).toBeVisible();
-    expect(screen.getByText(/data direset setiap hari pukul 00\.00 WIB/)).toBeInTheDocument();
+    expect(screen.getByText("Ini versi demo")).toBeInTheDocument();
+    expect(screen.getByText(/direset setiap hari pukul 00\.00 WIB/)).toBeInTheDocument();
+    expect(screen.getByText(/fitur .* dimatikan/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Pakai versi asli/ })).toHaveAttribute(
       "href",
       "https://prod.example.com",
     );
-    expect(screen.getByRole("link", { name: /GitHub/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Cara self-host/ })).toHaveAttribute(
       "href",
-      "https://github.com/ilramdhan/second-brain",
+      SELF_HOST_URL,
     );
+    expect(SELF_HOST_URL).toBe("https://github.com/ilramdhan/second-brain#deployment-to-vercel");
+  });
+
+  it("can be dismissed for the session only", () => {
+    const { unmount } = wrap(<DemoNotice active />);
+    fireEvent.click(screen.getByRole("button", { name: "Tutup pemberitahuan demo" }));
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(DEMO_NOTICE_KEY)).toBe("1");
+    unmount();
+
+    // Same session: stays hidden.
+    const second = wrap(<DemoNotice active />);
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    second.unmount();
+
+    // Next visit (new session storage): back again.
+    sessionStorage.clear();
+    wrap(<DemoNotice active />);
+    expect(screen.getByRole("complementary", { name: "Pemberitahuan mode demo" })).toBeVisible();
+  });
+
+  it("is translated to English", () => {
+    localStorage.setItem("second-brain-locale", "en");
+    try {
+      wrap(<DemoNotice active />);
+      expect(screen.getByText("This is the demo")).toBeInTheDocument();
+      expect(screen.getByText(/resets every day at 00:00 WIB/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /How to self-host/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Dismiss demo notice" })).toBeInTheDocument();
+    } finally {
+      localStorage.removeItem("second-brain-locale");
+    }
   });
 });

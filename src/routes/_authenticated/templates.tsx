@@ -148,7 +148,7 @@ function TemplatesPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((t) => {
             const p = (t.payload ?? {}) as Payload;
             const Icon = t.kind === "task" ? CheckSquare : StickyNote;
@@ -257,9 +257,9 @@ function TemplateDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
             <Select value={kind} onValueChange={(v) => setKind(v as "task" | "note")}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Jenis template">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -271,28 +271,33 @@ function TemplateDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nama template"
+              aria-label="Nama template"
             />
           </div>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Judul awal (opsional)"
+            aria-label="Judul awal"
           />
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder={kind === "task" ? "Deskripsi / checklist" : "Isi catatan"}
             rows={6}
+            className="min-h-32"
+            aria-label={kind === "task" ? "Deskripsi tugas" : "Isi catatan"}
           />
           <Input
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             placeholder="Tag, pisahkan dengan koma"
+            aria-label="Tag"
           />
           {kind === "task" && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Prioritas">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

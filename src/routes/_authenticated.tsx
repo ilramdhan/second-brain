@@ -30,7 +30,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { TaskDialogProvider, useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { DemoBanner } from "@/components/demo/DemoBanner";
+import { BackToTop } from "@/components/common/BackToTop";
+import { DemoNotice } from "@/components/demo/DemoBanner";
+import { isDemo } from "@/lib/app-mode";
 import {
   Dialog,
   DialogContent,
@@ -133,6 +135,7 @@ function Shell() {
   const [capture, setCapture] = useState(false);
   const [more, setMore] = useState(false);
   const [quick, setQuick] = useState(false);
+  const demo = isDemo();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -190,7 +193,7 @@ function Shell() {
           key={to}
           to={to}
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:min-h-0",
             isActive(to) && "bg-sidebar-accent text-sidebar-foreground",
           )}
         >
@@ -244,8 +247,12 @@ function Shell() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 pb-24 md:pb-0">
-        <DemoBanner />
+      {/* `id="main"` is the back-to-top focus target; the window is the scroll container. */}
+      <main
+        id="main"
+        tabIndex={-1}
+        className="min-w-0 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] focus:outline-none md:pb-0"
+      >
         <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/90 px-4 py-2.5 backdrop-blur md:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -267,8 +274,16 @@ function Shell() {
             </Button>
           </div>
         </div>
+        {demo && (
+          <div className="mx-auto w-full max-w-6xl px-4 pt-4 sm:px-5 md:px-6 md:pt-6">
+            <DemoNotice active />
+          </div>
+        )}
         <Outlet />
       </main>
+
+      {/* Above the mobile bottom nav and its centre FAB (right column), bottom-right on desktop. */}
+      <BackToTop className="bottom-[5.25rem] md:right-6 md:bottom-6" />
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
@@ -305,7 +320,7 @@ function Shell() {
           ))}
       </nav>
       <Sheet open={more} onOpenChange={setMore}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent side="bottom">
           <SheetHeader>
             <SheetTitle>{t("menu")}</SheetTitle>
           </SheetHeader>
@@ -390,7 +405,7 @@ function MobileItem({
     <Link
       to={to}
       className={cn(
-        "flex flex-col items-center gap-0.5 py-2 text-[10px] text-muted-foreground",
+        "flex min-h-14 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] text-muted-foreground",
         active && "text-primary",
       )}
     >

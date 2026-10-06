@@ -5,7 +5,7 @@ is a second deployment of this repository (same `main` branch) with its own Verc
 own Supabase project. It never touches production data. Its behavior is switched by environment
 variables, not by a fork:
 
-- `APP_MODE=demo` + `VITE_APP_MODE=demo`: banner, demo login, integrations off (Telegram, Google
+- `APP_MODE=demo` + `VITE_APP_MODE=demo`: demo notice card (top of the app, landing and login; dismissible for the browser session), demo login, integrations off (Telegram, Google
   Calendar, outgoing webhooks, n8n endpoints, backup restore), simulated AI, per-IP rate limit,
   `noindex`.
 - Database guards (migration 0019): per-user row limits, text-size caps and a write quota, and the
