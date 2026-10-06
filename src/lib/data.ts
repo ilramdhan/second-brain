@@ -55,5 +55,5 @@ export type { Automation } from "@/features/automations/types";
 export { AUTOMATION_COLS, automationsQuery } from "@/features/automations/api";
 export { useAutomationActions, useAutomations } from "@/features/automations/hooks";
 
-export type { SearchHit, SearchResults } from "@/features/search/hooks";
-export { useSearch } from "@/features/search/hooks";
+export type { SearchHit, SearchResults, SemanticHit } from "@/features/search/hooks";
+export { useSearch, useSemanticSearch, useSemanticStatus } from "@/features/search/hooks";

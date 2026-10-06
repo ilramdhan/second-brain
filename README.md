@@ -184,10 +184,14 @@ A full audit trail. Database triggers on every main table log insert, update and
 - **Idle auto sign-out** after N minutes. Activity in any tab resets the timer.
 - Telegram link status and unlink, Google Calendar connect and disconnect.
 - **JSON backup and restore** (projects, tasks, notes, milestones, dependencies, automations). Restoring never deletes existing data.
+- **Meaning search (AI)**: index status and an "Indeks ulang" (re-index) button that embeds every task and note whose embedding is missing or outdated.
 
 ### Command menu
 
 Press `Cmd/Ctrl + K` to search tasks, projects and notes and jump to them, or to create a new task.
+
+- **Keyword mode** (default): title search in Postgres.
+- **Meaning mode** ("Makna (AI)", semantic search): finds tasks and notes by meaning ("persiapan rapat klien" also finds "siapkan materi meeting dengan client"), with a similarity score per result. It searches everything you can read, including shared projects. Embeddings (title, tags and the first 2000 characters of the description or note) are stored in `semantic_documents` (pgvector, 1536-d HNSW) and kept in sync incrementally: a save never waits for the AI; the app embeds stale rows (content hash) a few seconds later and before each search. Without an AI provider the mode is disabled and the palette uses keywords; if a semantic request fails it falls back to keyword results. In the demo, embeddings are a deterministic hashed bag of words (no AI call).
 
 ### PWA
 
@@ -594,6 +598,8 @@ erDiagram
         uuid entity_id
         text search_text
         vector embedding "1536"
+        text model
+        text content_hash
     }
     APP_CONFIG {
         text key PK
@@ -601,10 +607,10 @@ erDiagram
     }
 ```
 
-**Database functions (RPC / security definer):** `is_project_owner`, `is_project_member`, `can_access_task`, `accept_project_invites`, `list_project_people`, `log_activity`, `search_semantic_documents`.
+**Database functions (RPC / security definer):** `is_project_owner`, `is_project_member`, `can_access_task`, `accept_project_invites`, `list_project_people`, `log_activity`, `semantic_upsert`. **Semantic search (security invoker):** `semantic_pending`, `match_semantic_documents`.
 **Triggers:** `handle_new_user` (auth.users), `audit_row_change` (all main tables), `snapshot_note_change` (notes).
 
-> `semantic_documents` / `search_semantic_documents` (pgvector) exist in the schema, but the UI does not use them yet. Semantic search is still on the roadmap.
+> `semantic_documents` holds one embedding per task/note (migration 0020). Authenticated users can only read it (RLS: owner or project member); writes go through `semantic_upsert`, which re-checks access and skips rows whose text changed since they were read.
 
 ---
 
@@ -633,6 +639,7 @@ Copy `.env.example` to `.env` locally (it is git-ignored) and set the same varia
 | `AI_MODEL`                                  | Server              | No                    | Text model (default `gpt-4o-mini`)                                                                                                                               |
 | `AI_VISION_MODEL`                           | Server              | No                    | Model for photo OCR (defaults to `AI_MODEL`; must accept images)                                                                                                 |
 | `AI_TRANSCRIBE_MODEL`                       | Server              | No                    | Voice capture model for `/audio/transcriptions` (default `whisper-1`; Groq: `whisper-large-v3`)                                                                  |
+| `AI_EMBEDDING_MODEL`                        | Server              | No                    | Embedding model for semantic search (`/embeddings`). Default `gemini-embedding-001` on Gemini, else `text-embedding-3-small`. Changing it re-indexes everything  |
 | `SECOND_BRAIN_CRON_SECRET` / `..._PREVIOUS` | Server (secret)     | For the reminder cron | Bearer secret for `/api/public/hooks/reminders` from n8n or other schedulers; keep the old value in `_PREVIOUS` while rotating                                   |
 | `CRON_SECRET`                               | Server (secret)     | For Vercel Cron       | Also accepted by the reminder endpoint; Vercel Cron sends it automatically as `Authorization: Bearer $CRON_SECRET`. On the demo it authenticates the daily reset |
 | `DATABASE_URL`                              | Tooling             | For migrations        | Postgres connection string used by `drizzle-kit`                                                                                                                 |
@@ -725,6 +732,7 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0017 | `task_rules_rpc`                   | `shift_task_dependents` and `complete_task` RPCs (dependent auto-shift, recurrence)                                                                                              |
 | 0018 | `note_links_refs_excerpt`          | `notes.links` / `refs` / `excerpt` (GIN-indexed, backfilled) and the `note_backlinks` RPC                                                                                        |
 | 0019 | `demo_limits`                      | Demo mode only (`app_config.demo_mode = 'on'`, off by default): per-user row limits, text-size caps, `demo_write` quota and demo account protection on `auth.users`              |
+| 0020 | `semantic_search`                  | `semantic_documents` per task/note (`model`, `content_hash`, read-only RLS for members), `semantic_pending` / `semantic_upsert` / `match_semantic_documents`, cleanup trigger    |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
@@ -810,7 +818,7 @@ See [Google Calendar](#google-calendar-per-user). Server functions: `googleCalen
 
 - Vitest + jsdom + Testing Library (`vitest.config.ts`, setup in `src/test/setup.ts`). Test files match `src/**/*.{test,spec}.{ts,tsx}`.
 - Unit tests cover pure server helpers (cron/n8n auth, Telegram link codes and Bot API client, Google OAuth state/PKCE/token crypto, n8n zod schemas, digest/reminder builders, time zones, SSRF guard, rate limits, security headers, backup validation) plus a routing smoke test.
-- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers, demo limits). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
+- SQL regression checks live in `supabase/tests/*.sql` (RLS, rate limits, n8n helpers, demo limits, semantic search). Run them as a superuser after all migrations, e.g. in a throwaway `public.ecr.aws/supabase/postgres` container (apply `realtime_stub.sql` first).
 
 ```bash
 bun run test
