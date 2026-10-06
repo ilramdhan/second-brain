@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1d6f6e" />
+    <meta name="robots" content="noindex" />
+    <title>Offline · Second Brain</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #faf9f7;
+        --fg: #1f2328;
+        --muted: #5f6670;
+        --accent: #1d6f6e;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #15171a;
+          --fg: #ececec;
+          --muted: #a3a9b1;
+          --accent: #1d6f6e;
+        }
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        box-sizing: border-box;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        text-align: center;
+      }
+      main {
+        max-width: 28rem;
+      }
+      img {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 1rem 0 0.5rem;
+      }
+      p {
+        color: var(--muted);
+        line-height: 1.5;
+        margin: 0;
+      }
+      a {
+        display: inline-block;
+        margin-top: 1.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icon-192.png" alt="" />
+      <h1>Anda sedang offline</h1>
+      <p>
+        Halaman ini belum tersimpan untuk dibuka tanpa koneksi. Periksa jaringan Anda, lalu coba
+        lagi.
+      </p>
+      <a href="">Coba lagi</a>
+    </main>
+  </body>
+</html>

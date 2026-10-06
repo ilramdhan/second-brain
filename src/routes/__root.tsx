@@ -11,6 +11,8 @@ import {
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { PreferencesProvider } from "@/lib/preferences";
+import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
+import { PwaUpdatePrompt } from "@/components/common/PwaUpdatePrompt";
 
 import appCss from "../styles.css?url";
 import { describeError, reportError } from "../lib/error-reporting";
@@ -124,6 +126,8 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
+        {/* Before any stylesheet paints: apply the stored/system theme (no light flash). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -136,19 +140,13 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker
-      .register("/sw.js", { updateViaCache: "none" })
-      .then((registration) => registration.update());
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <PreferencesProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster position="top-center" richColors />
+        <PwaUpdatePrompt />
       </PreferencesProvider>
     </QueryClientProvider>
   );
