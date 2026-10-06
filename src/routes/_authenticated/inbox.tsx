@@ -16,7 +16,10 @@ import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { VirtualList } from "@/components/common/VirtualList";
 import { PageContainer } from "@/components/common/PageContainer";
 import { withNoteIndex } from "@/lib/blocks";
-import { qk, useProjects } from "@/lib/data";
+import { qk, useAutomations, useProjects } from "@/lib/data";
+import { useServerFn } from "@tanstack/react-start";
+import { runAutomations } from "@/lib/automations.functions";
+import { noteEventRelevant } from "@/lib/automation-types";
 import { preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
@@ -52,6 +55,8 @@ function InboxPage() {
   const { data: projects = [] } = useProjects();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [expandingId, setExpandingId] = useState<string | null>(null);
+  const { data: rules = [] } = useAutomations();
+  const runRules = useServerFn(runAutomations);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -116,8 +121,17 @@ function InboxPage() {
           }),
         );
       if (noteRows.length) {
-        const { error } = await supabase.from("notes").insert(noteRows);
+        const { data: inserted, error } = await supabase
+          .from("notes")
+          .insert(noteRows)
+          .select("id,tags");
         if (error) throw error;
+        // Note rules (note_created / note_tagged), like useNoteActions.create. Best effort.
+        for (const n of inserted ?? [])
+          if (noteEventRelevant(rules, "created", n.tags.length))
+            await runRules({ data: { entity: "note", event: "created", noteId: n.id } }).catch(
+              (e) => console.error("note automation failed", e),
+            );
       }
 
       await supabase.from("inbox_items").update({ status: "processed" }).eq("id", item.id);

@@ -162,6 +162,13 @@
       "when": 1791207295653,
       "tag": "0022_mfa_aal2",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791207296653,
+      "tag": "0023_scheduled_note_automations",
+      "breakpoints": true
     }
   ]
 }

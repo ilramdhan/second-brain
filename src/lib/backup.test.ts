@@ -42,6 +42,35 @@ describe("prepareBackup", () => {
     expect(out.projects).toEqual([]);
   });
 
+  it("keeps a scheduled rule's cron and zone but never its next run", () => {
+    const out = prepareBackup(
+      {
+        version: 1,
+        tables: {
+          automations: [
+            {
+              id: T1,
+              name: "Pagi",
+              trigger: { type: "schedule" },
+              schedule_cron: "0 8 * * 1",
+              schedule_tz: "Asia/Jakarta",
+              next_run_at: "2026-10-12T01:00:00Z",
+            },
+          ],
+        },
+      },
+      ME,
+    );
+    expect(out.automations[0]).toEqual({
+      id: T1,
+      name: "Pagi",
+      trigger: { type: "schedule" },
+      schedule_cron: "0 8 * * 1",
+      schedule_tz: "Asia/Jakarta",
+      user_id: ME,
+    });
+  });
+
   it("rejects unknown formats and malformed rows", () => {
     expect(() => prepareBackup({ version: 2, tables: {} }, ME)).toThrow(BackupError);
     expect(() => prepareBackup(null, ME)).toThrow("Format backup");

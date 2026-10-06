@@ -99,6 +99,7 @@ export type Database = {
           detail: string | null;
           id: string;
           ok: boolean;
+          note_id: string | null;
           task_id: string | null;
           user_id: string;
         };
@@ -108,6 +109,7 @@ export type Database = {
           detail?: string | null;
           id?: string;
           ok?: boolean;
+          note_id?: string | null;
           task_id?: string | null;
           user_id: string;
         };
@@ -117,6 +119,7 @@ export type Database = {
           detail?: string | null;
           id?: string;
           ok?: boolean;
+          note_id?: string | null;
           task_id?: string | null;
           user_id?: string;
         };
@@ -126,6 +129,13 @@ export type Database = {
             columns: ["automation_id"];
             isOneToOne: false;
             referencedRelation: "automations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automation_runs_note_id_fkey";
+            columns: ["note_id"];
+            isOneToOne: false;
+            referencedRelation: "notes";
             referencedColumns: ["id"];
           },
         ];
@@ -139,7 +149,10 @@ export type Database = {
           id: string;
           last_run_at: string | null;
           name: string;
+          next_run_at: string | null;
           run_count: number;
+          schedule_cron: string | null;
+          schedule_tz: string | null;
           trigger: Json;
           user_id: string;
         };
@@ -151,7 +164,10 @@ export type Database = {
           id?: string;
           last_run_at?: string | null;
           name: string;
+          next_run_at?: string | null;
           run_count?: number;
+          schedule_cron?: string | null;
+          schedule_tz?: string | null;
           trigger?: Json;
           user_id: string;
         };
@@ -163,7 +179,10 @@ export type Database = {
           id?: string;
           last_run_at?: string | null;
           name?: string;
+          next_run_at?: string | null;
           run_count?: number;
+          schedule_cron?: string | null;
+          schedule_tz?: string | null;
           trigger?: Json;
           user_id?: string;
         };

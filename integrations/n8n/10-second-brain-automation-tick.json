@@ -1,0 +1,141 @@
+{
+  "name": "Second Brain – Automation Tick",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ⏰ Otomasi terjadwal (cron per aturan)\nTiap 5 menit `POST /api/public/n8n/automations/tick`: server mencari aturan **Terjadwal** yang aktif dan `next_run_at`-nya sudah lewat (semua user, service role, setiap aksi dibatasi ke pemilik aturan), menjalankan aksinya (buat tugas, pindahkan tugas terlambat, kirim ringkasan Telegram/webhook), mencatat di riwayat otomasi, lalu menghitung `next_run_at` berikutnya dari cron + zona waktu aturan.\n\n**Idempoten:** tiap jendela diklaim dengan compare-and-swap pada `next_run_at`, jadi tick yang tumpang tindih atau retry tidak pernah menjalankan jendela yang sama dua kali. Jendela yang terlewat (n8n mati) dijalankan sekali saja.\n\nVercel Cron tidak dipakai (Hobby hanya 1×/hari). Di deployment **demo** endpoint ini 404: aturan terjadwal bisa dibuat tetapi tidak pernah jalan.\n\n**Env:** `SB_APP_URL`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`.",
+        "height": 380,
+        "width": 720,
+        "color": "6"
+      },
+      "id": "17bbfb50-c2b0-4933-9825-fc727309d4ae",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -440]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "fd005504-9013-41d8-931a-11eaceb9d5ec",
+      "name": "Tiap 5 menit",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SB_APP_URL }}/api/public/n8n/automations/tick",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ limit: 100 }) }}"
+      },
+      "id": "f1367cde-d2a5-41fa-9c15-e84361d5d6c3",
+      "name": "Jalankan aturan terjadwal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain x-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json;\nconst failed = (r.results || []).filter(x => !x.ok);\nif (!failed.length) return [];\nreturn [{ json: { text: `⏰ Otomasi terjadwal: ${r.ran ?? 0} jalan, ${failed.length} gagal\\n` + failed.slice(0, 10).map(f => `• ${f.detail}`).join('\\n') } }];"
+      },
+      "id": "510364e8-dcaa-4e3c-8f69-0abce2a23f8b",
+      "name": "Ada yang gagal?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.SB_TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.SB_TELEGRAM_ADMIN_CHAT_ID, text: $json.text.slice(0, 4000) }) }}"
+      },
+      "id": "8c0f2a4e-5d6b-4e71-9a3c-2b7d1e9f6a10",
+      "name": "Lapor admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 0],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Tiap 5 menit": {
+      "main": [
+        [
+          {
+            "node": "Jalankan aturan terjadwal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jalankan aturan terjadwal": {
+      "main": [
+        [
+          {
+            "node": "Ada yang gagal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada yang gagal?": {
+      "main": [
+        [
+          {
+            "node": "Lapor admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

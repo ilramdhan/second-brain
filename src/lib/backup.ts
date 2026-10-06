@@ -118,6 +118,10 @@ const schemas = {
     trigger: json.optional(),
     conditions: json.optional(),
     actions: json.optional(),
+    // Scheduled rules (migration 0023). `next_run_at` is not restored: the rule runs again once
+    // it is saved (or toggled) in /automations, which revalidates the cron.
+    schedule_cron: str(120).nullish(),
+    schedule_tz: str(64).nullish(),
     created_at: ts.optional(),
   }),
 } satisfies Record<BackupTable, z.ZodType>;

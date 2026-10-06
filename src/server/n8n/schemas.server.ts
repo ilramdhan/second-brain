@@ -159,3 +159,9 @@ export function parseCallback(data: string): Callback | null {
     return { action, id: a };
   return null;
 }
+
+export const automationTickSchema = z.object({
+  /** Max due rules handled per call (the rest run on the next tick). */
+  limit: z.number().int().min(1).max(500).default(100),
+  user_id: z.guid().optional(),
+});
