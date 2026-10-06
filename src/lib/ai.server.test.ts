@@ -148,6 +148,7 @@ describe("aiConfigFromEnv", () => {
       transcribeMode: "transcriptions",
       transcribeBaseURL: "https://api.openai.com/v1",
       transcribeApiKey: "k",
+      embeddingModel: "text-embedding-3-small",
     });
   });
 

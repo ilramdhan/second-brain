@@ -95,6 +95,7 @@ export const MAINTENANCE_TASKS = [
   "rate_limits",
   "n8n_events",
   "recurring",
+  "semantic_index",
 ] as const;
 export const maintenanceSchema = z.object({
   tasks: z
@@ -103,6 +104,8 @@ export const maintenanceSchema = z.object({
     .default(["purge_trash", "link_codes", "rate_limits", "n8n_events"]),
   purge_after_days: z.number().int().min(1).max(3650).default(30),
   events_after_days: z.number().int().min(1).max(3650).default(30),
+  /** `semantic_index`: embedding batches (50 rows each) per run, across all users. */
+  semantic_batches: z.number().int().min(1).max(20).default(4),
 });
 
 export const backupQuerySchema = z.object({

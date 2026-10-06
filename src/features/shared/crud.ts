@@ -21,6 +21,7 @@ import {
   removeRows,
 } from "@/lib/query-cache";
 import { toastError } from "@/lib/errors";
+import { scheduleSemanticSync } from "@/lib/semantic-sync";
 
 type TableName = "tasks" | "projects" | "notes" | "milestones" | "automations";
 
@@ -52,6 +53,9 @@ const NOTE_BLOCK_FIELDS = [
   "links",
   "refs",
 ] as const;
+/** Columns the semantic search text is built from (migration 0020). */
+const SEMANTIC_TASK_FIELDS = ["title", "description", "tags"];
+const SEMANTIC_NOTE_FIELDS = ["title", "content", "tags"];
 /** Fields the notes list cache (qk.notes) never holds. */
 const NOTE_HEAVY_FIELDS = ["blocks", "content", "links", "refs"] as const;
 
@@ -116,6 +120,7 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
       return null;
     }
     const row = data as Row;
+    if (table === "tasks" || table === "notes") scheduleSemanticSync();
     qc.setQueryData<Row[]>(key, (old) =>
       insertRow(
         old,
@@ -147,8 +152,12 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
     const snap = snapshot(qc, key);
     mapCached((data, k) => patchCached(data, id, patchFor(table, k, withTs as object)));
     const { error } = await from().update(withTs).eq("id", id);
-    if (error) fail(snap, error);
-    else if (table === "notes" && ("content" in patch || "title" in patch)) {
+    if (error) return fail(snap, error);
+    // Semantic search embeds title/tags/description (tasks) and title/tags/content (notes).
+    const embedded = table === "tasks" ? SEMANTIC_TASK_FIELDS : SEMANTIC_NOTE_FIELDS;
+    if ((table === "tasks" || table === "notes") && embedded.some((f) => f in patch))
+      scheduleSemanticSync();
+    if (table === "notes" && ("content" in patch || "title" in patch)) {
       // Other notes' backlinks and server-side search results may have changed; refetch them
       // on next use instead of now.
       for (const sub of ["backlinks", "search"])

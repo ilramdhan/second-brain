@@ -81,6 +81,12 @@ describe("query/body schemas", () => {
       mark: true,
     });
     expect(maintenanceSchema.parse({}).tasks).toContain("purge_trash");
+    // Semantic indexing is opt-in (it calls the AI provider) with a bounded batch count.
+    expect(maintenanceSchema.parse({}).tasks).not.toContain("semantic_index");
+    expect(maintenanceSchema.parse({ tasks: ["semantic_index"] })).toMatchObject({
+      tasks: ["semantic_index"],
+      semantic_batches: 4,
+    });
     expect(backupQuerySchema.parse({})).toMatchObject({ userId: "all", include: "all", page: 0 });
     expect(backupQuerySchema.parse({ page: "2", page_size: "5" })).toMatchObject({
       page: 2,
@@ -89,6 +95,7 @@ describe("query/body schemas", () => {
   });
   it("rejects invalid values", () => {
     expect(maintenanceSchema.safeParse({ tasks: ["drop_db"] }).success).toBe(false);
+    expect(maintenanceSchema.safeParse({ semantic_batches: 21 }).success).toBe(false);
     expect(backupQuerySchema.safeParse({ userId: "nope" }).success).toBe(false);
     expect(remindersSchema.safeParse({ lead_minutes: 0 }).success).toBe(false);
   });
