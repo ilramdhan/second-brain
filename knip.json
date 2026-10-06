@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/routes/**/*.{ts,tsx}",
+    "src/server.ts",
+    "src/start.ts",
+    "src/router.tsx",
+    "scripts/**/*.{js,mjs,ts}"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{js,mjs,ts}"],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "tw-animate-css",
+    "@tanstack/router-plugin",
+    "drizzle-orm",
+    "postgres"
+  ]
+}

@@ -82,7 +82,6 @@ export default defineConfig(({ command, mode }) => {
         "date-fns",
         "date-fns/locale",
         "d3-force",
-        "@radix-ui/react-popover",
         "@radix-ui/react-dropdown-menu",
         "@radix-ui/react-switch",
       ],
