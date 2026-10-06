@@ -98,17 +98,17 @@ export const DEMO_SEED_INSERT_ORDER: readonly DemoSeedTable[] = [
 
 /* ---------------- ids and dates ---------------- */
 
-const sha1 = (text: string) => createHash("sha1").update(text).digest("hex");
+const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
-/** Deterministic RFC 4122 (version 5 layout) uuid for `key` of this user. */
+/** Deterministic uuid (RFC 4122 layout, version nibble 5) from sha256 of the user id and `key`. */
 export function demoUuid(userId: string, key: string): string {
-  const h = sha1(`second-brain-demo:${userId}:${key}`);
+  const h = hash(`second-brain-demo:${userId}:${key}`);
   const variant = ((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16);
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
 /** Deterministic block id (8 hex chars, matches REF_RE). */
-export const demoBlockId = (key: string) => sha1(`second-brain-demo-block:${key}`).slice(0, 8);
+export const demoBlockId = (key: string) => hash(`second-brain-demo-block:${key}`).slice(0, 8);
 
 function offsetMs(instant: number, tz: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
