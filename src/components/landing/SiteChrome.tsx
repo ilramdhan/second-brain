@@ -23,6 +23,7 @@ import {
 } from "@/lib/landing";
 import { usePreferences, type MessageKey, type Theme } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "@/components/common/BackToTop";
 
 /*
  * Header and footer shared by the public pages (landing, privacy, terms). No data hooks and no
@@ -45,11 +46,8 @@ export const SECTIONS = [
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
 
-/** True when the visitor asked the OS for reduced motion (always false outside the browser). */
-export function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+// Shared with the app shell's back-to-top button; re-exported for existing landing imports.
+export { prefersReducedMotion };
 
 /**
  * Scrolls to a landing section: smooth unless reduced motion is requested. The hash is updated

@@ -8,6 +8,7 @@ import { MagicLinkForm } from "@/components/auth/MagicLinkForm";
 import { MfaChallenge } from "@/components/auth/MfaChallenge";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity";
+import { DemoNotice } from "@/components/demo/DemoBanner";
 import { demoCredentials, isDemo } from "@/lib/app-mode";
 import { APP_HOME, safeRedirect } from "@/lib/auth";
 import {
@@ -180,6 +181,7 @@ function LoginPage() {
         </Link>
       </Button>
       <div className="w-full max-w-sm">
+        <DemoNotice active={demo} className="mb-6" />
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Link
             to="/"

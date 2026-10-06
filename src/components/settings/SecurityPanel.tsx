@@ -40,7 +40,7 @@ function newFactorName(existing: Factor[]): string {
  * code (an SVG data URL from Supabase) and the secret for manual entry, and only counts once a
  * code is verified. Removing a factor asks for a current code first, so a stolen unlocked session
  * cannot quietly turn 2FA off. Not available in the demo (the account is shared; the database
- * refuses enrollment for it as well, migration 0021).
+ * refuses enrollment for it as well, migration 0022).
  */
 export function SecurityPanel() {
   const { t } = usePreferences();

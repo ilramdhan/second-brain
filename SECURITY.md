@@ -125,13 +125,13 @@ code doesn't match.
   2. server functions: `requireSupabaseAuth` lets `aal2` tokens through and otherwise asks
      `mfa_satisfied()`, so `aal1` tokens of 2FA users are refused before any service-role code
      runs;
-  3. database (migration 0021): a `RESTRICTIVE` policy `mfa_aal2` on every RLS table (and on
+  3. database (migration 0022): a `RESTRICTIVE` policy `mfa_aal2` on every RLS table (and on
      `realtime.messages`) requires `public.mfa_satisfied()` = JWT `aal` is `aal2`, or the caller
      has no verified factor. `list_project_people()` (security definer) checks it too.
      The RLS layer is what makes 2FA real: the anon key is public and an `aal1` access token is a
      valid JWT, so without it a stolen password alone would still read and write all data through
      PostgREST. It only affects users who enabled 2FA. Tables added later need the same policy
-     (rerun the DO block of 0021 or add `mfa_aal2` in the new migration). The demo account cannot
+     (rerun the DO block of 0022 or add `mfa_aal2` in the new migration). The demo account cannot
      enroll (trigger on `auth.mfa_factors`) and the UI hides enrollment there. Owners can remove a
      lost factor in the Supabase dashboard (_Authentication → Users_).
 - **Supabase Auth settings** for these flows: Site URL = your app origin; Redirect URLs include
@@ -226,6 +226,12 @@ code doesn't match.
   `TOKEN_ENCRYPTION_KEY`, base64 of 32 bytes) and stored in `app_user_connections`, which only
   `service_role` can access. Tokens never reach the browser or n8n and are not shared between
   users. `invalid_grant` on refresh deletes the connection; disconnect revokes the token at Google.
+- Two-way sync keeps the same single scope. The Calendar `syncToken`, the import opt-in and the
+  last pull time live in the same service-role-only `app_user_connections` row (RLS on, no
+  policies, no client grants; checked by `supabase/tests/gcal_sync.sql`). Pulled events only
+  touch tasks the connected user can reach (own rows or projects they belong to), and only the
+  title and schedule are copied; imported events become tasks owned by that user. The manual
+  "Sinkronkan sekarang" action has its own per-user limit (`gcal_sync`, 10 per 10 minutes).
 
 ### Public API routes
 
@@ -400,7 +406,7 @@ both match).
 - Restrict Supabase Auth redirect URLs to your own domains (`https://<your-app>/auth/set-password`
   and `https://<your-app>/auth/callback` are the only paths the email links and Google need), and
   configure custom SMTP for invite, reset and magic-link emails.
-- Keep Supabase _Authentication → Multi-Factor → TOTP_ enabled, apply migration 0021 (database
+- Keep Supabase _Authentication → Multi-Factor → TOTP_ enabled, apply migration 0022 (database
   enforcement of `aal2` for users with 2FA), and encourage owners/admins to turn on two-step
   verification in _Settings → Keamanan_.
 - Enable email confirmation in Supabase Auth so invites and links are tied to verified emails.

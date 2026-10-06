@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📅 Google Calendar sync\n**Arah app → Google:** tiap 30 menit `POST /api/public/n8n/calendar/sync`. Server memakai OAuth Google milik app (refresh token per user, terenkripsi AES-GCM di `app_user_connections`, di-refresh di server). `SB_CALENDAR_SYNC_MODE=linked` (default) hanya memperbarui tugas yang pernah dikirim ke Google (tombol *Kirim ke Google Calendar*) dan menghapus event tugas yang dihapus/diarsip; `all` juga membuat event untuk setiap tugas bertanggal yang berubah. **Kredensial Google user tidak pernah melewati n8n.**\n\n**Arah Google → app (opsional, single-user, disabled):** Google Calendar Trigger (kalender owner, credential OAuth n8n) → event dengan `#task` → `POST /api/public/n8n/capture` (target `task`, idempoten via `external_id`). Event buatan app punya `extendedProperties.private.second_brain_task_id` dan dilewati agar tidak loop.\n\n**Env:** `SB_APP_URL`, `SB_CALENDAR_SYNC_MODE`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`, `SB_OWNER_EMAIL`.",
+        "content": "## 📅 Google Calendar sync (dua arah)\nTiap 30 menit `POST /api/public/n8n/calendar/sync` dengan `direction: both`: server **menarik** perubahan Google (events.list inkremental dengan `syncToken` per koneksi; 410 → full resync) lalu **mendorong** tugas yang berubah. Event tertaut memperbarui judul/jadwal tugas (aturan server: auto-shift, pengingat, automations); event yang dihapus di Google melepas tautan. Konflik: last write wins; anti-gema lewat etag + `google_synced_at`. Event baru diimpor sebagai tugas hanya bila user mengaktifkan *Impor acara Google sebagai tugas* di Pengaturan. Server memakai OAuth Google milik app (refresh token per user, terenkripsi AES-GCM di `app_user_connections`). `SB_CALENDAR_SYNC_MODE=linked` (default) hanya mendorong tugas yang pernah dikirim ke Google; `all` juga membuat event untuk setiap tugas bertanggal yang berubah. **Kredensial Google user tidak pernah melewati n8n.**\n\n**Legacy (opsional, single-user, disabled):** Google Calendar Trigger (credential OAuth n8n) → event `#task` → `POST /api/public/n8n/capture`. Tidak perlu lagi bila impor per koneksi dipakai.\n\n**Env:** `SB_APP_URL`, `SB_CALENDAR_SYNC_MODE`, `SB_TELEGRAM_BOT_TOKEN`, `SB_TELEGRAM_ADMIN_CHAT_ID`, `SB_OWNER_EMAIL`.",
         "height": 400,
         "width": 760,
         "color": "6"
@@ -42,7 +42,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ since_minutes: 45, limit: 200, mode: $env.SB_CALENDAR_SYNC_MODE === 'all' ? 'all' : 'linked' }) }}"
+        "jsonBody": "={{ JSON.stringify({ since_minutes: 45, limit: 200, direction: 'both', mode: $env.SB_CALENDAR_SYNC_MODE === 'all' ? 'all' : 'linked' }) }}"
       },
       "id": "9d717a6c-0f2e-411a-9361-86a4d3905ce3",
       "name": "Sync app → Google",
@@ -61,7 +61,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $json;\nconst failed = (r.results || []).filter(x => !x.ok);\nif (!failed.length) return [];\nreturn [{ json: { text: `📅 Calendar sync: ${r.synced ?? 0} OK, ${failed.length} gagal (${r.users ?? 0} user)\\n` + failed.slice(0, 10).map(f => `• ${f.title || f.task_id}: ${f.error}`).join('\\n') } }];"
+        "jsCode": "const r = $json;\nconst failed = (r.results || []).filter(x => !x.ok);\nconst pull = r.pull || {};\nconst pullFailed = [\n  ...(pull.users || []).filter(u => !u.ok && u.error).map(u => ({ title: `pull ${u.user_id}`, error: u.error })),\n  ...(pull.results || []).filter(x => !x.ok).map(x => ({ title: x.title || x.event_id, error: x.error })),\n];\nif (!failed.length && !pullFailed.length) return [];\nconst lines = [...pullFailed, ...failed.map(f => ({ title: f.title || f.task_id, error: f.error }))];\nreturn [{ json: { text: `📅 Calendar sync: ${r.synced ?? 0} dorong OK, ${pull.applied ?? 0} tarik OK, ${lines.length} gagal (${r.users ?? 0} user)\\n` + lines.slice(0, 10).map(f => `• ${f.title}: ${f.error}`).join('\\n') } }];"
       },
       "id": "29889fe2-c2d3-4723-9aa1-11eaf423b4d2",
       "name": "Ada yang gagal?",

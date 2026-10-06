@@ -57,7 +57,7 @@ export function TaskDialogProvider({ children }: { children: React.ReactNode }) 
     <TaskDialogCtx.Provider value={value}>
       {children}
       <Dialog open={state.open} onOpenChange={(o) => setState((s) => ({ ...s, open: o }))}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           {state.open && (
             <Suspense
               fallback={

@@ -1,7 +1,7 @@
 // TOTP two-factor authentication through Supabase MFA (Phase 9.2). A user with a verified TOTP
 // factor signs in at `aal1` (password, magic link or Google) and must answer a TOTP challenge to
 // reach `aal2` before the app opens. The client guard is a UX layer: the database refuses aal1
-// sessions of such users as well (migration 0021, restrictive RLS policies via mfa_satisfied()).
+// sessions of such users as well (migration 0022, restrictive RLS policies via mfa_satisfied()).
 import type { Factor } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";

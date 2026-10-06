@@ -94,7 +94,7 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
       throw new Error("Unauthorized: No user ID found in token");
     }
 
-    // TOTP two-factor (migration 0021): an aal1 token of a user with a verified factor must not
+    // TOTP two-factor (migration 0022): an aal1 token of a user with a verified factor must not
     // reach server functions either, because some of them use the service role (which bypasses
     // the restrictive aal2 RLS policies). aal2 tokens skip the extra query.
     if (!(await mfaSatisfied(data.claims, supabase))) {
@@ -120,7 +120,7 @@ type RpcClient = {
 /**
  * Server-side half of the aal2 guard. An `aal2` token always passes; otherwise the database
  * decides (`mfa_satisfied()`: true when the user has no verified MFA factor). Fails closed when
- * the check errors, except when the function does not exist yet (migration 0021 not applied):
+ * the check errors, except when the function does not exist yet (migration 0022 not applied):
  * then the database does not enforce aal2 either and refusing would break every server function.
  */
 export async function mfaSatisfied(claims: { aal?: unknown }, db: RpcClient): Promise<boolean> {
@@ -128,7 +128,7 @@ export async function mfaSatisfied(claims: { aal?: unknown }, db: RpcClient): Pr
   const { data, error } = await db.rpc("mfa_satisfied");
   if (error) {
     if (error.code === "PGRST202" || error.code === "42883") {
-      console.warn("[auth] mfa_satisfied() missing: apply migration 0021 to enforce 2FA");
+      console.warn("[auth] mfa_satisfied() missing: apply migration 0022 to enforce 2FA");
       return true;
     }
     return false;

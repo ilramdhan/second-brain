@@ -207,7 +207,7 @@ function Overview({ project, projects }: { project: Project; projects: Project[]
     : null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="mb-2 text-sm font-semibold">Deskripsi</h2>

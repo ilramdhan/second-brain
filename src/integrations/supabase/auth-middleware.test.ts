@@ -31,7 +31,7 @@ describe("mfaSatisfied (server aal2 guard)", () => {
     );
   });
 
-  it("does not lock everyone out before migration 0021 is applied", async () => {
+  it("does not lock everyone out before migration 0022 is applied", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     await expect(
       mfaSatisfied({ aal: "aal1" }, db({ data: null, error: { code: "PGRST202" } })),

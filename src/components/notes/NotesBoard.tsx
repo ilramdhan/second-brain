@@ -125,7 +125,7 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
           {shouldVirtualize(paged.visible.length) ? (
             <VirtualNoteGrid notes={paged.visible} projects={projects} onOpen={open} />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {paged.visible.map((n) => (
                 <NoteCard key={n.id} note={n} projects={projects} onClick={() => open(n)} />
               ))}
@@ -198,7 +198,7 @@ function VirtualNoteGrid({
       gap={12}
       threshold={0}
       renderItem={(row) => (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {row.map((n) => (
             <NoteCard key={n.id} note={n} projects={projects} onClick={() => onOpen(n)} />
           ))}

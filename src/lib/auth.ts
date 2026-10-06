@@ -30,7 +30,7 @@ export function safeRedirect(value: unknown): string | undefined {
  *
  * A user with a verified TOTP factor whose session is still `aal1` (password, magic link or
  * Google done, code not yet entered) is sent to /login as well, which shows the TOTP step. The
- * database refuses such sessions too (migration 0021), so this guard is UX, not the boundary.
+ * database refuses such sessions too (migration 0022), so this guard is UX, not the boundary.
  */
 export async function requireSession(queryClient: QueryClient, href: string): Promise<Session> {
   ensureAuthListener(queryClient);

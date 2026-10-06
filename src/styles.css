@@ -219,6 +219,14 @@ html:has([data-public-page]) {
   }
 }
 
+/* Horizontally scrollable strips (tab lists on phones): scroll without a visible scrollbar. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer utilities {
   .scrollbar-subtle::-webkit-scrollbar {
     width: 6px;

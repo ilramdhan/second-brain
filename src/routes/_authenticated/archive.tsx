@@ -191,7 +191,7 @@ function ArchivePage() {
             return (
               <div className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-40">
                   <p className="truncate text-sm font-medium">{it.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {LABEL[it.kind]} ·{" "}
@@ -199,7 +199,7 @@ function ArchivePage() {
                       formatDistanceToNow(new Date(it.at), { addSuffix: true, locale: localeId })}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                <div className="ml-auto flex gap-1">
                   <Button variant="outline" size="sm" onClick={() => restore(it)}>
                     <RotateCcw /> Kembalikan
                   </Button>

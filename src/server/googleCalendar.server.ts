@@ -1,7 +1,8 @@
 // Server-side Google Calendar access for one user: loads the encrypted tokens from
 // `app_user_connections` (service role only), refreshes the access token when needed, and
 // creates/updates/deletes the event of a task. Used by the Settings/task-dialog server functions
-// and by POST /api/public/n8n/calendar/sync. Tokens never leave the server.
+// and by POST /api/public/n8n/calendar/sync. Tokens never leave the server. The Google → app
+// direction (incremental pull with a sync token) lives in googleCalendarPull.server.ts.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -17,7 +18,7 @@ import {
 } from "./googleOAuth.server";
 import { decryptToken, encryptToken } from "./tokenCrypto.server";
 
-const CALENDAR_API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+export const CALENDAR_API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 
 export class CalendarNotConnectedError extends Error {
   constructor() {
@@ -46,13 +47,22 @@ export async function loadTokens(userId: string): Promise<StoredGoogleTokens | n
   return tokens;
 }
 
-export async function saveTokens(userId: string, tokens: StoredGoogleTokens) {
+/**
+ * Stores (encrypted) tokens. `resetSync` is set on a fresh connect: the stored sync token belongs
+ * to the previous Google account/consent, so the next pull starts with a full sync.
+ */
+export async function saveTokens(
+  userId: string,
+  tokens: StoredGoogleTokens,
+  opts: { resetSync?: boolean } = {},
+) {
   const { error } = await supabaseAdmin.from("app_user_connections").upsert(
     {
       user_id: userId,
       connector_id: GOOGLE_CALENDAR_CONNECTOR,
       connection_key_ciphertext: await encryptToken(JSON.stringify(tokens)),
       updated_at: new Date().toISOString(),
+      ...(opts.resetSync ? { sync_token: null, last_pulled_at: null } : {}),
     },
     { onConflict: "user_id,connector_id" },
   );
@@ -65,6 +75,28 @@ export async function deleteConnection(userId: string) {
     .delete()
     .eq("user_id", userId)
     .eq("connector_id", GOOGLE_CALENDAR_CONNECTOR);
+}
+
+/** Pull settings shown in Settings (import opt-in, last pull time). */
+export async function syncSettings(userId: string) {
+  const { data } = await supabaseAdmin
+    .from("app_user_connections")
+    .select("import_events,last_pulled_at")
+    .eq("user_id", userId)
+    .eq("connector_id", GOOGLE_CALENDAR_CONNECTOR)
+    .maybeSingle();
+  return { importEvents: data?.import_events ?? false, lastPulledAt: data?.last_pulled_at ?? null };
+}
+
+export async function setImportEvents(userId: string, enabled: boolean) {
+  const { data, error } = await supabaseAdmin
+    .from("app_user_connections")
+    .update({ import_events: enabled })
+    .eq("user_id", userId)
+    .eq("connector_id", GOOGLE_CALENDAR_CONNECTOR)
+    .select("user_id");
+  if (error) throw new Error("Gagal menyimpan pengaturan Google Calendar.");
+  if (!data?.length) throw new CalendarNotConnectedError();
 }
 
 /** Valid access token for the user (refreshing and persisting it when expired). */
@@ -118,7 +150,7 @@ export function taskToEvent(task: SyncTask) {
   };
 }
 
-async function calendarFetch(token: string, url: string, init: RequestInit) {
+export async function calendarFetch(token: string, url: string, init: RequestInit) {
   return fetch(url, {
     ...init,
     headers: {
@@ -129,11 +161,20 @@ async function calendarFetch(token: string, url: string, init: RequestInit) {
   });
 }
 
+export type PushedEvent = { id: string; etag: string | null };
+
+async function readEvent(res: Response): Promise<PushedEvent> {
+  const event = (await res.json().catch(() => ({}))) as { id?: string; etag?: string };
+  if (!event.id) throw new Error("Google Calendar tidak mengembalikan id event.");
+  return { id: event.id, etag: event.etag ?? null };
+}
+
 /**
  * Creates or updates the event of `task` in the user's primary calendar. Recreates the event
- * when it was deleted in Google (404/410). Returns the event id.
+ * when it was deleted in Google (404/410). Returns the event id and its new etag; callers store
+ * the etag in `tasks.google_etag` so the next pull recognises this write as its own (no echo).
  */
-export async function upsertTaskEvent(userId: string, task: SyncTask): Promise<string> {
+export async function upsertTaskEvent(userId: string, task: SyncTask): Promise<PushedEvent> {
   const token = await getAccessToken(userId);
   const body = JSON.stringify(taskToEvent(task));
   if (task.google_event_id) {
@@ -142,15 +183,23 @@ export async function upsertTaskEvent(userId: string, task: SyncTask): Promise<s
       `${CALENDAR_API}/${encodeURIComponent(task.google_event_id)}`,
       { method: "PATCH", body },
     );
-    if (res.ok) return task.google_event_id;
+    if (res.ok) return readEvent(res);
     if (res.status !== 404 && res.status !== 410)
       throw new Error(`Google Calendar gagal [${res.status}]`);
   }
   const res = await calendarFetch(token, CALENDAR_API, { method: "POST", body });
   if (!res.ok) throw new Error(`Google Calendar gagal [${res.status}]`);
-  const event = (await res.json()) as { id?: string };
-  if (!event.id) throw new Error("Google Calendar tidak mengembalikan id event.");
-  return event.id;
+  return readEvent(res);
+}
+
+/**
+ * Bookkeeping written after a successful push: the event link, its etag (echo marker for the
+ * pull) and `google_synced_at` = the task version that was pushed. These columns never touch
+ * `updated_at`, so a task counts as "changed since last sync" only when `updated_at` moves past
+ * `google_synced_at`.
+ */
+export function pushedFields(event: PushedEvent, taskUpdatedAt: string) {
+  return { google_event_id: event.id, google_etag: event.etag, google_synced_at: taskUpdatedAt };
 }
 
 /** Deletes an event; already-gone events count as success. */

@@ -29,6 +29,7 @@ import {
   SkipLink,
 } from "@/components/landing/SiteChrome";
 import { BackToTop, TechMarquee } from "@/components/landing/LandingExtras";
+import { DemoNotice } from "@/components/demo/DemoBanner";
 import { Button } from "@/components/ui/button";
 import { demoUrl, GITHUB_URL, SELF_HOST_DOCS_URL } from "@/lib/landing";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
@@ -316,6 +317,7 @@ export function Landing() {
       <SiteHeader onLanding />
 
       <main id="main" tabIndex={-1} className={cn(PAGE, "pb-8 focus:outline-none")}>
+        <DemoNotice className="mt-4" />
         <section className="py-10 text-center md:py-16" aria-labelledby="landing-title">
           <p className="text-xs font-medium tracking-wide text-primary uppercase">
             {t("landingEyebrow")}

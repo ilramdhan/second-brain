@@ -1,4 +1,4 @@
--- Checks for migration 0021 (TOTP two-factor: aal2 enforced in RLS for users with a verified
+-- Checks for migration 0022 (TOTP two-factor: aal2 enforced in RLS for users with a verified
 -- factor, list_project_people gated, no MFA enrollment on the shared demo account).
 --
 -- Run with psql as a superuser against a database with all migrations applied:
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS auth.mfa_factors (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-\ir ../../drizzle/migrations/0021_mfa_aal2.sql
+\ir ../../drizzle/migrations/0022_mfa_aal2.sql
 
 -- Act as a signed-in user with the given assurance level.
 CREATE FUNCTION pg_temp.login(_uid uuid, _aal text) RETURNS void LANGUAGE sql AS $$
