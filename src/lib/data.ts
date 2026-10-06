@@ -14,7 +14,14 @@ export { useTaskActions, useTasks } from "@/features/tasks/hooks";
 
 export type { Person, Project } from "@/features/projects/types";
 export { PROJECT_COLS, projectsQuery } from "@/features/projects/api";
-export { usePeople, useProjectActions, useProjects } from "@/features/projects/hooks";
+export {
+  invitesKey,
+  useInviteActions,
+  usePeople,
+  useProjectActions,
+  useProjectInvites,
+  useProjects,
+} from "@/features/projects/hooks";
 
 export type { Backlink, Note, NoteBlocks, NoteDetail, NoteSummary } from "@/features/notes/types";
 export {
