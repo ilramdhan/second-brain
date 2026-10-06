@@ -3,7 +3,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database, Tables, TablesUpdate } from "@/integrations/supabase/types";
-import type { Action, Condition, TaskSnapshot, Trigger } from "@/lib/automation-types";
+import {
+  isTaskTrigger,
+  type Action,
+  type Condition,
+  type TaskSnapshot,
+  type Trigger,
+} from "@/lib/automation-types";
 
 type T = Tables<"tasks">;
 
@@ -15,12 +21,14 @@ function triggerMatches(
 ) {
   if (t.type === "task_created") return event === "created";
   if (event !== "updated" || !before) return false;
-  const field = {
+  const fields: Partial<Record<Trigger["type"], keyof TaskSnapshot>> = {
     status_changed: "status",
     priority_changed: "priority",
     assignee_changed: "assignee_name",
     due_changed: "due_date",
-  }[t.type] as keyof TaskSnapshot;
+  };
+  const field = fields[t.type];
+  if (!field) return false;
   if (t.type === "assignee_changed") {
     if (before.assignee_name === task.assignee_name && before.assignee_id === task.assignee_id)
       return false;
@@ -128,6 +136,8 @@ export async function runAutomationRules(
     const trigger = rule.trigger as unknown as Trigger;
     const conditions = (rule.conditions as unknown as Condition[]) ?? [];
     const actions = (rule.actions as unknown as Action[]) ?? [];
+    // Note and scheduled rules have their own engines (noteAutomationEngine, scheduledAutomations).
+    if (!isTaskTrigger(trigger?.type)) continue;
     if (!triggerMatches(trigger, data.event, data.before, current)) continue;
     if (!conditions.every((c) => conditionMatches(c, current))) continue;
     const log: string[] = [];
@@ -195,6 +205,8 @@ export async function runAutomationRules(
             task: webhookTask(current, origin),
           });
           log.push("webhook");
+        } else {
+          log.push(`${a.type} tidak berlaku untuk tugas`);
         }
       } catch (e) {
         ok = false;

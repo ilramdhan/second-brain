@@ -356,6 +356,7 @@ export async function createNote(
   title: string,
   body: string,
   extra: { tags?: string[]; project_id?: string | null } = {},
+  origin: string | null = null,
 ) {
   const blocks = loadBlocks({ blocks: [], content: body });
   const content = toMarkdown(blocks);
@@ -373,6 +374,14 @@ export async function createNote(
     .select("id,title")
     .single();
   if (error || !data) throw new Error(`note insert failed: ${error?.message}`);
+  // Note rules (note_created / note_tagged), like useNoteActions after a create.
+  const { runNoteAutomationRules } = await import("../noteAutomationEngine.server");
+  await runNoteAutomationRules(
+    supabaseAdmin,
+    userId,
+    { event: "created", noteId: data.id },
+    origin,
+  ).catch((e) => console.error("[n8n] note automations failed", e));
   return data;
 }
 

@@ -80,10 +80,16 @@ export async function capture(
     const content = [summary ? `> Ringkasan AI\n${summary}\n\n---` : "", text, body.url ?? ""]
       .filter(Boolean)
       .join("\n");
-    const note = await svc.createNote(userId, headline || "Catatan", content, {
-      tags: body.tags ?? [],
-      project_id: await svc.resolveProjectId(userId, body.project),
-    });
+    const note = await svc.createNote(
+      userId,
+      headline || "Catatan",
+      content,
+      {
+        tags: body.tags ?? [],
+        project_id: await svc.resolveProjectId(userId, body.project),
+      },
+      origin,
+    );
     return { ok: true, type: "note", id: note.id };
   }
   const content = (title && text ? `${title}\n\n${text}` : title || text) + link;

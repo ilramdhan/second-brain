@@ -240,9 +240,13 @@ async function sumReply(ctx: Ctx, text: string) {
   if (!summary)
     return send("AI belum dikonfigurasi atau batas penggunaan tercapai. Coba lagi nanti.");
   const title = `Ringkasan ${new Intl.DateTimeFormat("id-ID", { timeZone: ctx.tz, dateStyle: "medium" }).format(ctx.now)}`;
-  const note = await svc.createNote(ctx.userId, title, `${summary}\n\n---\n${text}`, {
-    tags: ["ringkasan"],
-  });
+  const note = await svc.createNote(
+    ctx.userId,
+    title,
+    `${summary}\n\n---\n${text}`,
+    { tags: ["ringkasan"] },
+    ctx.origin,
+  );
   return send(`📝 <b>${escapeHtml(note.title)}</b>\n\n${escapeHtml(summary)}`);
 }
 
@@ -258,7 +262,7 @@ async function handleCommand(ctx: Ctx, cmd: string, args: string): Promise<BotRe
     case "catatan": {
       const { title, body } = splitNote(args);
       if (!title) return send("Pakai: <code>/note Judul | isi</code>");
-      const note = await svc.createNote(ctx.userId, title, body);
+      const note = await svc.createNote(ctx.userId, title, body, {}, ctx.origin);
       return send(`📝 Catatan dibuat: <b>${escapeHtml(note.title)}</b>`);
     }
     case "inbox": {
@@ -353,6 +357,8 @@ async function handleCallback(ctx: Ctx, data: string): Promise<BotReply> {
     ctx.userId,
     (first ?? "Catatan").slice(0, 120),
     rest.join("\n") || item.content,
+    {},
+    ctx.origin,
   );
   await svc.setInboxStatus(ctx.userId, item.id, "processed");
   return callback("Catatan dibuat", `📝 Catatan: <b>${escapeHtml(note.title)}</b>`);
@@ -380,7 +386,7 @@ async function handleMedia(ctx: Ctx, body: BotRequest): Promise<BotReply> {
     caption?.cmd === "note" && caption.args
       ? caption.args
       : `${source === "ocr" ? "OCR" : "Voice"} ${stamp}`;
-  const note = await svc.createNote(ctx.userId, title, content, { tags: [source] });
+  const note = await svc.createNote(ctx.userId, title, content, { tags: [source] }, ctx.origin);
   if (caption?.cmd === "note") return send(`📝 Catatan dibuat: <b>${escapeHtml(note.title)}</b>`);
   const item = await svc.createInboxItem(ctx.userId, content, source);
   return send(
