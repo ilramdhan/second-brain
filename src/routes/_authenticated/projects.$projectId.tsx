@@ -41,6 +41,8 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
+import { DemoDisabled } from "@/components/demo/DemoDisabled";
+import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
@@ -403,6 +405,11 @@ function Team({ project }: { project: Project }) {
 
   async function invite(e: React.FormEvent) {
     e.preventDefault();
+    // Enter in the email field still submits; the database also rejects demo invites (0019).
+    if (isDemo()) {
+      toast.error(DEMO_DISABLED_MESSAGE);
+      return;
+    }
     const v = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || v.length > 255) {
       toast.error("Email tidak valid");
@@ -449,9 +456,11 @@ function Team({ project }: { project: Project }) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email anggota tim"
           />
-          <Button type="submit">
-            <Mail /> Undang
-          </Button>
+          <DemoDisabled>
+            <Button type="submit">
+              <Mail /> Undang
+            </Button>
+          </DemoDisabled>
         </form>
       ) : (
         <p className="text-sm text-muted-foreground">

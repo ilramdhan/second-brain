@@ -30,6 +30,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { TaskDialogProvider, useTaskDialog } from "@/components/tasks/TaskDialogProvider";
+import { DemoBanner } from "@/components/demo/DemoBanner";
 import {
   Dialog,
   DialogContent,
@@ -244,6 +245,7 @@ function Shell() {
       </aside>
 
       <main className="min-w-0 flex-1 pb-24 md:pb-0">
+        <DemoBanner />
         <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/90 px-4 py-2.5 backdrop-blur md:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">

@@ -40,6 +40,10 @@ import type { Json } from "@/integrations/supabase/types";
 import { PageContainer } from "@/components/common/PageContainer";
 import { automationsQuery, preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
+
+/** Action types that reach outside the app; switched off on the public demo. */
+const DEMO_OFF_ACTIONS = new Set<string>(["telegram", "webhook"]);
 
 export const Route = createFileRoute("/_authenticated/automations")({
   head: () => ({
@@ -239,6 +243,7 @@ function AutomationsPage() {
 function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose: () => void }) {
   const actions = useAutomationActions();
   const { data: projects = [] } = useProjects();
+  const demo = isDemo();
   const [name, setName] = useState(rule?.name ?? "");
   const [trigger, setTrigger] = useState<Trigger>(
     (rule?.trigger as unknown as Trigger) ?? { type: "status_changed", to: "review" },
@@ -472,11 +477,16 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ACTION_TYPES.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
+                    {ACTION_TYPES.map((t) => {
+                      // Radix SelectItem cannot host DemoDisabled's focusable wrapper, so the
+                      // reason is part of the (disabled, still announced) option text.
+                      const off = demo && DEMO_OFF_ACTIONS.has(t.id);
+                      return (
+                        <SelectItem key={t.id} value={t.id} disabled={off}>
+                          {off ? `${t.label} (${DEMO_DISABLED_MESSAGE})` : t.label}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <Button
@@ -552,8 +562,9 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
             <Plus /> Aksi
           </Button>
           <p className="text-[11px] text-muted-foreground">
-            Telegram terkirim ke akun yang ditautkan di Pengaturan. Webhook mengirim data tugas
-            (JSON) beserta teks ringkas, cocok untuk Slack/Discord.
+            {demo
+              ? "Mode demo: aksi Telegram dan webhook dimatikan; aturan yang sudah memakainya tetap jalan tanpa mengirim apa pun."
+              : "Telegram terkirim ke akun yang ditautkan di Pengaturan. Webhook mengirim data tugas (JSON) beserta teks ringkas, cocok untuk Slack/Discord."}
           </p>
         </section>
       </div>

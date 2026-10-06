@@ -5,7 +5,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getIdleMinutes, IDLE_KEY } from "@/hooks/use-idle-logout";
+import { DEMO_IDLE_OPTIONS, getIdleMinutes, IDLE_KEY } from "@/hooks/use-idle-logout";
+import { DemoDisabled } from "@/components/demo/DemoDisabled";
+import { isDemo } from "@/lib/app-mode";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -330,10 +332,12 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
         <p className="mt-4 text-xs text-destructive">Kode kedaluwarsa. Buat kode baru.</p>
       ) : null}
 
-      <Button onClick={generate} disabled={busy} className="mt-4">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        {link ? "Buat kode baru" : "Hubungkan Telegram"}
-      </Button>
+      <DemoDisabled>
+        <Button onClick={generate} disabled={busy} className="mt-4">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {link ? "Buat kode baru" : "Hubungkan Telegram"}
+        </Button>
+      </DemoDisabled>
     </div>
   );
 }
@@ -415,21 +419,23 @@ function GoogleCalendarPanel() {
         blok waktu.
       </p>
       <div className="mt-4">
-        <Button
-          variant={data?.connected ? "outline" : "default"}
-          onClick={data?.connected ? disconnect : connect}
-          disabled={busy || isLoading || (!data?.connected && data?.configured === false)}
-        >
-          {busy || isLoading ? (
-            <Loader2 className="animate-spin" />
-          ) : data?.connected ? (
-            <Unlink />
-          ) : (
-            <Link2 />
-          )}
-          {data?.connected ? "Putuskan" : "Hubungkan Google Calendar"}
-        </Button>
-        {data?.configured === false ? (
+        <DemoDisabled>
+          <Button
+            variant={data?.connected ? "outline" : "default"}
+            onClick={data?.connected ? disconnect : connect}
+            disabled={busy || isLoading || (!data?.connected && data?.configured === false)}
+          >
+            {busy || isLoading ? (
+              <Loader2 className="animate-spin" />
+            ) : data?.connected ? (
+              <Unlink />
+            ) : (
+              <Link2 />
+            )}
+            {data?.connected ? "Putuskan" : "Hubungkan Google Calendar"}
+          </Button>
+        </DemoDisabled>
+        {data?.configured === false && !isDemo() ? (
           <p className="mt-2 text-xs text-muted-foreground">
             Belum dikonfigurasi oleh admin (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
           </p>
@@ -540,17 +546,26 @@ function BackupPanel() {
         <Button variant="outline" onClick={download}>
           <Download /> Unduh JSON
         </Button>
-        <Button asChild variant="outline">
-          <label>
-            <Upload /> Pulihkan JSON
-            <input
-              type="file"
-              accept="application/json,application/gzip,.json,.gz"
-              className="sr-only"
-              onChange={restore}
-            />
-          </label>
-        </Button>
+        {isDemo() ? (
+          // Restoring writes many rows outside the demo seed and its limits.
+          <DemoDisabled>
+            <Button variant="outline">
+              <Upload /> Pulihkan JSON
+            </Button>
+          </DemoDisabled>
+        ) : (
+          <Button asChild variant="outline">
+            <label>
+              <Upload /> Pulihkan JSON
+              <input
+                type="file"
+                accept="application/json,application/gzip,.json,.gz"
+                className="sr-only"
+                onChange={restore}
+              />
+            </label>
+          </Button>
+        )}
       </div>
     </section>
   );
@@ -650,7 +665,17 @@ function AboutPanel() {
   );
 }
 
+const IDLE_OPTIONS = [
+  { value: 0, label: "Tidak pernah" },
+  { value: 15, label: "Setelah 15 menit" },
+  { value: 30, label: "Setelah 30 menit" },
+  { value: 60, label: "Setelah 1 jam" },
+  { value: 240, label: "Setelah 4 jam" },
+];
+
 function IdleSetting() {
+  // The demo account is shared: it always signs out after at most an hour of inactivity.
+  const demo = isDemo();
   const [value, setValue] = useState("0");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- read the stored idle timeout after mount (localStorage is not available during SSR).
@@ -661,6 +686,7 @@ function IdleSetting() {
       <h2 className="font-semibold">Keamanan sesi</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Keluar otomatis bila aplikasi tidak dipakai. Disarankan untuk perangkat bersama.
+        {demo ? " Di demo, pilihannya 15, 30, atau 60 menit." : null}
       </p>
       <Select
         value={value}
@@ -674,11 +700,11 @@ function IdleSetting() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="0">Tidak pernah</SelectItem>
-          <SelectItem value="15">Setelah 15 menit</SelectItem>
-          <SelectItem value="30">Setelah 30 menit</SelectItem>
-          <SelectItem value="60">Setelah 1 jam</SelectItem>
-          <SelectItem value="240">Setelah 4 jam</SelectItem>
+          {IDLE_OPTIONS.filter((o) => !demo || DEMO_IDLE_OPTIONS.includes(o.value)).map((o) => (
+            <SelectItem key={o.value} value={String(o.value)}>
+              {o.label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </section>
