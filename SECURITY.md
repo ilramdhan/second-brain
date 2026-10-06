@@ -204,7 +204,7 @@ These routes have no user session and authenticate the caller themselves:
 ### n8n integration
 
 - n8n is a relay: it never receives Supabase keys, Google tokens or `TOKEN_ENCRYPTION_KEY`; it only
-  holds `N8N_API_KEY`, the Telegram bot token and its own credentials (Google Drive, SMTP, IMAP).
+  holds `N8N_API_KEY`, the Telegram bot token and its own credentials (Google Drive, SMTP, Gmail OAuth2 or IMAP).
 - Retries are idempotent: `n8n_events (source, external_id)` stores the first response for a
   Telegram `update_id` or capture `external_id`.
 - Backups (`GET /api/public/n8n/backup`) contain all user data but never `app_user_connections`,

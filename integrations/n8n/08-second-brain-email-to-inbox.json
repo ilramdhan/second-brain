@@ -3,48 +3,75 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## ✉️ Email → Inbox\nKirim/forward email ke kotak masuk khusus (mis. `brain@domain.com`). IMAP trigger membaca email belum dibaca → hanya pengirim di `SB_EMAIL_ALLOWED_SENDERS` (kosong = tolak semua) → `POST /api/public/n8n/capture`.\n\nSubjek `task: ...` → tugas (NLP tanggal/prioritas di server), `note: ...` → catatan, lainnya → Inbox (`source = email`). Email panjang diringkas AI di server (`summarize: true`, memakai kuota AI user). `external_id` (`email:<Message-ID>`) mencegah duplikat saat retry.\n\n⚠️ Server mencocokkan `user_email` (pengirim) ke email akun Second Brain; pengirim yang tidak punya akun → 404.\n**Env:** `SB_APP_URL`, `SB_EMAIL_ALLOWED_SENDERS`. **Credentials:** IMAP, Header Auth.",
-        "height": 340,
-        "width": 680,
+        "content": "## ✉️ Email → Inbox (Gmail)\nKirim/forward email ke kotak masuk Gmail khusus (mis. `brain@gmail.com`). **Gmail Trigger** (OAuth2, polling tiap menit, `in:inbox is:unread`, output lengkap) → hanya pengirim di `SB_EMAIL_ALLOWED_SENDERS` (kosong = tolak semua) → `POST /api/public/n8n/capture` → setelah Capture sukses email ditandai **dibaca** + label `SecondBrain/Processed` (`SB_GMAIL_PROCESSED_LABEL`; buat labelnya dulu di Gmail, bila tidak ada langkah label dilewati). Email dari pengirim di luar allow-list dibiarkan belum dibaca.\n\nSubjek `task: ...` → tugas (NLP tanggal/prioritas di server), `note: ...` → catatan, lainnya → Inbox (`source = email`). Email panjang diringkas AI di server (`summarize: true`, memakai kuota AI user). `external_id` (`email:<Message-ID>`) mencegah duplikat saat retry.\n\n⚠️ Server mencocokkan `user_email` (pengirim) ke email akun Second Brain; pengirim yang tidak punya akun → 404. Penyedia non-Gmail: pakai `08b` (IMAP).\n**Env:** `SB_APP_URL`, `SB_EMAIL_ALLOWED_SENDERS`, `SB_GMAIL_PROCESSED_LABEL`\\*. **Credentials:** Gmail OAuth2, Header Auth.",
+        "height": 400,
+        "width": 760,
         "color": "6"
       },
-      "id": "edc66791-20ff-44b9-864c-51ae758d66b0",
+      "id": "5be10bc9-9eb7-43b1-bd27-e6576b3928e2",
       "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-60, -400]
+      "position": [-60, -460]
     },
     {
       "parameters": {
-        "mailbox": "INBOX",
-        "postProcessAction": "read",
-        "format": "resolved",
-        "dataPropertyAttachmentsPrefixName": "attachment_",
-        "options": {
-          "forceReconnect": 5
-        }
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "in:inbox",
+          "readStatus": "unread"
+        },
+        "options": {}
       },
-      "id": "b56f386d-1408-4922-9ffc-29032b0cddf9",
-      "name": "Email masuk (IMAP)",
-      "type": "n8n-nodes-base.emailReadImap",
-      "typeVersion": 2,
+      "id": "9200996a-f6d7-43cc-82eb-84289ab03392",
+      "name": "Email masuk (Gmail)",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
       "position": [0, 0],
       "credentials": {
-        "imap": {
+        "gmailOAuth2": {
           "id": "REPLACE_ME",
-          "name": "Second Brain IMAP Inbox"
+          "name": "Second Brain Gmail (capture)"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Allow-list pengirim + bersihkan isi email → payload capture.\n// Input = format \"resolved\" (mailparser): from.value[0].address, subject, text, html, messageId, headers{key: \"Key: value\"}.\nconst allowed = String($env.SB_EMAIL_ALLOWED_SENDERS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);\nconst stripHtml = (h) => String(h || '')\n  .replace(/<(script|style)[\\s\\S]*?<\\/\\1>/gi, '')\n  .replace(/<br\\s*\\/?>|<\\/(p|div|li|tr|h[1-6])>/gi, '\\n')\n  .replace(/<[^>]+>/g, '')\n  .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/&amp;/g, '&')\n  .replace(/[ \\t]+\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n');\nconst out = [];\nfor (const i of $input.all()) {\n  const e = i.json;\n  const fromRaw = String(e.from?.value?.[0]?.address ?? e.from?.text ?? e.from ?? '').toLowerCase();\n  const from = (fromRaw.match(/[^\\s<>\"]+@[^\\s<>\"]+/) || [''])[0];\n  if (!from || !allowed.includes(from)) continue; // fail-closed\n  const subject = String(e.subject || '(tanpa subjek)').trim();\n  // Subjek \"task: ...\" → tugas, \"note: ...\" → catatan, selain itu → inbox\n  const m = subject.match(/^\\s*(task|tugas|note|catatan)\\s*:\\s*(.*)$/i);\n  const target = m ? (/^(task|tugas)$/i.test(m[1]) ? 'task' : 'note') : 'inbox';\n  // text kosong (email HTML-only) → fallback ke html/textAsHtml yang di-strip\n  const rawText = String(e.text || e.textPlain || '').trim() || stripHtml(typeof e.html === 'string' ? e.html : e.textAsHtml);\n  const body = rawText.replace(/\\r/g, '').split(/\\n-- \\n|\\nOn .+wrote:\\n/)[0].trim();\n  // headers (resolved) berisi baris penuh \"Message-ID: <...>\" → buang prefiks nama header\n  const hdrId = String(e.headers?.['message-id'] || '').replace(/^message-id:\\s*/i, '').trim();\n  const msgId = String(e.messageId || hdrId || '').trim();\n  out.push({ json: { payload: {\n    user_email: from,\n    source: 'email',\n    target,\n    title: (m ? m[2] : subject).slice(0, 300),\n    text: body.slice(0, 20000),\n    summarize: body.length > 1500,  // minta server membuat ai_summary untuk email panjang\n    external_id: msgId ? `email:${msgId}`.slice(0, 500) : null,\n  } } });\n}\nreturn out;"
+        "resource": "label",
+        "operation": "getAll",
+        "returnAll": true
       },
-      "id": "2814df33-8148-4115-a887-becb602e838f",
+      "id": "b1d1996c-f22c-4a3b-91dc-1dd1e2add9f3",
+      "name": "Daftar label Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [220, 0],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain Gmail (capture)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Allow-list pengirim + bersihkan isi email → payload capture.\n// Input = Gmail Trigger simple=false (mailparser, sama dengan IMAP \"resolved\"): id (Gmail), from.value[0].address,\n// subject, text, html, textAsHtml, messageId, headers{key: \"Key: value\"}. Email dibaca dari trigger, bukan dari\n// $input (node sebelumnya hanya daftar label Gmail).\nconst allowed = String($env.SB_EMAIL_ALLOWED_SENDERS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);\nconst stripHtml = (h) => String(h || '')\n  .replace(/<(script|style)[\\s\\S]*?<\\/\\1>/gi, '')\n  .replace(/<br\\s*\\/?>|<\\/(p|div|li|tr|h[1-6])>/gi, '\\n')\n  .replace(/<[^>]+>/g, '')\n  .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/&amp;/g, '&')\n  .replace(/[ \\t]+\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n');\n// ID label penanda (buat dulu di Gmail); tidak ada → node Tambah label dilewati.\nconst labelName = String($env.SB_GMAIL_PROCESSED_LABEL || 'SecondBrain/Processed').trim();\nconst label = $('Daftar label Gmail').all().map(l => l.json).find(l => l.name === labelName);\nconst out = [];\nfor (const i of $('Email masuk (Gmail)').all()) {\n  const e = i.json;\n  const fromRaw = String(e.from?.value?.[0]?.address ?? e.from?.text ?? e.from ?? '').toLowerCase();\n  const from = (fromRaw.match(/[^\\s<>\"]+@[^\\s<>\"]+/) || [''])[0];\n  if (!from || !allowed.includes(from)) continue; // fail-closed\n  const subject = String(e.subject || '(tanpa subjek)').trim();\n  // Subjek \"task: ...\" → tugas, \"note: ...\" → catatan, selain itu → inbox\n  const m = subject.match(/^\\s*(task|tugas|note|catatan)\\s*:\\s*(.*)$/i);\n  const target = m ? (/^(task|tugas)$/i.test(m[1]) ? 'task' : 'note') : 'inbox';\n  // text kosong (email HTML-only) → fallback ke html/textAsHtml yang di-strip\n  const rawText = String(e.text || e.textPlain || '').trim() || stripHtml(typeof e.html === 'string' ? e.html : e.textAsHtml);\n  const body = rawText.replace(/\\r/g, '').split(/\\n-- \\n|\\nOn .+wrote:\\n/)[0].trim();\n  // headers (resolved) berisi baris penuh \"Message-ID: <...>\" → buang prefiks nama header\n  const hdrId = String(e.headers?.['message-id'] || '').replace(/^message-id:\\s*/i, '').trim();\n  const msgId = String(e.messageId || hdrId || '').trim();\n  out.push({ json: { payload: {\n    user_email: from,\n    source: 'email',\n    target,\n    title: (m ? m[2] : subject).slice(0, 300),\n    text: body.slice(0, 20000),\n    summarize: body.length > 1500,  // minta server membuat ai_summary untuk email panjang\n    external_id: msgId ? `email:${msgId}`.slice(0, 500) : null,\n  }, gmail_id: e.id, label_id: label?.id ?? null } });\n}\nreturn out;"
+      },
+      "id": "439c5eda-8183-44ad-b1d5-4357f3681aff",
       "name": "Allow-list & normalisasi",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [240, 0]
+      "position": [440, 0]
     },
     {
       "parameters": {
@@ -59,11 +86,11 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.payload) }}"
       },
-      "id": "3a1ccfc4-2f60-4a79-84e0-578dea85dd64",
+      "id": "e191da26-c6a6-4ce3-b6b2-86af9fbc2cf3",
       "name": "Capture",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 0],
+      "position": [660, 0],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 5000,
@@ -73,10 +100,87 @@
           "name": "Second Brain x-api-key"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Allow-list & normalisasi').item.json.gmail_id }}"
+      },
+      "id": "b124e5e3-051f-429f-8924-cd9629a9741b",
+      "name": "Tandai dibaca",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [880, 0],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain Gmail (capture)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "521e265f-a0a5-48ff-8b94-65acfcc66af1",
+              "leftValue": "={{ $('Allow-list & normalisasi').item.json.label_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8d25f174-2a19-49e8-b279-66cbe51e3917",
+      "name": "Label ada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Allow-list & normalisasi').item.json.gmail_id }}",
+        "labelIds": "={{ [$('Allow-list & normalisasi').item.json.label_id] }}"
+      },
+      "id": "c1f97900-604c-4da8-bb9e-1d14f72bed8d",
+      "name": "Tambah label Processed",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1320, -100],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Second Brain Gmail (capture)"
+        }
+      }
     }
   ],
   "connections": {
-    "Email masuk (IMAP)": {
+    "Email masuk (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Daftar label Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daftar label Gmail": {
       "main": [
         [
           {
@@ -96,6 +200,40 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Capture": {
+      "main": [
+        [
+          {
+            "node": "Tandai dibaca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tandai dibaca": {
+      "main": [
+        [
+          {
+            "node": "Label ada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label ada?": {
+      "main": [
+        [
+          {
+            "node": "Tambah label Processed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
