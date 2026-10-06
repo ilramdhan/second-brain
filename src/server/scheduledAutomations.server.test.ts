@@ -9,7 +9,16 @@ vi.mock("@/lib/telegram.server", () => ({ sendTelegram }));
 const loadDigestData = vi.fn();
 vi.mock("./n8n/digest.server", () => ({ loadDigestData }));
 
-const { computeNextRun, runDueAutomations } = await import("./scheduledAutomations.server");
+const { computeNextRun, digestToText, runDueAutomations } =
+  await import("./scheduledAutomations.server");
+
+describe("digestToText", () => {
+  it("drops the digest tags and decodes entities once (no markup is rebuilt)", () => {
+    expect(digestToText("⚠️ <b>2 tugas</b>\n• <s>A &amp; B</s>")).toBe("⚠️ 2 tugas\n• A & B");
+    // An escaped title stays literal text: decoding happens in a single pass.
+    expect(digestToText("&lt;script&gt;x&amp;lt;b&amp;gt;")).toBe("<script>x&lt;b&gt;");
+  });
+});
 
 type Row = Record<string, unknown>;
 const U1 = "u1";

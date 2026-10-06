@@ -73,12 +73,14 @@ type RunCtx = {
   demo: boolean;
 };
 
-function htmlToText(html: string) {
-  return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
+/**
+ * Telegram-HTML digest → plain text for webhooks. The digest builder only emits `<b>`/`<s>` and
+ * escapes user text (`escapeHtml`), so dropping exactly those tags and then decoding the three
+ * entities in one pass yields the original text. Nothing here is rendered as HTML.
+ */
+const ENTITIES: Record<string, string> = { "&lt;": "<", "&gt;": ">", "&amp;": "&" };
+export function digestToText(html: string) {
+  return html.replace(/<\/?[bs]>|&(?:lt|gt|amp);/g, (m) => ENTITIES[m] ?? "");
 }
 
 async function moveOverdue(ctx: RunCtx, projectId: string | null | undefined, status: string) {
@@ -129,7 +131,7 @@ async function sendDigest(ctx: RunCtx, a: Extract<Action, { type: "digest" }>) {
   }
   if (!a.url) throw new Error("URL webhook kosong");
   const { safeWebhookPost } = await import("./ssrf.server");
-  const text = htmlToText(digest.text);
+  const text = digestToText(digest.text);
   await safeWebhookPost(a.url, {
     text,
     content: text,
