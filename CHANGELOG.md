@@ -10,6 +10,41 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.4.0](https://github.com/ilramdhan/second-brain/compare/v0.3.1...v0.4.0) (2026-10-07)
+
+
+### Features
+
+* **auth:** email invites with set-password page and password reset ([#58](https://github.com/ilramdhan/second-brain/issues/58)) ([5c72176](https://github.com/ilramdhan/second-brain/commit/5c72176a3fd6448ecb45504c512152a203362aba))
+* **auth:** Google sign-in, magic link and TOTP two-factor authentication ([#61](https://github.com/ilramdhan/second-brain/issues/61)) ([4a5df25](https://github.com/ilramdhan/second-brain/commit/4a5df250f09a2a78cba82e29e7e0177cb07ad20c))
+* **automations:** scheduled rules and note triggers ([#62](https://github.com/ilramdhan/second-brain/issues/62)) ([af9d8ef](https://github.com/ilramdhan/second-brain/commit/af9d8ef6af09306530f15299ff4fcec626ba93ee))
+* **calendar:** two-way Google Calendar sync ([#60](https://github.com/ilramdhan/second-brain/issues/60)) ([afd3fd5](https://github.com/ilramdhan/second-brain/commit/afd3fd51ce88303fa436cf9353c95cb941aab199))
+* **db:** demo row limits, write quota and demo account protection (0019) ([#52](https://github.com/ilramdhan/second-brain/issues/52)) ([cad3374](https://github.com/ilramdhan/second-brain/commit/cad33745d662fe3c6132fe1dacf17231e236c9ec))
+* **demo:** demo mode foundation (guards, banner, login, IP rate limit) ([#53](https://github.com/ilramdhan/second-brain/issues/53)) ([2a423ec](https://github.com/ilramdhan/second-brain/commit/2a423ec459ebe2cb7309bd48d18412a4e6e3a4ae))
+* **demo:** seed data, daily reset endpoint and demo deployment guide ([#56](https://github.com/ilramdhan/second-brain/issues/56)) ([95cecf1](https://github.com/ilramdhan/second-brain/commit/95cecf189e39ec74749a29ed0a5784db844a8b59))
+* **demo:** simulated AI with fixtures and pre-filled examples ([#55](https://github.com/ilramdhan/second-brain/issues/55)) ([138ec5d](https://github.com/ilramdhan/second-brain/commit/138ec5d061fe3b36ac738077d8daf138a473db88))
+* **landing:** tech stack marquee, back to top, demo button, SSR language and login back link ([#54](https://github.com/ilramdhan/second-brain/issues/54)) ([d43a34c](https://github.com/ilramdhan/second-brain/commit/d43a34c3bb85318a355f35ba595a8d62b0b9617a))
+* login redirect, closed signup, sticky landing with sections and legal pages ([#51](https://github.com/ilramdhan/second-brain/issues/51)) ([52ae808](https://github.com/ilramdhan/second-brain/commit/52ae808d2125d0b62d1d9c34d0a852b87213e2be))
+* **n8n:** email-to-inbox via Gmail Trigger, keep IMAP as 08b ([#50](https://github.com/ilramdhan/second-brain/issues/50)) ([eeeea67](https://github.com/ilramdhan/second-brain/commit/eeeea6714e84eeb657ea6db5bd01bc89786a26d9))
+* **search:** semantic search for notes and tasks ([#57](https://github.com/ilramdhan/second-brain/issues/57)) ([e8ea938](https://github.com/ilramdhan/second-brain/commit/e8ea938df4b5f259aae8c542f9ac8680231bcb89))
+* **settings:** about card with version, build info and update check ([#49](https://github.com/ilramdhan/second-brain/issues/49)) ([5caaaa0](https://github.com/ilramdhan/second-brain/commit/5caaaa02ed36f7d02b860dc52cb61d1d138583ad))
+* **share:** revocable read-only public links for notes and projects ([#63](https://github.com/ilramdhan/second-brain/issues/63)) ([1e63c9c](https://github.com/ilramdhan/second-brain/commit/1e63c9c5b3b2c434ff7736a973257459acef2175))
+
+
+### Bug Fixes
+
+* **db:** make migrations 0019–0024 safe to apply on a live database ([#64](https://github.com/ilramdhan/second-brain/issues/64)) ([8ce4170](https://github.com/ilramdhan/second-brain/commit/8ce4170319f6fc24747aa27a3a672676d8831873))
+* **n8n:** handleN8n maps undefined column/table errors (42703, 42P01, 42883, PGRST202/204/205 and the matching messages) to 503 {"error":"schema_outdated","hint":...} instead of 500. Root cause of the automations tick 500: migration 0023 was not applied. ([8ce4170](https://github.com/ilramdhan/second-brain/commit/8ce4170319f6fc24747aa27a3a672676d8831873))
+* **ui:** mobile-first dialogs, responsive pages, back to top and demo notice ([#59](https://github.com/ilramdhan/second-brain/issues/59)) ([3613f6e](https://github.com/ilramdhan/second-brain/commit/3613f6e76ec7f0089274a06f841bc2cac5fa3f3f))
+
+
+### Documentation
+
+* **plan:** mark TS 7 upgrade blocked ([#47](https://github.com/ilramdhan/second-brain/issues/47)) ([faea141](https://github.com/ilramdhan/second-brain/commit/faea141c37415d51dba8a9af03ed6f28de0ea3a4))
+* README (auth section, env vars, Supabase steps: Google provider, MFA TOTP on, Redirect URLs including /auth/callback, Magic Link template), SECURITY.md, DEMO.md, the implementation plan and .env.example (VITE_AUTH_GOOGLE, VITE_AUTH_MAGIC_LINK). ([4a5df25](https://github.com/ilramdhan/second-brain/commit/4a5df250f09a2a78cba82e29e7e0177cb07ad20c))
+* README section "Applying migrations to a live database". ([8ce4170](https://github.com/ilramdhan/second-brain/commit/8ce4170319f6fc24747aa27a3a672676d8831873))
+* README, SECURITY.md, integrations/n8n README + workflow 07, plan. ([afd3fd5](https://github.com/ilramdhan/second-brain/commit/afd3fd51ce88303fa436cf9353c95cb941aab199))
+
 ## [0.3.1](https://github.com/ilramdhan/second-brain/compare/v0.3.0...v0.3.1) (2026-10-06)
 
 
