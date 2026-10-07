@@ -42,8 +42,10 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   BACKUP_TABLES,
   BackupError,
+  type BackupRow,
   chunk,
   MAX_BACKUP_BYTES,
+  planHabitLogs,
   planUpserts,
   prepareBackup,
 } from "@/lib/backup";
@@ -489,12 +491,22 @@ function BackupPanel() {
   async function download() {
     const tables: Record<string, unknown[]> = {};
     for (const table of BACKUP_TABLES) {
-      const { data, error } = await supabase.from(table).select("*");
-      if (error) {
-        toastError(error);
-        return;
+      // PostgREST returns at most 1000 rows per request (habit logs easily exceed that).
+      const rows: unknown[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from(table)
+          .select("*")
+          .order("id")
+          .range(from, from + 999);
+        if (error) {
+          toastError(error);
+          return;
+        }
+        rows.push(...data);
+        if (data.length < 1000) break;
       }
-      tables[table] = data ?? [];
+      tables[table] = rows;
     }
     const blob = new Blob(
       [JSON.stringify({ version: 1, exported_at: new Date().toISOString(), tables }, null, 2)],
@@ -508,6 +520,52 @@ function BackupPanel() {
     URL.revokeObjectURL(url);
     toast.success(t("admBackupDownloaded"));
     return;
+  }
+  /**
+   * Habit logs: keep only logs of the user's own habits (owner-only, restored just before) and
+   * re-key logs for a day that already has a check-in (one row per habit and day).
+   */
+  async function prepareHabitLogs(rows: BackupRow[], userId: string) {
+    const owned = new Set<string>();
+    for (const ids of chunk([...new Set(rows.map((r) => String(r["habit_id"])))], 200)) {
+      const { data, error } = await supabase
+        .from("habits")
+        .select("id")
+        .eq("user_id", userId)
+        .in("id", ids);
+      if (error) throw error;
+      for (const h of data) owned.add(h.id);
+    }
+    const existing: { id: string; habit_id: string; date: string }[] = [];
+    const seen = new Set<string>();
+    const add = (data: { id: string; habit_id: string; date: string }[]) => {
+      for (const l of data) if (!seen.has(l.id)) (seen.add(l.id), existing.push(l));
+    };
+    for (const ids of chunk([...owned], 50)) {
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("habit_logs")
+          .select("id,habit_id,date")
+          .in("habit_id", ids)
+          .order("id")
+          .range(from, from + 999);
+        if (error) throw error;
+        add(data);
+        if (data.length < 1000) break;
+      }
+    }
+    for (const ids of chunk(
+      rows.map((r) => r.id),
+      200,
+    )) {
+      const { data, error } = await supabase
+        .from("habit_logs")
+        .select("id,habit_id,date")
+        .in("id", ids);
+      if (error) throw error;
+      add(data);
+    }
+    return planHabitLogs(rows, owned, existing);
   }
   async function restore(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -535,8 +593,14 @@ function BackupPanel() {
       let restored = 0;
       let skipped = 0;
       for (const table of BACKUP_TABLES) {
-        const rows = prepared[table];
+        let rows = prepared[table];
         if (!rows.length) continue;
+        if (table === "habit_logs") {
+          const habit = await prepareHabitLogs(rows, userId);
+          rows = habit.rows;
+          skipped += habit.skipped;
+          if (!rows.length) continue;
+        }
         // Only rows we own may be updated; ids owned by someone else are skipped and unseen ids
         // are inserted with ON CONFLICT DO NOTHING (ids hidden by RLS are never overwritten).
         const existing: { id: string; user_id: string }[] = [];
