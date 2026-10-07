@@ -4,6 +4,7 @@ import { id as localeId } from "date-fns/locale";
 import { CalendarDays, ListChecks, Lock, Repeat, User } from "lucide-react";
 
 import { VirtualList } from "@/components/common/VirtualList";
+import { NAV_ITEM_CLASS, navAttrs, type NavState } from "@/hooks/use-keyboard-nav";
 import { CheckCircle } from "@/components/tasks/CheckCircle";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { color, labelOf, priorityOf, TASK_STATUS } from "@/lib/constants";
@@ -148,14 +149,25 @@ export const TaskRow = memo(function TaskRow({
   subtasks,
   blockers,
   onToggle,
-}: ItemProps & { onToggle: (task: Task) => void }) {
+  navigable,
+  selected = false,
+  tabStop = false,
+}: ItemProps & {
+  onToggle: (task: Task) => void;
+  /** Part of a keyboard-navigable list (src/hooks/use-keyboard-nav.ts). */
+  navigable?: boolean | undefined;
+  selected?: boolean | undefined;
+  tabStop?: boolean | undefined;
+}) {
   const { openTask } = useTaskDialog();
   const done = task.status === "done";
   return (
     <div
       onClick={() => openTask(task.id)}
+      {...(navigable ? navAttrs(task.id, selected, tabStop) : {})}
       className={cn(
         "flex cursor-pointer items-start gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/30",
+        navigable && NAV_ITEM_CLASS,
         done && "opacity-60",
         blockers.length > 0 && "bg-muted/50 text-muted-foreground",
       )}
@@ -221,14 +233,31 @@ export const TaskCard = memo(function TaskCard({ task, project, subtasks, blocke
  * A list of task rows (tasks list view, Today, calendar day view). Windowed above
  * `VIRTUALIZE_THRESHOLD` rows; below it every row renders as before.
  */
-export function TaskRows({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }) {
+export function TaskRows({
+  tasks,
+  lookups,
+  nav,
+}: {
+  tasks: Task[];
+  lookups: TaskRowLookups;
+  /** Keyboard selection (j/k, Enter, x) from `useKeyboardNav`. */
+  nav?: NavState | undefined;
+}) {
   return (
     <VirtualList
       items={tasks}
       getKey={taskKey}
       estimateSize={76}
       gap={8}
-      renderItem={(t) => <TaskRow {...rowProps(t, lookups)} onToggle={lookups.toggle} />}
+      renderItem={(t) => (
+        <TaskRow
+          {...rowProps(t, lookups)}
+          onToggle={lookups.toggle}
+          navigable={!!nav}
+          selected={nav?.selectedId === t.id}
+          tabStop={nav?.tabStopId === t.id}
+        />
+      )}
     />
   );
 }

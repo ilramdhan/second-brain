@@ -1,6 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckSquare, FolderKanban, Loader2, Plus, Sparkles, StickyNote } from "lucide-react";
+import {
+  CheckCircle2,
+  CheckSquare,
+  FolderKanban,
+  Inbox,
+  Keyboard,
+  Languages,
+  Loader2,
+  Moon,
+  Pencil,
+  Plus,
+  Sparkles,
+  StickyNote,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   CommandDialog,
@@ -12,8 +27,18 @@ import {
 } from "@/components/ui/command";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { useDebounced } from "@/hooks/use-debounced";
-import { useSearch, useSemanticSearch, useSemanticStatus, type SemanticHit } from "@/lib/data";
-import { usePreferences } from "@/lib/preferences";
+import { getActiveSelection } from "@/hooks/use-keyboard-nav";
+import {
+  useNoteActions,
+  useSearch,
+  useSemanticSearch,
+  useSemanticStatus,
+  useTaskActions,
+  useTasks,
+  type SemanticHit,
+} from "@/lib/data";
+import { usePreferences, type MessageKey } from "@/lib/preferences";
+import { matchesCommand } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 
 export type SearchMode = "keyword" | "semantic";
@@ -33,17 +58,36 @@ function readMode(): SearchMode {
  *  - semantic: embedding search over tasks and notes (src/lib/semantic.functions.ts), offered
  *    only when the server has an AI provider (or is the demo). If it fails, the keyword results
  *    are shown instead, so the palette always finds something.
+ * Above the results it lists commands (new task/note, capture, theme, language, every page, the
+ * shortcut sheet), filtered locally by the typed words, plus actions for the task or note that
+ * was selected with j/k on the page behind it.
  */
 export default function CommandMenu({
   open,
   onOpenChange,
+  pages,
+  onQuickCapture,
+  onQuickTask,
+  onShortcuts,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  pages: readonly { to: string; key: MessageKey; icon: LucideIcon }[];
+  onQuickCapture: () => void;
+  onQuickTask: () => void;
+  onShortcuts: () => void;
 }) {
   const navigate = useNavigate();
-  const { t } = usePreferences();
+  const { t, locale, setLocale, setTheme } = usePreferences();
   const { openTask, newTask } = useTaskDialog();
+  const { setStatus } = useTaskActions();
+  const { create: createNote } = useNoteActions();
+  const { data: allTasks } = useTasks();
+  // The item selected on the page when the palette opened (snapshot: the palette is mounted
+  // only while open).
+  const [selection] = useState(getActiveSelection);
+  const selectedTask =
+    selection?.kind === "task" ? allTasks?.find((x) => x.id === selection.id) : undefined;
   const [term, setTerm] = useState("");
   const [preferred, setPreferred] = useState<SearchMode>(readMode);
   const { data: status } = useSemanticStatus(open);
@@ -79,6 +123,71 @@ export default function CommandMenu({
   };
   const openNote = (id: string) =>
     run(() => navigate({ to: "/notes/$noteId", params: { noteId: id } }));
+
+  type Command = { id: string; label: string; icon: LucideIcon; run: () => void };
+  const actions: Command[] = [
+    { id: "new-task", label: t("searchNewTask"), icon: Plus, run: () => newTask() },
+    {
+      id: "new-note",
+      label: t("cmdNewNote"),
+      icon: StickyNote,
+      run: () =>
+        void createNote({ title: "Tanpa judul", content: "", status: "idea" }).then((row) => {
+          if (row) void navigate({ to: "/notes/$noteId", params: { noteId: row.id } });
+        }),
+    },
+    { id: "quick-task", label: t("quickTask"), icon: Zap, run: onQuickTask },
+    { id: "quick-capture", label: t("quickCapture"), icon: Inbox, run: onQuickCapture },
+    {
+      id: "theme",
+      label: t("cmdToggleTheme"),
+      icon: Moon,
+      run: () => setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark"),
+    },
+    {
+      id: "language",
+      label: t("cmdSwitchLanguage"),
+      icon: Languages,
+      run: () => setLocale(locale === "id" ? "en" : "id"),
+    },
+    { id: "shortcuts", label: t("kbTitle"), icon: Keyboard, run: onShortcuts },
+  ];
+  const selectionActions: Command[] = selectedTask
+    ? [
+        {
+          id: "sel-open",
+          label: `${t("cmdOpenSelected")}: ${selectedTask.title}`,
+          icon: Pencil,
+          run: () => openTask(selectedTask.id),
+        },
+        {
+          id: "sel-toggle",
+          label: `${t(selectedTask.status === "done" ? "cmdMarkUndone" : "cmdMarkDone")}: ${selectedTask.title}`,
+          icon: CheckCircle2,
+          run: () => void setStatus(selectedTask, selectedTask.status === "done" ? "todo" : "done"),
+        },
+      ]
+    : selection?.kind === "note"
+      ? [
+          {
+            id: "sel-open",
+            label: t("cmdOpenSelectedNote"),
+            icon: StickyNote,
+            run: () => openNote(selection.id),
+          },
+        ]
+      : [];
+  const pageCommands: Command[] = pages.map((p) => ({
+    id: `page-${p.to}`,
+    label: `${t("cmdGoTo")} ${t(p.key)}`,
+    icon: p.icon,
+    run: () => void navigate({ to: p.to }),
+  }));
+  const commandGroups = [
+    { heading: t("cmdSelected"), items: selectionActions },
+    { heading: t("searchActions"), items: actions },
+    { heading: t("cmdPages"), items: pageCommands },
+  ].map((g) => ({ ...g, items: g.items.filter((c) => matchesCommand(c.label, term)) }));
 
   const emptyText =
     mode === "semantic" && debounced.trim().length < 2
@@ -141,11 +250,18 @@ export default function CommandMenu({
             emptyText
           )}
         </CommandEmpty>
-        <CommandGroup heading={t("searchActions")}>
-          <CommandItem value="action-new-task" onSelect={() => run(() => newTask())}>
-            <Plus /> {t("searchNewTask")}
-          </CommandItem>
-        </CommandGroup>
+        {commandGroups.map(
+          (g) =>
+            g.items.length > 0 && (
+              <CommandGroup key={g.heading} heading={g.heading}>
+                {g.items.map((c) => (
+                  <CommandItem key={c.id} value={`command ${c.id}`} onSelect={() => run(c.run)}>
+                    <c.icon /> {c.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ),
+        )}
         {hits.length > 0 && (
           <CommandGroup heading={t("searchSemanticResults")}>
             {hits.map((h) => {

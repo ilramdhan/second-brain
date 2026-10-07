@@ -46,6 +46,7 @@ import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/lib/preferences";
 import { logActivity } from "@/lib/activity";
 import { LOGIN_PATH, requireSession } from "@/lib/auth";
+import { matchShortcut, shouldIgnoreShortcut } from "@/lib/shortcuts";
 
 // Dialog bodies are loaded the first time they open, not with the app shell.
 const CommandMenu = lazy(() => import("@/components/CommandMenu"));
@@ -54,6 +55,9 @@ const QuickCapture = lazy(() =>
 );
 const QuickTask = lazy(() =>
   import("@/components/tasks/QuickTask").then((m) => ({ default: m.QuickTask })),
+);
+const ShortcutsDialog = lazy(() =>
+  import("@/components/ShortcutsDialog").then((m) => ({ default: m.ShortcutsDialog })),
 );
 
 function DialogFallback() {
@@ -137,29 +141,24 @@ function Shell() {
   const [capture, setCapture] = useState(false);
   const [more, setMore] = useState(false);
   const [quick, setQuick] = useState(false);
+  const [shortcuts, setShortcuts] = useState(false);
   const demo = isDemo();
 
+  // Global shortcuts (src/lib/shortcuts.ts). Ctrl/Cmd+K toggles the palette from anywhere (also
+  // inside inputs); single keys (Q, ?) are ignored while typing or while a dialog is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)))
-        return;
-      if (document.querySelector("[role=dialog]")) return;
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && (e.key === "q" || e.key === "Q")) {
-        e.preventDefault();
-        setQuick(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-  // Ctrl/Cmd+K toggles the palette from anywhere (also inside inputs), like before.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      const m = matchShortcut(e, "global");
+      if (!m) return;
+      if (m.id === "palette") {
         e.preventDefault();
         setCmd((open) => !open);
+        return;
       }
+      if (shouldIgnoreShortcut(e)) return;
+      e.preventDefault();
+      if (m.id === "quickTask") setQuick(true);
+      else if (m.id === "cheatSheet") setShortcuts(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -385,7 +384,20 @@ function Shell() {
 
       {cmd && (
         <Suspense fallback={null}>
-          <CommandMenu open={cmd} onOpenChange={setCmd} />
+          <CommandMenu
+            open={cmd}
+            onOpenChange={setCmd}
+            pages={NAV}
+            onQuickCapture={() => setCapture(true)}
+            onQuickTask={() => setQuick(true)}
+            onShortcuts={() => setShortcuts(true)}
+          />
+        </Suspense>
+      )}
+
+      {shortcuts && (
+        <Suspense fallback={null}>
+          <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />
         </Suspense>
       )}
     </div>
