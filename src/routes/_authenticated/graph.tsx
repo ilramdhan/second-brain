@@ -386,7 +386,7 @@ function GraphPage() {
                     r={radius(n)}
                     className={
                       proj
-                        ? color(proj.color).dot.replace("bg-", "fill-")
+                        ? color(proj.color).fill
                         : n.id === focus
                           ? "fill-primary"
                           : "fill-muted-foreground/70"

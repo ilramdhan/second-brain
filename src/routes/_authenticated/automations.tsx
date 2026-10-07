@@ -42,6 +42,11 @@ import {
   type Trigger,
 } from "@/lib/automation-types";
 import { describeCron, isValidCron } from "@/lib/cron";
+import {
+  conditionValueLabel,
+  scheduleStatus,
+  scheduleTriggerLabel,
+} from "@/lib/automation-display";
 import { DEFAULT_ZONE, SchedulePicker } from "@/components/automations/SchedulePicker";
 import { labelOf, PRIORITY, TASK_STATUS } from "@/lib/constants";
 import { useAutomationActions, useAutomations, useProjects, type Automation } from "@/lib/data";
@@ -121,8 +126,7 @@ const TEMPLATES: Template[] = [
 ];
 
 function describeTrigger(t: Trigger, rule: Pick<Automation, "schedule_cron" | "schedule_tz">) {
-  if (t.type === "schedule")
-    return `⏰ ${describeCron(rule.schedule_cron ?? "")}${rule.schedule_tz ? ` (${rule.schedule_tz})` : ""}`;
+  if (t.type === "schedule") return scheduleTriggerLabel(rule);
   const base = TRIGGERS.find((x) => x.id === t.type)?.label ?? t.type;
   if (!t.to) return base;
   if (t.type === "note_tagged") return `${base} #${t.to}`;
@@ -131,6 +135,7 @@ function describeTrigger(t: Trigger, rule: Pick<Automation, "schedule_cron" | "s
 
 function AutomationsPage() {
   const { data: rules = [] } = useAutomations();
+  const { data: projects = [] } = useProjects();
   const actions = useAutomationActions();
   const [edit, setEdit] = useState<{ open: boolean; rule: Partial<Automation> | null }>({
     open: false,
@@ -203,7 +208,8 @@ function AutomationsPage() {
                   {conds.map((c, i) => (
                     <span key={i} className="rounded-full bg-secondary px-2 py-0.5">
                       {labelOf(CONDITION_FIELDS, c.field)}{" "}
-                      {c.op === "eq" ? "=" : c.op === "neq" ? "≠" : "∋"} {c.value}
+                      {c.op === "eq" ? "=" : c.op === "neq" ? "≠" : "∋"}{" "}
+                      {conditionValueLabel(c, projects)}
                     </span>
                   ))}
                   <ArrowRight className="h-3 w-3" />
@@ -217,12 +223,7 @@ function AutomationsPage() {
                   Dijalankan {r.run_count}×{" "}
                   {r.last_run_at &&
                     `· terakhir ${formatDistanceToNow(new Date(r.last_run_at), { addSuffix: true, locale: localeId })}`}
-                  {(r.trigger as unknown as Trigger)?.type === "schedule" &&
-                    (r.enabled && r.next_run_at
-                      ? ` · berikutnya ${new Date(r.next_run_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`
-                      : r.enabled
-                        ? " · jadwal tidak valid"
-                        : "")}
+                  {(r.trigger as unknown as Trigger)?.type === "schedule" && scheduleStatus(r)}
                 </p>
               </button>
               <Switch
