@@ -15,6 +15,10 @@ export const BACKUP_TABLES = [
   "milestones",
   "task_dependencies",
   "automations",
+  // Habit tracker (migration 0025, owner-only). After projects (a habit may reference one) and
+  // logs after their habits; files from before habits existed simply have no such tables.
+  "habits",
+  "habit_logs",
 ] as const;
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
@@ -30,6 +34,8 @@ const dateish = z
 const ts = dateish;
 const optTs = ts.nullish();
 const optDate = dateish.nullish();
+// A habit log's day is a calendar date (the user's local day), not a timestamp.
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Tanggal tidak valid" });
 const str = (max: number) => z.string().max(max);
 const optStr = (max: number) => z.string().max(max).nullish();
 const tags = z.array(z.string().max(100)).max(100);
@@ -124,6 +130,32 @@ const schemas = {
     schedule_tz: str(64).nullish(),
     created_at: ts.optional(),
   }),
+  habits: z.object({
+    id: uuid,
+    project_id: uuid.nullish(),
+    name: str(200),
+    description: optStr(2000),
+    color: str(50).optional(),
+    icon: optStr(50),
+    schedule_type: z.enum(["daily", "weekdays", "weekly"]).optional(),
+    weekdays_mask: z.number().int().min(1).max(127).optional(),
+    times_per_week: z.number().int().min(1).max(7).optional(),
+    target: z.number().int().min(1).max(100).optional(),
+    position: z.number().finite().optional(),
+    created_at: ts.optional(),
+    updated_at: ts.optional(),
+    archived_at: optTs,
+    deleted_at: optTs,
+  }),
+  habit_logs: z.object({
+    id: uuid,
+    habit_id: uuid,
+    date: isoDay,
+    count: z.number().int().min(0).max(1000).optional(),
+    note: optStr(500),
+    created_at: ts.optional(),
+    updated_at: ts.optional(),
+  }),
 } satisfies Record<BackupTable, z.ZodType>;
 
 export type BackupRow = Record<string, unknown> & { id: string; user_id: string };
@@ -175,6 +207,7 @@ export function prepareBackup(input: unknown, userId: string): PreparedBackup {
     if (raw.length > MAX_ROWS_PER_TABLE)
       throw new BackupError(`Tabel ${table} terlalu besar (maks ${MAX_ROWS_PER_TABLE} baris)`);
     const seen = new Set<string>();
+    const days = new Set<string>();
     out[table] = raw.map((row, i) => {
       const parsed = schemas[table].safeParse(row);
       if (!parsed.success) {
@@ -185,6 +218,12 @@ export function prepareBackup(input: unknown, userId: string): PreparedBackup {
       const clean = parsed.data as Record<string, unknown> & { id: string };
       if (seen.has(clean.id)) throw new BackupError(`ID ganda di ${table}: ${clean.id}`);
       seen.add(clean.id);
+      // One log per habit and day (unique index habit_logs_habit_date_key).
+      if (table === "habit_logs") {
+        const key = `${String(clean["habit_id"])}:${String(clean["date"])}`;
+        if (days.has(key)) throw new BackupError(`Log ganda di habit_logs: ${key}`);
+        days.add(key);
+      }
       // Notes: recompute the link index and excerpt (never trusted from the file, migration 0018).
       const indexed =
         table === "notes" ? { ...clean, ...withNoteIndex(clean as { content?: string }) } : clean;
@@ -216,6 +255,35 @@ export function planUpserts(
     else skipped++;
   }
   return { update, insert, skipped };
+}
+
+/**
+ * Prepares habit logs for `planUpserts`. Habits are owner-only, so logs whose habit is not one of
+ * the current user's habits after the habits were restored (`ownedHabitIds`) are skipped. A log
+ * for a habit and day that already has a row is re-keyed to that row's id, so the restore updates
+ * the existing check-in instead of violating the unique (habit_id, date) index: one log per habit
+ * and day. A log whose id is already used by a different habit/day is skipped (a log never moves
+ * to another habit). `existing` = the user's logs of those habits plus any row with a file id.
+ */
+export function planHabitLogs(
+  rows: BackupRow[],
+  ownedHabitIds: ReadonlySet<string>,
+  existing: { id: string; habit_id: string; date: string }[],
+): { rows: BackupRow[]; skipped: number } {
+  const dayKey = (habitId: unknown, date: unknown) => `${String(habitId)}:${String(date)}`;
+  const byDay = new Map(existing.map((l) => [dayKey(l.habit_id, l.date), l.id]));
+  const byId = new Map(existing.map((l) => [l.id, dayKey(l.habit_id, l.date)]));
+  const out: BackupRow[] = [];
+  let skipped = 0;
+  for (const row of rows) {
+    const key = dayKey(row["habit_id"], row["date"]);
+    const sameDay = byDay.get(key);
+    if (!ownedHabitIds.has(String(row["habit_id"]))) skipped++;
+    else if (sameDay) out.push(sameDay === row.id ? row : { ...row, id: sameDay });
+    else if (byId.has(row.id) && byId.get(row.id) !== key) skipped++;
+    else out.push(row);
+  }
+  return { rows: out, skipped };
 }
 
 export function chunk<T>(items: T[], size: number): T[][] {

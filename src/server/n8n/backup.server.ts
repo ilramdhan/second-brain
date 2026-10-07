@@ -12,8 +12,6 @@ export const EXTRA_BACKUP_TABLES = [
   "templates",
   "time_entries",
   "canvas_boards",
-  "habits",
-  "habit_logs",
 ] as const;
 type ExportTable =
   (typeof BACKUP_TABLES)[number] | (typeof EXTRA_BACKUP_TABLES)[number] | "note_versions";
