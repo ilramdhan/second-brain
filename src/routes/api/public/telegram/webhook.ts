@@ -14,7 +14,9 @@ const LINK_HOWTO =
   "Untuk menghubungkan akun: buka Second Brain → Pengaturan → Bot Telegram → " +
   '"Hubungkan Telegram", lalu kirim ke sini: /link KODE (kode berlaku 10 menit, sekali pakai).';
 const START_TEXT =
-  "Halo! Saya bot Second Brain. Kirim catatan apa pun ke sini dan akan masuk ke Inbox Anda.\n\n" +
+  "Halo! Saya bot Second Brain. Kirim catatan apa pun ke sini dan akan masuk ke Inbox Anda. " +
+  "Pesan dengan tanggal/prioritas/estimasi, atau /task <teks>, langsung jadi tugas lengkap " +
+  "(proyek, penanggung jawab, tanggal, estimasi, tag, dependensi, komentar).\n\n" +
   LINK_HOWTO;
 const NOT_LINKED_TEXT = "Akun belum terhubung.\n\n" + LINK_HOWTO;
 const LINK_FAILED_TEXT =
@@ -97,6 +99,38 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
 
         if (!profile) {
           await sendTelegramMessage(chatId, NOT_LINKED_TEXT);
+          return new Response(JSON.stringify({ ok: true }));
+        }
+
+        // `/task …` or free text with a task signal (date, priority, estimate, status) → one
+        // fully filled task (AI extraction, regex fallback), same pipeline as n8n mode.
+        // Everything else lands in the Inbox.
+        const { parseCommand } = await import("@/server/n8n/bot.server");
+        const command = parseCommand(text);
+        const { appTimezone } = await import("@/server/n8n/time.server");
+        const { looksLikeTask, describeResolvedTask } = await import("@/server/taskExtract.server");
+        const clock = { now: new Date(), tz: appTimezone() };
+        const taskText =
+          command && (command.cmd === "task" || command.cmd === "tugas")
+            ? command.args
+            : !command && looksLikeTask(text, clock.now, clock.tz)
+              ? text
+              : null;
+        if (taskText) {
+          const { captureTaskFromText } = await import("@/server/taskCapture.server");
+          const result = await captureTaskFromText(profile.id, taskText.slice(0, 4000), {
+            clock,
+            origin: new URL(request.url).origin,
+          });
+          const { sendTelegram } = await import("@/lib/telegram.server");
+          await sendTelegram(
+            chatId,
+            describeResolvedTask(result.resolved, result.via, clock.tz, {
+              dependencies: result.dependencies,
+              comments: result.comments,
+            }),
+            { parse_mode: "HTML" },
+          );
           return new Response(JSON.stringify({ ok: true }));
         }
 

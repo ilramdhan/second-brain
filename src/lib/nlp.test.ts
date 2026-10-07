@@ -190,3 +190,39 @@ describe("parseTaskText: recurrence", () => {
     expect(r.due).toEqual(at(19, 9));
   });
 });
+
+describe("parseTaskText: estimate and status tokens", () => {
+  it.each([
+    ["~30m", 30],
+    ["~45", 45],
+    ["~2j", 120],
+    ["~1.5h", 90],
+    ["~1j30m", 90],
+    ["~2jam", 120],
+  ])("parses %s as %i minutes", (token, minutes) => {
+    const r = parse(`Rapikan backlog ${token}`);
+    expect(r.estimateMinutes).toBe(minutes);
+    expect(r.title).toBe("Rapikan backlog");
+  });
+
+  it("ignores zero or absurd estimates", () => {
+    expect(parse("Tugas ~0m").estimateMinutes).toBeNull();
+    expect(parse("Tugas ~99999m").estimateMinutes).toBeNull();
+  });
+
+  it.each([
+    ["status:review", "review"],
+    ["status:dikerjakan", "in_progress"],
+    ["status=selesai", "done"],
+    ["status:todo", "todo"],
+  ])("maps %s → %s", (token, status) => {
+    const r = parse(`Cek PR ${token} besok`);
+    expect(r.status).toBe(status);
+    expect(r.title).toBe("Cek PR");
+  });
+
+  it("drops unknown status words and defaults both to null", () => {
+    expect(parse("Cek PR status:blocked").status).toBeNull();
+    expect(parse("Cek PR")).toMatchObject({ status: null, estimateMinutes: null });
+  });
+});

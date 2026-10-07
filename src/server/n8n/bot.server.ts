@@ -4,7 +4,8 @@
 import { escapeHtml, formatDue, taskLine, type ReplyMarkup } from "./format.server";
 import { parseCallback, type BotRequest } from "./schemas.server";
 import * as svc from "./service.server";
-import { appTimezone, parseTaskTextInZone, startOfZonedDay } from "./time.server";
+import { looksLikeTask } from "../taskExtract.server";
+import { appTimezone, startOfZonedDay } from "./time.server";
 
 export type BotReply =
   | {
@@ -40,7 +41,7 @@ export const HELP_TEXT = [
   "<b>Second Brain bot</b>",
   "Kirim teks apa pun → Inbox (atau tugas bila ada tanggal/prioritas).",
   "",
-  "/task &lt;teks&gt; — buat tugas (<i>besok 9:00 #tag !high +proyek</i>)",
+  "/task &lt;teks&gt; — buat tugas lengkap (AI mengisi proyek, PJ, tanggal, estimasi, tag, dependensi, komentar; tanpa AI: <i>besok 9:00 #tag !high +proyek @orang ~2j status:review</i>)",
   "/note Judul | isi — buat catatan",
   "/inbox — item Inbox yang menunggu",
   "/today, /upcoming, /overdue, /week — daftar tugas",
@@ -87,47 +88,43 @@ function inboxButtons(id: string): ReplyMarkup {
 
 type Ctx = { userId: string; origin: string | null; tz: string; now: Date };
 
-async function createTaskFromText(ctx: Ctx, text: string, source: string | null) {
-  const parsed = parseTaskTextInZone(text, ctx.now, ctx.tz);
-  const project_id = await svc.resolveProjectId(ctx.userId, parsed.project);
-  const task = await svc.createTask(
-    ctx.userId,
-    {
-      title: parsed.title.slice(0, 300),
-      due_date: parsed.due?.toISOString() ?? null,
-      tags: parsed.tags,
-      assignee_name: parsed.assignee,
-      priority: parsed.priority ?? "medium",
-      project_id,
-      recurrence: parsed.recurrence,
-      description: source ? `Dibuat dari Telegram (${source})` : null,
-    },
-    ctx.origin,
-  );
-  const meta = [
-    task.due_date ? `📅 ${formatDue(task.due_date, ctx.tz)}` : null,
-    task.priority !== "medium" ? `prioritas ${task.priority}` : null,
-    task.tags.length ? task.tags.map((t) => `#${t}`).join(" ") : null,
-    parsed.project && !project_id
-      ? `(proyek "${escapeHtml(parsed.project)}" tidak ditemukan)`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  return send(`✅ Tugas dibuat: <b>${escapeHtml(task.title)}</b>${meta ? `\n${meta}` : ""}`, {
+function taskButtons(taskId: string): ReplyMarkup {
+  return {
     inline_keyboard: [
       [
-        { text: "✅ Selesai", callback_data: `done:${task.id}` },
-        { text: "📅 Besok", callback_data: `snooze:${task.id}:1d` },
+        { text: "✅ Selesai", callback_data: `done:${taskId}` },
+        { text: "📅 Besok", callback_data: `snooze:${taskId}:1d` },
       ],
     ],
+  };
+}
+
+/**
+ * Creates a fully filled task from free text: AI extraction (projects, members and open tasks of
+ * the user as candidates) with the regex parser as fallback, then the reply lists every field
+ * that was filled and what was ignored.
+ */
+async function createTaskFromText(ctx: Ctx, text: string, source: string | null) {
+  const { captureTaskFromText } = await import("../taskCapture.server");
+  const { describeResolvedTask } = await import("../taskExtract.server");
+  const result = await captureTaskFromText(ctx.userId, text, {
+    clock: { now: ctx.now, tz: ctx.tz },
+    origin: ctx.origin,
+    note: source ? `Dibuat dari Telegram (${source})` : null,
   });
+  return send(
+    describeResolvedTask(result.resolved, result.via, ctx.tz, {
+      dependencies: result.dependencies,
+      comments: result.comments,
+    }),
+    taskButtons(result.task.id),
+  );
 }
 
 async function captureText(ctx: Ctx, text: string, source: "telegram" | "ocr" | "voice") {
-  const parsed = parseTaskTextInZone(text, ctx.now, ctx.tz);
-  // Plain text becomes a task only when the parser found a date or a priority.
-  if (source === "telegram" && (parsed.due || parsed.priority) && text.length <= 500)
+  // Plain text becomes a task only when the local parser finds a task signal (date, priority,
+  // estimate or status token); the full field extraction then runs on the whole message.
+  if (source === "telegram" && looksLikeTask(text, ctx.now, ctx.tz))
     return createTaskFromText(ctx, text, null);
   const item = await svc.createInboxItem(ctx.userId, text, source);
   return send(`📥 Tersimpan di Inbox`, inboxButtons(item.id));
@@ -333,24 +330,21 @@ async function handleCallback(ctx: Ctx, data: string): Promise<BotReply> {
     return callback("Dihapus", `🗑 <s>${escapeHtml(item.content.slice(0, 200))}</s>`);
   }
   if (cb.action === "totask") {
-    const parsed = parseTaskTextInZone(item.content.split("\n")[0]!.slice(0, 500), ctx.now, ctx.tz);
-    const task = await svc.createTask(
-      ctx.userId,
-      {
-        title: parsed.title.slice(0, 300),
-        description: item.content.length > 300 ? item.content : null,
-        due_date: parsed.due?.toISOString() ?? null,
-        tags: parsed.tags,
-        priority: parsed.priority ?? "medium",
-        project_id: await svc.resolveProjectId(ctx.userId, parsed.project),
-        recurrence: parsed.recurrence,
-      },
-      ctx.origin,
-    );
-    await svc.setInboxStatus(ctx.userId, item.id, "processed");
-    return callback("Tugas dibuat", `✅ Tugas: <b>${escapeHtml(task.title)}</b>`, {
-      inline_keyboard: [[{ text: "✅ Selesai", callback_data: `done:${task.id}` }]],
+    const { captureTaskFromText } = await import("../taskCapture.server");
+    const result = await captureTaskFromText(ctx.userId, item.content, {
+      clock: { now: ctx.now, tz: ctx.tz },
+      origin: ctx.origin,
     });
+    await svc.setInboxStatus(ctx.userId, item.id, "processed");
+    const { describeResolvedTask } = await import("../taskExtract.server");
+    return callback(
+      "Tugas dibuat",
+      describeResolvedTask(result.resolved, result.via, ctx.tz, {
+        dependencies: result.dependencies,
+        comments: result.comments,
+      }),
+      { inline_keyboard: [[{ text: "✅ Selesai", callback_data: `done:${result.task.id}` }]] },
+    );
   }
   const [first, ...rest] = item.content.split("\n");
   const note = await svc.createNote(

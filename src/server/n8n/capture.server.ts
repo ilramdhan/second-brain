@@ -3,13 +3,17 @@
 import type { CaptureRequest } from "./schemas.server";
 import { N8nHttpError } from "./http.server";
 import * as svc from "./service.server";
-import { appTimezone, parseTaskTextInZone } from "./time.server";
+import { looksLikeTask, matchByName } from "../taskExtract.server";
+import { appTimezone } from "./time.server";
 
 export type CaptureResult = {
   ok: true;
   type: "task" | "note" | "inbox";
   id: string;
   duplicate: boolean;
+  /** Tasks only: who filled the fields ("ai" or the local "regex" parser) and which ones. */
+  via?: "ai" | "regex";
+  filled?: string[];
 };
 
 export async function resolveCaptureUser(body: Pick<CaptureRequest, "user_email" | "chat_id">) {
@@ -24,8 +28,7 @@ export async function resolveCaptureUser(body: Pick<CaptureRequest, "user_email"
 
 /** Decides the target for `auto` (pure): a date or priority in the text makes it a task. */
 export function autoTarget(text: string, now: Date, tz: string): "task" | "inbox" {
-  const parsed = parseTaskTextInZone(text, now, tz);
-  return parsed.due || parsed.priority ? "task" : "inbox";
+  return looksLikeTask(text, now, tz) ? "task" : "inbox";
 }
 
 export async function capture(
@@ -44,35 +47,52 @@ export async function capture(
   const link = body.url ? `\n\n${body.url}` : "";
 
   if (target === "task") {
-    const parsed = parseTaskTextInZone(headline, now, tz);
-    const tags = [
-      ...new Set([
-        ...(body.tags ?? []).map((t) => t.replace(/^#/, "").toLowerCase()),
-        ...parsed.tags,
-      ]),
-    ];
-    const description =
-      [body.description?.trim() || (title && text ? text : ""), body.url ?? ""]
-        .filter(Boolean)
-        .join("\n\n") || null;
-    const task = await svc.createTask(
-      userId,
-      {
-        title: (parsed.title || headline).slice(0, 300),
-        description: description?.slice(0, 20_000) ?? null,
-        start_date: body.start_date ? new Date(body.start_date).toISOString() : null,
-        due_date: body.due_date
-          ? new Date(body.due_date).toISOString()
-          : (parsed.due?.toISOString() ?? null),
-        priority: body.priority ?? parsed.priority ?? "medium",
-        tags,
-        project_id: await svc.resolveProjectId(userId, body.project ?? parsed.project),
-        recurrence: parsed.recurrence,
-        google_event_id: body.google_event_id ?? null,
-      },
+    // Full-field extraction (AI, regex fallback) over the message; explicit fields sent by n8n
+    // (dates, priority, tags, project, description, url) always win over extracted values.
+    const message = title && text ? `${title}\n${text}` : headline || text;
+    const { captureTaskFromText } = await import("../taskCapture.server");
+    const result = await captureTaskFromText(userId, message, {
+      clock: { now, tz },
       origin,
-    );
-    return { ok: true, type: "task", id: task.id };
+      adjust: (resolved, candidates) => {
+        const t = resolved.insert;
+        if (body.description?.trim()) t.description = body.description.trim();
+        if (body.url) t.description = [t.description, body.url].filter(Boolean).join("\n\n");
+        if (t.description) t.description = t.description.slice(0, 20_000);
+        if (body.start_date) t.start_date = new Date(body.start_date).toISOString();
+        if (body.due_date) t.due_date = new Date(body.due_date).toISOString();
+        if (body.priority) t.priority = body.priority;
+        if (body.tags?.length)
+          t.tags = [
+            ...new Set([...body.tags.map((x) => x.replace(/^#/, "").toLowerCase()), ...t.tags]),
+          ].slice(0, 20);
+        if (body.project) {
+          const project = matchByName(body.project, candidates.projects, (p) => p.name);
+          if (project && project.id !== t.project_id) {
+            t.project_id = project.id;
+            resolved.project = project;
+            // The assignee must belong to the project the task ends up in.
+            if (
+              t.assignee_id &&
+              !candidates.members.some(
+                (m) => m.project_id === project.id && m.user_id === t.assignee_id,
+              )
+            ) {
+              t.assignee_id = null;
+              t.assignee_name = null;
+            }
+          }
+        }
+        if (body.google_event_id) t.google_event_id = body.google_event_id;
+      },
+    });
+    return {
+      ok: true,
+      type: "task",
+      id: result.task.id,
+      via: result.via,
+      filled: result.resolved.filled,
+    };
   }
 
   const summary = body.summarize && text ? await svc.summarizeForUser(userId, text) : null;

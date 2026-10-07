@@ -18,8 +18,30 @@ export type ParsedTask = {
   priority: "high" | "medium" | "low" | null;
   project: string | null;
   recurrence: "daily" | "weekly" | "monthly" | null;
+  /** `~30m`, `~2j`, `~1.5h`, `~1j30m` → minutes. */
+  estimateMinutes: number | null;
+  /** `status:review`, `status:dikerjakan`, `status:selesai` … */
+  status: TaskStatusToken | null;
   matches: string[];
 };
+
+export type TaskStatusToken = "todo" | "in_progress" | "review" | "done";
+
+const STATUS_WORDS: Record<string, TaskStatusToken> = {
+  todo: "todo",
+  "to-do": "todo",
+  baru: "todo",
+  in_progress: "in_progress",
+  progress: "in_progress",
+  proses: "in_progress",
+  dikerjakan: "in_progress",
+  review: "review",
+  done: "done",
+  selesai: "done",
+};
+
+/** Upper bound for a parsed estimate (one week of minutes). */
+export const MAX_ESTIMATE_MINUTES = 7 * 24 * 60;
 
 const DAYS: Record<string, Day> = {
   minggu: 0,
@@ -112,6 +134,22 @@ export function parseTaskText(input: string, now = new Date()): ParsedTask {
           : "medium";
   });
   if (!priority && tags.some((t) => ["urgent", "penting", "asap"].includes(t))) priority = "high";
+
+  let estimateMinutes: number | null = null;
+  take(
+    /\s~(\d+(?:[.,]\d+)?)(j|jam|h|m|mnt|menit|min)?(?:(\d+)(?:m|mnt|menit|min)?)?(?=\s)/i,
+    (m) => {
+      const n = Number(m[1]!.replace(",", "."));
+      const hours = m[2] ? /^(j|jam|h)$/i.test(m[2]) : false;
+      const total = Math.round(hours ? n * 60 + Number(m[3] ?? 0) : n);
+      if (total > 0 && total <= MAX_ESTIMATE_MINUTES) estimateMinutes = total;
+    },
+  );
+
+  let status: TaskStatusToken | null = null;
+  take(/\sstatus[:=]([a-z_-]+)(?=\s)/i, (m) => {
+    status = STATUS_WORDS[m[1]!.toLowerCase()] ?? null;
+  });
 
   let recurrence: ParsedTask["recurrence"] = null;
   take(/\s(setiap|tiap|every)\s+(hari|day|minggu|week|bulan|month)\b/i, (m) => {
@@ -221,6 +259,8 @@ export function parseTaskText(input: string, now = new Date()): ParsedTask {
     priority,
     project,
     recurrence,
+    estimateMinutes,
+    status,
     matches,
   };
 }

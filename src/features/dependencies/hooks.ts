@@ -8,6 +8,7 @@ import { getUid } from "@/features/shared/session";
 import { supabase } from "@/integrations/supabase/client";
 import { insertRow, removeRows } from "@/lib/query-cache";
 import { toastError } from "@/lib/errors";
+import { createsDependencyCycle } from "@/lib/task-rules";
 
 export function useDeps() {
   return useQuery(depsQuery);
@@ -18,17 +19,12 @@ export function useDependencyActions() {
   async function add(blocker_id: string, blocked_id: string) {
     const deps = qc.getQueryData<Dependency[]>(qk.deps) ?? [];
     // reject cycles: blocked_id must not (transitively) block blocker_id
-    const stack = [blocked_id];
-    const seen = new Set<string>();
-    while (stack.length) {
-      const cur = stack.pop()!;
-      if (cur === blocker_id) {
-        toast.error("Tidak bisa: akan membuat ketergantungan melingkar");
-        return;
-      }
-      if (seen.has(cur)) continue;
-      seen.add(cur);
-      deps.filter((d) => d.blocker_id === cur).forEach((d) => stack.push(d.blocked_id));
+    const cycle = await createsDependencyCycle(blocker_id, blocked_id, (ids) =>
+      deps.filter((d) => ids.includes(d.blocker_id)).map((d) => d.blocked_id),
+    );
+    if (cycle) {
+      toast.error("Tidak bisa: akan membuat ketergantungan melingkar");
+      return;
     }
     const user_id = await getUid();
     const { data, error } = await supabase

@@ -97,6 +97,29 @@ export const DEMO_MEETING_EXAMPLES: readonly DemoExample[] = [
   },
 ];
 
+/**
+ * One-message tasks with every field (Telegram bot / inbox "Jadikan tugas (AI)"): the demo answers
+ * with a full extraction (project, assignee, dates, estimate, tags, dependency, comment) whose
+ * references match the demo seed (project "Aplikasi Kasir", members Rina and Budi, open task
+ * "API laporan penjualan harian").
+ */
+export const DEMO_TASK_CAPTURE_EXAMPLES: readonly DemoExample[] = [
+  {
+    key: "task-full",
+    label: { id: "Tugas lengkap untuk tim", en: "Fully specified team task" },
+    text: [
+      "Rina tolong uji halaman laporan harian di Aplikasi Kasir, mulai besok jam 9, deadline Jumat, kira-kira 3 jam, urgent #qa",
+      "setelah API laporan penjualan harian selesai",
+      "komentar: pakai data toko pilot minggu lalu",
+    ].join("\n"),
+  },
+  {
+    key: "task-progress",
+    label: { id: "Sedang dikerjakan", en: "Already in progress" },
+    text: "Lagi ngerjain sketsa banner promo akhir bulan, estimasi 2 jam, prioritas rendah #desain",
+  },
+];
+
 /** What the demo "transcribes" from any recording (transcribeVoice). */
 export const DEMO_VOICE_TRANSCRIPT =
   "Ingatkan saya kirim proposal ke klien besok jam 10, terus beli kopi buat kantor.";
@@ -114,6 +137,7 @@ export const DEMO_OCR_TEXT = [
 export const DEMO_CAPTURE_EXAMPLES: readonly DemoExample[] = [
   ...DEMO_BRAIN_DUMP_EXAMPLES,
   ...DEMO_PARAPHRASE_EXAMPLES,
+  ...DEMO_TASK_CAPTURE_EXAMPLES,
 ];
 
 /**
@@ -126,6 +150,8 @@ export const DEMO_INBOX_ITEMS: readonly { content: string; source: "manual" | "v
     { content: DEMO_PARAPHRASE_EXAMPLES[0]!.text, source: "manual" },
     { content: DEMO_VOICE_TRANSCRIPT, source: "voice" },
     { content: DEMO_OCR_TEXT, source: "ocr" },
+    // "Jadikan tugas (AI)" turns this one into a task with every field filled.
+    { content: DEMO_TASK_CAPTURE_EXAMPLES[0]!.text, source: "manual" },
   ];
 
 /** Raw meeting note for the demo seed ("Buat notulen" turns it into the weekly fixture). */

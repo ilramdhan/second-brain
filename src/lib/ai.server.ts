@@ -9,6 +9,7 @@ import {
   hashEmbedding,
 } from "@/lib/semantic";
 import type { DemoTextKind } from "@/server/demo/ai-fixtures.server";
+import type { ExtractedTask, TaskCandidates } from "@/server/taskExtract.server";
 
 // Direct AI provider access through the Vercel AI SDK (no vendor gateway).
 //
@@ -255,6 +256,49 @@ Proyek yang sudah ada: ${existingProjects.length ? existingProjects.join(", ") :
       if (match) {
         const parsed = parsedTaskSchema.safeParse(JSON.parse(match[0]));
         if (parsed.success) return parsed.data.tasks;
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Full-field extraction of ONE task from a message (Telegram, inbox, n8n capture). The model gets
+ * the candidate names (projects, project members, open task titles) and returns names only;
+ * src/server/taskExtract.server.ts validates every reference afterwards. Callers gate it with
+ * assertAiAvailable() + the per-user AI budget and fall back to the regex parser on any error.
+ */
+export async function aiExtractTask(
+  request: Request,
+  text: string,
+  candidates: TaskCandidates,
+  clock: { now: Date; tz: string },
+): Promise<ExtractedTask> {
+  const extract = await import("@/server/taskExtract.server");
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) {
+    const demo = await import("@/server/demo/ai-fixtures.server");
+    await demo.demoDelay(request.signal);
+    return demo.demoExtractTask(text, candidates, clock);
+  }
+  const config = aiConfigFromEnv();
+  const opts = providerOptions(config);
+  try {
+    const result = streamText({
+      model: languageModel(config, config.model),
+      abortSignal: request.signal,
+      output: Output.object({ schema: extract.extractedTaskSchema }),
+      system: extract.extractSystemPrompt(clock),
+      messages: [{ role: "user", content: extract.extractUserPrompt(text, candidates) }],
+      ...(opts ? { providerOptions: opts } : {}),
+    });
+    return await result.output;
+  } catch (error) {
+    if (NoObjectGeneratedError.isInstance(error) && error.text) {
+      const match = error.text.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = extract.extractedTaskSchema.safeParse(JSON.parse(match[0]));
+        if (parsed.success) return parsed.data;
       }
     }
     throw error;
