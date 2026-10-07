@@ -539,7 +539,11 @@ function BackupPanel() {
     const existing: { id: string; habit_id: string; date: string }[] = [];
     const seen = new Set<string>();
     const add = (data: { id: string; habit_id: string; date: string }[]) => {
-      for (const l of data) if (!seen.has(l.id)) (seen.add(l.id), existing.push(l));
+      for (const l of data) {
+        if (seen.has(l.id)) continue;
+        seen.add(l.id);
+        existing.push(l);
+      }
     };
     for (const ids of chunk([...owned], 50)) {
       for (let from = 0; ; from += 1000) {
