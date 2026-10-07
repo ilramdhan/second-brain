@@ -20,6 +20,7 @@ import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedCanvasRouteImport } from './routes/_authenticated/canvas'
 import { Route as AuthenticatedGraphRouteImport } from './routes/_authenticated/graph'
+import { Route as AuthenticatedHabitsRouteImport } from './routes/_authenticated/habits'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -101,6 +102,11 @@ const AuthenticatedCanvasRoute = AuthenticatedCanvasRouteImport.update({
 const AuthenticatedGraphRoute = AuthenticatedGraphRouteImport.update({
   id: '/graph',
   path: '/graph',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedHabitsRoute = AuthenticatedHabitsRouteImport.update({
+  id: '/habits',
+  path: '/habits',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/canvas': typeof AuthenticatedCanvasRoute
   '/graph': typeof AuthenticatedGraphRoute
+  '/habits': typeof AuthenticatedHabitsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -296,6 +303,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/canvas': typeof AuthenticatedCanvasRoute
   '/graph': typeof AuthenticatedGraphRoute
+  '/habits': typeof AuthenticatedHabitsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/canvas': typeof AuthenticatedCanvasRoute
   '/_authenticated/graph': typeof AuthenticatedGraphRoute
+  '/_authenticated/habits': typeof AuthenticatedHabitsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -378,6 +387,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/canvas'
     | '/graph'
+    | '/habits'
     | '/inbox'
     | '/reports'
     | '/settings'
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/canvas'
     | '/graph'
+    | '/habits'
     | '/inbox'
     | '/reports'
     | '/settings'
@@ -457,6 +468,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/canvas'
     | '/_authenticated/graph'
+    | '/_authenticated/habits'
     | '/_authenticated/inbox'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
@@ -587,6 +599,13 @@ declare module '@tanstack/react-router' {
       path: '/graph'
       fullPath: '/graph'
       preLoaderRoute: typeof AuthenticatedGraphRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/habits': {
+      id: '/_authenticated/habits'
+      path: '/habits'
+      fullPath: '/habits'
+      preLoaderRoute: typeof AuthenticatedHabitsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/inbox': {
@@ -788,6 +807,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedCanvasRoute: typeof AuthenticatedCanvasRoute
   AuthenticatedGraphRoute: typeof AuthenticatedGraphRoute
+  AuthenticatedHabitsRoute: typeof AuthenticatedHabitsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -808,6 +828,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedCanvasRoute: AuthenticatedCanvasRoute,
   AuthenticatedGraphRoute: AuthenticatedGraphRoute,
+  AuthenticatedHabitsRoute: AuthenticatedHabitsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

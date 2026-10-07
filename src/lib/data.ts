@@ -60,3 +60,16 @@ export { useSearch, useSemanticSearch, useSemanticStatus } from "@/features/sear
 
 export { SHARE_COLS, sharesQuery } from "@/features/shares/api";
 export { useCanShare, useShareActions, useShareFor, useShares } from "@/features/shares/hooks";
+
+export type { Habit, HabitLog } from "@/features/habits/types";
+export { HABIT_COLS, HABIT_LOG_COLS, habitLogsQuery, habitsQuery } from "@/features/habits/api";
+export {
+  useHabitActions,
+  useHabitLogActions,
+  useHabitLogs,
+  useHabits,
+} from "@/features/habits/hooks";
+
+export type { ReportParams } from "@/features/reports/api";
+export { reportDailyQuery, timeEntriesQuery } from "@/features/reports/api";
+export { useReportDaily, useTimeEntries } from "@/features/reports/hooks";

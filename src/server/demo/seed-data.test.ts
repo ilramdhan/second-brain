@@ -4,6 +4,8 @@ import { linksOf, loadBlocks, noteIndexFields, toMarkdown, type Block } from "@/
 import { DEMO_INBOX_ITEMS, DEMO_MEETING_NOTE, DEMO_PROJECT_NAMES } from "@/lib/demo-examples";
 import type { Json } from "@/integrations/supabase/types";
 import { isValidCron } from "@/lib/cron";
+import { completion, streaks } from "@/lib/habits";
+import { addDays, bucketize, burndown, type DailyRow } from "@/lib/reports";
 
 import {
   buildDemoSeed,
@@ -86,6 +88,8 @@ describe("buildDemoSeed: structure", () => {
       canvas_edges: 300,
       templates: 30,
       time_entries: 300,
+      habits: 30,
+      habit_logs: 1000,
       project_members: 10,
     };
     for (const [table, limit] of Object.entries(limits)) {
@@ -313,6 +317,88 @@ describe("buildDemoSeed: every page has data", () => {
         .map((t) => Math.floor(-dayOffset(t.completed_at!) / 7)),
     );
     expect(doneWeeks.size).toBeGreaterThanOrEqual(6);
+  });
+
+  it("reports: 2+ tasks completed in each of the last 8 weeks, a burndown with an ideal line", () => {
+    // Build the rows report_daily would return (UTC+7 days) from the seed and run the helpers.
+    const live = seed.tasks.filter((t) => !t.deleted_at);
+    const days = Array.from({ length: 56 }, (_, i) => addDays(TODAY, i - 55));
+    const rows: DailyRow[] = days.map((day) => {
+      const end = Date.parse(`${addDays(day, 1)}T00:00:00+07:00`);
+      const on = (iso: string | null | undefined) =>
+        !!iso && new Date(Date.parse(iso) + 7 * 3600_000).toISOString().slice(0, 10) === day;
+      const open = live.filter(
+        (t) =>
+          t.project_id === seed.projects[0]!.id &&
+          Date.parse(t.created_at!) < end &&
+          (!t.completed_at || Date.parse(t.completed_at) >= end),
+      );
+      return {
+        day,
+        created: live.filter((t) => on(t.created_at)).length,
+        completed: live.filter((t) => on(t.completed_at)).length,
+        completed_minutes: 0,
+        open_tasks: open.length,
+        open_minutes: open.reduce((s, t) => s + (t.estimate_minutes ?? 0), 0),
+        focus_seconds: 0,
+        planned_minutes: 0,
+      };
+    });
+    const weeks = bucketize(rows, "week").filter((b) => b.days === 7);
+    expect(weeks.length).toBeGreaterThanOrEqual(7);
+    for (const w of weeks) expect(w.completed, w.start).toBeGreaterThanOrEqual(2);
+    const kasir = seed.projects[0]!;
+    const pts = burndown(rows.slice(-30), {
+      unit: "tasks",
+      due: kasir.due_date!.slice(0, 10),
+      today: TODAY,
+    });
+    expect(pts.some((p) => p.ideal !== null)).toBe(true);
+    expect(pts.filter((p) => p.remaining !== null).every((p) => p.remaining! > 0)).toBe(true);
+  });
+
+  it("habits: every schedule type, ~6 weeks of check-ins, live streaks", () => {
+    expect(new Set(seed.habits.map((h) => h.schedule_type))).toEqual(
+      new Set(["daily", "weekdays", "weekly"]),
+    );
+    expect(seed.habits.some((h) => (h.target ?? 1) > 1)).toBe(true);
+    const span = Math.max(
+      ...seed.habit_logs.map((l) => -Math.round((Date.parse(l.date) - Date.parse(TODAY)) / DAY)),
+    );
+    expect(span).toBeGreaterThanOrEqual(40);
+    const keys = new Set(seed.habit_logs.map((l) => `${l.habit_id}:${l.date}`));
+    expect(keys.size).toBe(seed.habit_logs.length); // unique per habit and day
+    const habitIds = new Set(seed.habits.map((h) => h.id));
+    for (const l of seed.habit_logs) {
+      expect(habitIds).toContain(l.habit_id);
+      expect(l.date <= TODAY).toBe(true);
+      expect(l.count).toBeGreaterThan(0);
+    }
+    const logs = seed.habit_logs.map((l) => ({
+      habit_id: l.habit_id,
+      date: l.date,
+      count: l.count!,
+    }));
+    const asHabit = (h: (typeof seed.habits)[number]) => ({
+      id: h.id!,
+      schedule_type: h.schedule_type!,
+      weekdays_mask: h.weekdays_mask!,
+      times_per_week: h.times_per_week!,
+      target: h.target!,
+    });
+    const since = (h: (typeof seed.habits)[number]) => addDays(TODAY, dayOffset(h.created_at!));
+    const current = seed.habits.map((h) => streaks(asHabit(h), logs, TODAY, since(h)).current);
+    expect(current.filter((c) => c > 0).length).toBeGreaterThanOrEqual(3);
+    for (const h of seed.habits) {
+      const r = completion(
+        asHabit(h),
+        logs,
+        { from: addDays(TODAY, -29), to: TODAY },
+        TODAY,
+        since(h),
+      );
+      expect(r.rate, h.name).toBeGreaterThan(0.5);
+    }
   });
 
   it("canvas, templates, automations with runs, activity", () => {

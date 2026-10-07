@@ -63,6 +63,11 @@
   --color-tone-violet: var(--tone-violet);
   --color-tone-green: var(--tone-green);
   --color-tone-slate: var(--tone-slate);
+  /* Charts (/reports, /habits) */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
 }
 
 :root {
@@ -113,6 +118,12 @@
   --tone-violet: oklch(0.5 0.1 300);
   --tone-green: oklch(0.5 0.1 150);
   --tone-slate: oklch(0.5 0.02 250);
+  /* Chart series (categorical slots 1-2, validated with the dataviz palette checker against the
+     card surface: CVD and normal-vision separation, >= 3:1 contrast) and recessive chrome. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-grid: oklch(0.93 0.004 95);
+  --chart-axis: oklch(0.82 0.006 95);
 }
 
 .dark {
@@ -159,6 +170,10 @@
   --tone-violet: oklch(0.7 0.09 300);
   --tone-green: oklch(0.7 0.1 150);
   --tone-slate: oklch(0.68 0.02 250);
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-grid: oklch(1 0 0 / 7%);
+  --chart-axis: oklch(1 0 0 / 18%);
 }
 
 @layer base {

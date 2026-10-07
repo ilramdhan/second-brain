@@ -5,7 +5,8 @@
 // Design rules:
 //   * Every authenticated page has something to show: today, inbox, tasks (list, kanban,
 //     calendar, timeline), projects (+ members, milestones), notes (links, refs, queries,
-//     backlinks, graph), canvas, automations (+ run history), reports (8 weeks of focus time),
+//     backlinks, graph), canvas, automations (+ run history), reports (8 weeks of focus time
+//     and completed work, burndown per project/milestone), habits (6 weeks of check-ins),
 //     templates, archive + trash and the activity log.
 //   * Dates are relative to the reset day (`today`, a calendar date in APP_TIMEZONE), so the
 //     demo never shows stale deadlines. Times of day are local (default Asia/Jakarta).
@@ -59,6 +60,8 @@ export type DemoSeed = {
   task_dependencies: TablesInsert<"task_dependencies">[];
   task_comments: TablesInsert<"task_comments">[];
   time_entries: TablesInsert<"time_entries">[];
+  habits: TablesInsert<"habits">[];
+  habit_logs: TablesInsert<"habit_logs">[];
   notes: TablesInsert<"notes">[];
   note_versions: TablesInsert<"note_versions">[];
   inbox_items: TablesInsert<"inbox_items">[];
@@ -85,6 +88,8 @@ export const DEMO_SEED_INSERT_ORDER: readonly DemoSeedTable[] = [
   "task_dependencies",
   "task_comments",
   "time_entries",
+  "habits",
+  "habit_logs",
   "notes",
   "note_versions",
   "inbox_items",
@@ -783,6 +788,42 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
       estimate: 30 + (i % 4) * 30,
       created: d - 6,
     })),
+    // More finished work for throughput and the burndown of Aplikasi Kasir / Website Toko:
+    // 2-3 per week over the last 8 weeks, with estimates, created a few days before.
+    ...[-1, -4, -6, -8, -11, -13, -15, -18, -22, -24, -27, -29, -33, -36, -40, -45, -48, -53].map(
+      (d, i): TaskSpec => ({
+        key: `done-extra-${i}`,
+        title: [
+          "Review PR modul diskon",
+          "Rapikan query laporan penjualan",
+          "Tulis tes untuk struk",
+          "Optimasi gambar katalog",
+          "Perbaiki layout keranjang di HP",
+          "Tambah filter kategori produk",
+          "Sinkronkan stok antar cabang",
+          "Update kebijakan privasi toko",
+          "Siapkan template email pesanan",
+          "Benahi pencarian produk",
+          "Tambah metode bayar QRIS",
+          "Uji beban checkout",
+          "Desain ulang halaman produk",
+          "Cetak ulang label rak",
+          "Setel backup database harian",
+          "Buat halaman FAQ",
+          "Integrasi kurir lokal",
+          "Rapikan skema tabel transaksi",
+        ][i]!,
+        status: "done",
+        priority: (["medium", "high", "low"] as const)[i % 3]!,
+        project: i % 2 === 0 ? "kasir" : "website",
+        ...(i % 2 === 0 && d > -20 ? { milestone: "v2" } : {}),
+        tags: [],
+        due: d,
+        completed: d,
+        estimate: 30 + (i % 3) * 45,
+        created: d - 3 - (i % 5),
+      }),
+    ),
     // Archive and trash (< 30 days, so the 30-day purge keeps them).
     {
       key: "arsip-1",
@@ -934,6 +975,110 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
         ended_at: new Date(Date.parse(start) + minutes * 60_000).toISOString(),
         duration_seconds: minutes * 60,
         created_at: start,
+      });
+    }
+  }
+
+  /* habits: a few routines with ~6 weeks of check-ins (streaks, week grid, consistency) */
+  type HabitSpec = {
+    key: string;
+    name: string;
+    color: string;
+    project?: string;
+    schedule_type: "daily" | "weekdays" | "weekly";
+    weekdays_mask?: number;
+    times_per_week?: number;
+    target?: number;
+    created: number;
+    /** Whether the habit was done `d` days from today (d <= 0), and how many times. */
+    done: (d: number, wd: number) => number;
+  };
+  const habitSpecs: HabitSpec[] = [
+    {
+      key: "jalan",
+      name: "Jalan kaki 20 menit",
+      color: "green",
+      project: "sehat",
+      schedule_type: "daily",
+      created: -45,
+      // Mostly done, a few misses, a running streak of the last 9 days.
+      done: (d) => (d > -9 || (d * 7) % 5 !== 0 ? 1 : 0),
+    },
+    {
+      key: "air",
+      name: "Minum 8 gelas air",
+      color: "blue",
+      project: "sehat",
+      schedule_type: "daily",
+      target: 8,
+      created: -40,
+      // Most days 8, every fifth day short (6); today in progress (5).
+      done: (d) => (d === 0 ? 5 : -d % 5 === 4 ? 6 : 8),
+    },
+    {
+      key: "baca",
+      name: "Baca 10 halaman",
+      color: "violet",
+      project: "belajar",
+      schedule_type: "weekdays",
+      weekdays_mask: 0b0011111,
+      created: -42,
+      done: (d, wd) => (wd < 5 && (-d % 4 !== 3 || d > -6) ? 1 : 0),
+    },
+    {
+      key: "gym",
+      name: "Latihan kekuatan",
+      color: "amber",
+      project: "sehat",
+      schedule_type: "weekly",
+      times_per_week: 3,
+      created: -44,
+      // Mon / Wed / Fri, one short week three weeks ago.
+      done: (d, wd) =>
+        (wd === 0 || wd === 2 || wd === 4) && !(d < -14 && d > -22 && wd === 4) ? 1 : 0,
+    },
+    {
+      key: "jurnal",
+      name: "Jurnal syukur",
+      color: "rose",
+      schedule_type: "daily",
+      created: -12,
+      done: (d) => (d === 0 ? 0 : -d % 6 === 5 ? 0 : 1),
+    },
+  ];
+  const habits: TablesInsert<"habits">[] = habitSpecs.map((h, i) => ({
+    id: id(`habit:${h.key}`),
+    user_id: userId,
+    project_id: h.project ? project(h.project) : null,
+    name: h.name,
+    description: null,
+    color: h.color,
+    icon: null,
+    schedule_type: h.schedule_type,
+    weekdays_mask: h.weekdays_mask ?? 127,
+    times_per_week: h.times_per_week ?? 3,
+    target: h.target ?? 1,
+    position: i,
+    created_at: at(h.created, 7),
+    updated_at: at(h.created, 7),
+    archived_at: null,
+    deleted_at: null,
+  }));
+  const habit_logs: TablesInsert<"habit_logs">[] = [];
+  for (const h of habitSpecs) {
+    for (let d = h.created; d <= 0; d++) {
+      const wd = (((weekday + d - 1) % 7) + 7) % 7; // ISO weekday, 0 = Monday
+      const count = h.done(d, wd);
+      if (count <= 0) continue;
+      habit_logs.push({
+        id: id(`habit-log:${h.key}:${d}`),
+        habit_id: id(`habit:${h.key}`),
+        user_id: userId,
+        date: day(d),
+        count,
+        note: null,
+        created_at: at(d, 20),
+        updated_at: at(d, 20),
       });
     }
   }
@@ -1639,6 +1784,8 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
     task_dependencies,
     task_comments,
     time_entries,
+    habits,
+    habit_logs,
     notes,
     note_versions,
     inbox_items,

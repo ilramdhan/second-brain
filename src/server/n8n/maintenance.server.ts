@@ -10,7 +10,10 @@ import type { maintenanceSchema } from "./schemas.server";
 
 const DAY = 86_400_000;
 
-async function purge(table: "tasks" | "notes" | "projects", cutoff: string): Promise<number> {
+async function purge(
+  table: "tasks" | "notes" | "projects" | "habits",
+  cutoff: string,
+): Promise<number> {
   const { data, error } = await supabaseAdmin
     .from(table)
     .delete()
@@ -24,7 +27,7 @@ async function purge(table: "tasks" | "notes" | "projects", cutoff: string): Pro
 export async function runMaintenance(input: z.infer<typeof maintenanceSchema>, now = new Date()) {
   const result: {
     ok: true;
-    purged?: { tasks: number; notes: number; projects: number };
+    purged?: { tasks: number; notes: number; projects: number; habits: number };
     link_codes_deleted?: number;
     rate_limits_deleted?: number;
     n8n_events_deleted?: number;
@@ -39,7 +42,8 @@ export async function runMaintenance(input: z.infer<typeof maintenanceSchema>, n
     const t = await purge("tasks", cutoff);
     const n = await purge("notes", cutoff);
     const p = await purge("projects", cutoff);
-    result.purged = { tasks: t, notes: n, projects: p };
+    const h = await purge("habits", cutoff); // check-ins cascade
+    result.purged = { tasks: t, notes: n, projects: p, habits: h };
   }
   if (tasks.has("link_codes")) {
     const cutoff = new Date(now.getTime() - DAY).toISOString();

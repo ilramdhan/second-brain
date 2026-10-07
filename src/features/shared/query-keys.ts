@@ -12,4 +12,7 @@ export const qk = {
   deps: ["deps"] as const,
   automations: ["automations"] as const,
   shares: ["shares"] as const,
+  habits: ["habits"] as const,
+  habitLogs: ["habits", "logs"] as const,
+  reports: ["reports"] as const,
 };

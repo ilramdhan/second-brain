@@ -3,7 +3,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, subDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { useEffect, useState } from "react";
-import { Archive, CheckSquare, FolderKanban, RotateCcw, StickyNote, Trash2 } from "lucide-react";
+import {
+  Archive,
+  CheckSquare,
+  FolderKanban,
+  Repeat,
+  RotateCcw,
+  StickyNote,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
@@ -38,10 +46,10 @@ export const Route = createFileRoute("/_authenticated/archive")({
   errorComponent: RouteError,
 });
 
-type Kind = "tasks" | "notes" | "projects";
+type Kind = "tasks" | "notes" | "projects" | "habits";
 type Item = { id: string; kind: Kind; title: string; at: string };
-const ICON = { tasks: CheckSquare, notes: StickyNote, projects: FolderKanban };
-const LABEL = { tasks: "Tugas", notes: "Catatan", projects: "Proyek" };
+const ICON = { tasks: CheckSquare, notes: StickyNote, projects: FolderKanban, habits: Repeat };
+const LABEL = { tasks: "Tugas", notes: "Catatan", projects: "Proyek", habits: "Kebiasaan" };
 const RETENTION_DAYS = 30;
 
 function ArchivePage() {
@@ -51,7 +59,7 @@ function ArchivePage() {
     queryKey: ["bin", tab],
     queryFn: async (): Promise<Item[]> => {
       const col = tab === "trash" ? "deleted_at" : "archived_at";
-      const [t, n, p] = await Promise.all([
+      const [t, n, p, h] = await Promise.all([
         (tab === "archive"
           ? supabase
               .from("tasks")
@@ -71,8 +79,16 @@ function ArchivePage() {
         tab === "trash"
           ? supabase.from("projects").select("id,name,deleted_at").not("deleted_at", "is", null)
           : Promise.resolve({ data: [], error: null }),
+        (tab === "archive"
+          ? supabase
+              .from("habits")
+              .select("id,name,deleted_at,archived_at")
+              .not(col, "is", null)
+              .is("deleted_at", null)
+          : supabase.from("habits").select("id,name,deleted_at,archived_at").not(col, "is", null)
+        ).order(col, { ascending: false }),
       ]);
-      const err = t.error ?? n.error ?? p.error;
+      const err = t.error ?? n.error ?? p.error ?? h.error;
       if (err) throw err;
       const pick = (r: { deleted_at: string | null; archived_at?: string | null }) =>
         (tab === "trash" ? r.deleted_at : r.archived_at) ?? "";
@@ -92,6 +108,12 @@ function ArchivePage() {
         ...((p.data ?? []) as { id: string; name: string; deleted_at: string | null }[]).map(
           (r) => ({ id: r.id, kind: "projects" as const, title: r.name, at: r.deleted_at ?? "" }),
         ),
+        ...(h.data ?? []).map((r) => ({
+          id: r.id,
+          kind: "habits" as const,
+          title: r.name,
+          at: pick(r),
+        })),
       ].sort((a, b) => b.at.localeCompare(a.at));
     },
   });
@@ -105,12 +127,15 @@ function ArchivePage() {
       supabase.from("tasks").delete().lt("deleted_at", cutoff),
       supabase.from("notes").delete().lt("deleted_at", cutoff),
       supabase.from("projects").delete().lt("deleted_at", cutoff),
+      supabase.from("habits").delete().lt("deleted_at", cutoff),
     ]);
   }, [tab]);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["bin"] });
-    [qk.tasks, qk.notes, qk.projects].forEach((k) => void qc.invalidateQueries({ queryKey: k }));
+    [qk.tasks, qk.notes, qk.projects, qk.habits].forEach(
+      (k) => void qc.invalidateQueries({ queryKey: k }),
+    );
   };
   async function restore(it: Item) {
     const patch = tab === "trash" ? { deleted_at: null } : { archived_at: null };

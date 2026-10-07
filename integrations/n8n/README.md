@@ -395,14 +395,14 @@ Menggantikan `/api/public/hooks/reminders` (jangan jalankan keduanya). Tombol âœ
 
 Body `{ "tasks": ["purge_trash", "link_codes", "rate_limits", "n8n_events"], "purge_after_days": 30, "events_after_days": 30 }` (default = semua empat).
 
-- `purge_trash`: hapus permanen tasks/notes/projects dengan `deleted_at < now - purge_after_days`.
+- `purge_trash`: hapus permanen tasks/notes/projects/habits dengan `deleted_at < now - purge_after_days`.
 - `link_codes`: hapus `telegram_link_codes` kedaluwarsa atau terpakai > 1 hari.
 - `rate_limits`: hapus jendela `rate_limits` > 24 jam.
 - `n8n_events`: hapus kunci idempotensi > `events_after_days`.
 - `recurring` diterima demi kompatibilitas (instance berikutnya dibuat saat tugas diselesaikan) dan selalu `0`.
 - `semantic_index` (opsional, tidak termasuk default karena memanggil AI): embed tugas/catatan yang embedding-nya belum ada atau usang untuk semua user, maks `semantic_batches` Ã— 50 baris (default 4, maks 20). Tanpa `AI_API_KEY` hasilnya `"semantic": {"skipped": "ai_not_configured"}`, bukan error. Respons `"semantic": {"embedded": 120, "remaining": 0, "model": "gemini-embedding-001"}` (`remaining` > 0 = masih ada antrean).
 
-Response `{ "ok": true, "purged": { "tasks": 4, "notes": 1, "projects": 0 }, "link_codes_deleted": 3, "rate_limits_deleted": 10, "n8n_events_deleted": 120 }`.
+Response `{ "ok": true, "purged": { "tasks": 4, "notes": 1, "projects": 0, "habits": 0 }, "link_codes_deleted": 3, "rate_limits_deleted": 10, "n8n_events_deleted": 120 }`.
 
 ### `POST /api/public/n8n/demo/reset`
 

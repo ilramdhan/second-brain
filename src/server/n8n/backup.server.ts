@@ -12,12 +12,14 @@ export const EXTRA_BACKUP_TABLES = [
   "templates",
   "time_entries",
   "canvas_boards",
+  "habits",
+  "habit_logs",
 ] as const;
 type ExportTable =
   (typeof BACKUP_TABLES)[number] | (typeof EXTRA_BACKUP_TABLES)[number] | "note_versions";
 
-const SOFT_DELETE = new Set<ExportTable>(["projects", "tasks", "notes"]);
-const ARCHIVE = new Set<ExportTable>(["tasks", "notes"]);
+const SOFT_DELETE = new Set<ExportTable>(["projects", "tasks", "notes", "habits"]);
+const ARCHIVE = new Set<ExportTable>(["tasks", "notes", "habits"]);
 const PAGE = 1000; // PostgREST max rows per request on Supabase
 
 async function exportTable(table: ExportTable, userId: string, includeAll: boolean) {
