@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { PublicSharePage, PublicShareUnavailable } from "@/components/share/PublicSharePage";
 import { getPublicShare } from "@/lib/shares.functions";
-import { shareHead } from "@/lib/share-head";
+import { shareHead, shareRobots } from "@/lib/share-head";
 
 /**
  * Public read-only page of a shared note or project (Phase 9.5). Server-rendered from a sanitized
@@ -20,7 +20,12 @@ export const Route = createFileRoute("/s/$token")({
   staleTime: 0,
   gcTime: 0,
   head: ({ loaderData }) => shareHead(loaderData?.status === "ok" ? loaderData.share : null),
-  headers: () => ({ "cache-control": "private, no-store", "referrer-policy": "no-referrer" }),
+  // The header repeats the meta tag so crawlers that skip HTML (and the 404 page) see it too.
+  headers: ({ loaderData }) => ({
+    "cache-control": "private, no-store",
+    "referrer-policy": "no-referrer",
+    "x-robots-tag": shareRobots(loaderData?.status === "ok" ? loaderData.share : null),
+  }),
   component: SharedPage,
   notFoundComponent: () => <PublicShareUnavailable />,
   errorComponent: () => <PublicShareUnavailable />,

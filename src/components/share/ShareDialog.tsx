@@ -2,6 +2,7 @@ import { Check, Copy, Eye, Link2, Loader2, RefreshCw, Share2, Trash2 } from "luc
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { DemoDisabled } from "@/components/demo/DemoDisabled";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useCanShare, useShareActions, useShareFor } from "@/lib/data";
 import { toastError } from "@/lib/errors";
 import { usePreferences, type Locale, type MessageKey } from "@/lib/preferences";
@@ -64,7 +66,8 @@ export function ShareStats({ share }: { share: ShareRow }) {
 /**
  * "Bagikan" button + dialog for a note or project: create a read-only public link, copy it
  * (the raw token exists only in this dialog's state, right after create/regenerate), change the
- * expiry, regenerate or revoke, and see the view count.
+ * expiry, allow search-engine indexing (off by default), regenerate or revoke, and see the view
+ * count.
  */
 export function ShareButton({
   resourceType,
@@ -121,10 +124,16 @@ export function ShareDialog({
   const notAllowed = !share && canShare.data === false;
   const [expiry, setExpiry] = useState<ShareExpiry | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [busy, setBusy] = useState<null | "create" | "regenerate" | "revoke" | "expiry">(null);
+  const [indexingDraft, setIndexingDraft] = useState(false);
+  const [busy, setBusy] = useState<
+    null | "create" | "regenerate" | "revoke" | "expiry" | "indexing"
+  >(null);
   const [copied, setCopied] = useState(false);
   const linkId = useId();
   const expiryId = useId();
+  const indexingId = useId();
+  const indexingHintId = useId();
+  const allowIndexing = share ? share.allow_indexing : indexingDraft;
   const url = token && typeof window !== "undefined" ? shareUrl(window.location.origin, token) : "";
 
   async function run<T>(kind: NonNullable<typeof busy>, fn: () => Promise<T>) {
@@ -156,7 +165,7 @@ export function ShareDialog({
 
   async function create() {
     const result = await run("create", () =>
-      actions.create(resourceType, resourceId, expiry ?? "never"),
+      actions.create(resourceType, resourceId, expiry ?? "never", indexingDraft),
     );
     if (result) setToken(result.token);
   }
@@ -185,6 +194,11 @@ export function ShareDialog({
   async function changeExpiry(next: ShareExpiry) {
     setExpiry(next);
     if (share) await run("expiry", () => actions.setExpiry(share.id, next));
+  }
+
+  async function changeIndexing(next: boolean) {
+    if (!share) return setIndexingDraft(next);
+    await run("indexing", () => actions.setIndexing(share.id, next));
   }
 
   return (
@@ -228,6 +242,27 @@ export function ShareDialog({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <label htmlFor={indexingId} className="text-sm font-medium">
+              {t("shareIndexing")}
+            </label>
+            <p id={indexingHintId} className="text-xs text-muted-foreground">
+              {t("shareIndexingHint")}
+            </p>
+          </div>
+          <DemoDisabled className="shrink-0">
+            <Switch
+              id={indexingId}
+              checked={allowIndexing}
+              onCheckedChange={(v) => void changeIndexing(v)}
+              disabled={busy !== null || notAllowed}
+              aria-describedby={indexingHintId}
+              className="mt-1 shrink-0"
+            />
+          </DemoDisabled>
         </div>
 
         {isLoading ? (
