@@ -272,4 +272,36 @@ describe("Landing", () => {
         .map((a) => a.getAttribute("href")),
     ).toEqual(expect.arrayContaining([...SECTIONS.map((s) => `#${s.id}`), "/login", GITHUB_URL]));
   });
+
+  it("shows demo screenshots in both themes, switched by the app's .dark class", () => {
+    const { container } = renderLanding();
+
+    const hero = screen.getAllByAltText(/^Halaman Hari Ini/);
+    expect(hero).toHaveLength(2);
+    const light = hero[0]!.closest("picture")!;
+    const dark = hero[1]!.closest("picture")!;
+    // Tailwind's `dark:` variant follows `.dark` on <html>, not only prefers-color-scheme.
+    expect(light.className).toContain("dark:hidden");
+    expect(dark.className).toMatch(/(^| )hidden( |$)/);
+    expect(dark.className).toContain("dark:contents");
+    expect(hero[0]).toHaveAttribute("src", expect.stringMatching(/today-desktop-light\.webp/));
+    expect(hero[1]).toHaveAttribute("src", expect.stringMatching(/today-desktop-dark\.webp/));
+    // Phones get the phone capture instead of a scaled-down desktop shot.
+    expect(light.querySelector("source")?.getAttribute("srcset")).toMatch(/today-mobile-light/);
+
+    // Feature cards keep their mocks and add a cropped screenshot pair (decorative, lazy).
+    const features = container.querySelector("#fitur")!;
+    const crops = [...features.querySelectorAll("img")];
+    for (const name of ["inbox", "kanban", "today", "note", "automations", "telegram"]) {
+      for (const theme of ["light", "dark"]) {
+        expect(crops.some((img) => img.src.includes(`landing/${name}-${theme}.webp`))).toBe(true);
+      }
+    }
+    for (const img of [...hero, ...crops]) {
+      expect(img).toHaveAttribute("loading", "lazy");
+      expect(img).toHaveAttribute("width");
+      expect(img).toHaveAttribute("height");
+    }
+    for (const img of crops) expect(img).toHaveAttribute("alt", "");
+  });
 });
