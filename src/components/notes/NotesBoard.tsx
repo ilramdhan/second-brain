@@ -21,6 +21,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, labelOf, NOTE_STATUS } from "@/lib/constants";
 import { useDebounced } from "@/hooks/use-debounced";
+import { NAV_ITEM_CLASS, navAttrs, useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
+import { usePreferences } from "@/lib/preferences";
 import {
   useNoteActions,
   useNoteSearch,
@@ -76,6 +78,22 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
   );
 
   const paged = usePaged(filtered, 24, `${q}-${tag}`);
+
+  // j/k walk the grid in reading order (h/l between kanban columns), Enter/o/e open.
+  const { t } = usePreferences();
+  const navColumns = useMemo(
+    () =>
+      view === "board"
+        ? NOTE_STATUS.map((c) => filtered.filter((n) => n.status === c.id).map((n) => n.id))
+        : [paged.visible.map((n) => n.id)],
+    [view, filtered, paged.visible],
+  );
+  const { containerProps, nav } = useKeyboardNav({
+    columns: navColumns,
+    kind: "note",
+    onOpen: (id) => navigate({ to: "/notes/$noteId", params: { noteId: id } }),
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -131,11 +149,24 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
       {view === "grid" ? (
         <>
           {shouldVirtualize(paged.visible.length) ? (
-            <VirtualNoteGrid notes={paged.visible} projects={projects} onOpen={open} />
+            <div {...containerProps} role="group" aria-label={t("kbNoteListLabel")}>
+              <VirtualNoteGrid notes={paged.visible} projects={projects} onOpen={open} nav={nav} />
+            </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              {...containerProps}
+              role="group"
+              aria-label={t("kbNoteListLabel")}
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            >
               {paged.visible.map((n) => (
-                <NoteCard key={n.id} note={n} projects={projects} onClick={() => open(n)} />
+                <NoteCard
+                  key={n.id}
+                  note={n}
+                  projects={projects}
+                  onClick={() => open(n)}
+                  nav={nav}
+                />
               ))}
               {filtered.length === 0 && (
                 <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
@@ -147,18 +178,21 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
           <LoadMore shown={paged.visible.length} total={paged.total} onMore={paged.more} />
         </>
       ) : (
-        <Kanban
-          columns={NOTE_STATUS}
-          items={filtered}
-          getColumn={(n) => n.status}
-          onMove={(n, status) => update(n.id, { status })}
-          onAdd={(status) => newNote(status)}
-          onOpen={open}
-          itemLabel={(n) => n.title || "Tanpa judul"}
-          renderCard={(n) => (
-            <NoteCard note={n} projects={projects} onClick={() => open(n)} compact />
-          )}
-        />
+        <div {...containerProps}>
+          <Kanban
+            nav={nav}
+            columns={NOTE_STATUS}
+            items={filtered}
+            getColumn={(n) => n.status}
+            onMove={(n, status) => update(n.id, { status })}
+            onAdd={(status) => newNote(status)}
+            onOpen={open}
+            itemLabel={(n) => n.title || "Tanpa judul"}
+            renderCard={(n) => (
+              <NoteCard note={n} projects={projects} onClick={() => open(n)} compact />
+            )}
+          />
+        </div>
       )}
     </div>
   );
@@ -190,10 +224,12 @@ function VirtualNoteGrid({
   notes,
   projects,
   onOpen,
+  nav,
 }: {
   notes: Note[];
   projects: Project[];
   onOpen: (n: Note) => void;
+  nav: NavState;
 }) {
   const cols = useGridColumns();
   const rows = useMemo(() => chunk(notes, cols), [notes, cols]);
@@ -208,7 +244,7 @@ function VirtualNoteGrid({
       renderItem={(row) => (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {row.map((n) => (
-            <NoteCard key={n.id} note={n} projects={projects} onClick={() => onOpen(n)} />
+            <NoteCard key={n.id} note={n} projects={projects} onClick={() => onOpen(n)} nav={nav} />
           ))}
         </div>
       )}
@@ -221,17 +257,24 @@ function NoteCard({
   projects,
   onClick,
   compact,
+  nav,
 }: {
   note: Note;
   projects: Project[];
   onClick: () => void;
   compact?: boolean | undefined;
+  /** Grid cards are navigable themselves; kanban cards via their draggable wrapper. */
+  nav?: NavState | undefined;
 }) {
   const p = projects.find((x) => x.id === note.project_id);
   return (
     <button
       onClick={onClick}
-      className="flex w-full flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/30"
+      {...(nav ? navAttrs(note.id, nav.selectedId === note.id, nav.tabStopId === note.id) : {})}
+      className={cn(
+        "flex w-full flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/30",
+        nav && NAV_ITEM_CLASS,
+      )}
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="line-clamp-2 text-sm font-semibold">{note.title}</h3>

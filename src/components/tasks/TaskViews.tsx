@@ -20,8 +20,10 @@ import {
 } from "@/components/tasks/TaskFilters";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { Button } from "@/components/ui/button";
+import { useKeyboardNav } from "@/hooks/use-keyboard-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TASK_STATUS } from "@/lib/constants";
+import { usePreferences } from "@/lib/preferences";
 import { useMe, useProjects, useTaskActions, useTasks, type Task } from "@/lib/data";
 import { dayKeyOf, upcomingBuckets } from "@/lib/task-maps";
 
@@ -34,6 +36,7 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
   const [view, setView] = useState("list");
   const [filter, setFilter] = useState<TaskFilter>(EMPTY_FILTER);
   const [showDone, setShowDone] = useState(false);
+  const { t } = usePreferences();
 
   const scoped = useMemo(
     () => allTasks.filter((t) => !t.parent_id && (!projectId || t.project_id === projectId)),
@@ -56,6 +59,28 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
   const lookups = useTaskRowLookups(allTasks, projects);
 
   const paged = usePaged(listItems, 25, `${JSON.stringify(filter)}-${showDone}`);
+
+  // Keyboard navigation (j/k, h/l on the board, Enter/o, e, x) over what is on screen.
+  const navColumns = useMemo(
+    () =>
+      view === "board"
+        ? TASK_STATUS.map((c) => filtered.filter((t) => t.status === c.id).map((t) => t.id))
+        : view === "list"
+          ? [paged.visible.map((t) => t.id)]
+          : [],
+    [view, filtered, paged.visible],
+  );
+  const { containerProps, nav } = useKeyboardNav({
+    columns: navColumns,
+    kind: "task",
+    enabled: view !== "upcoming",
+    onOpen: openTask,
+    onToggle: (id) => {
+      const task = filtered.find((t) => t.id === id);
+      if (task) lookups.toggle(task);
+    },
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -90,7 +115,9 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
 
       {view === "list" && (
         <>
-          <TaskRows tasks={paged.visible} lookups={lookups} />
+          <div {...containerProps} role="group" aria-label={t("kbTaskListLabel")}>
+            <TaskRows tasks={paged.visible} lookups={lookups} nav={nav} />
+          </div>
           <LoadMore shown={paged.visible.length} total={paged.total} onMore={paged.more} />
           {listItems.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">
@@ -109,16 +136,19 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
       )}
 
       {view === "board" && (
-        <Kanban
-          columns={TASK_STATUS}
-          items={filtered}
-          getColumn={(t) => t.status}
-          onMove={(t, col) => setStatus(t, col)}
-          onAdd={(col) => newTask({ status: col, project_id: projectId ?? null })}
-          onOpen={(t) => openTask(t.id)}
-          itemLabel={(t) => t.title}
-          renderCard={(t) => <TaskCard {...rowProps(t, lookups)} />}
-        />
+        <div {...containerProps}>
+          <Kanban
+            nav={nav}
+            columns={TASK_STATUS}
+            items={filtered}
+            getColumn={(t) => t.status}
+            onMove={(t, col) => setStatus(t, col)}
+            onAdd={(col) => newTask({ status: col, project_id: projectId ?? null })}
+            onOpen={(t) => openTask(t.id)}
+            itemLabel={(t) => t.title}
+            renderCard={(t) => <TaskCard {...rowProps(t, lookups)} />}
+          />
+        </div>
       )}
 
       {view === "upcoming" && <Upcoming tasks={open} lookups={lookups} />}
