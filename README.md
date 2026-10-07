@@ -789,6 +789,24 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 
 **Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
+### Applying migrations to a live database
+
+Migrations 0019 and later set `lock_timeout = '5s'`. They skip any trigger, policy, constraint, column or index that already matches, and lock tables in a fixed order. You can run them while the app is serving traffic, and you can rerun them safely.
+
+- **Preferred: drizzle-kit.** Use the Supabase **Session pooler** or the **direct connection** string (port **5432**), _not_ the transaction pooler (port 6543), which does not keep session settings:
+
+  ```bash
+  DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres" npx drizzle-kit migrate
+  ```
+
+  drizzle-kit records each applied file in `drizzle.__drizzle_migrations` (SHA-256 `hash` of the file plus `created_at` = the journal `when`). It runs every file newer than the latest recorded `created_at`, all in one transaction.
+
+- **Alternative: Supabase SQL editor.** Paste each file in order (0019, then 0020, …, 0024) and run one file at a time. Retrying a file is safe because the files are idempotent.
+
+- **`canceling statement due to lock timeout`** means a long-running query held a table lock for more than 5 s. Nothing was applied, because the transaction rolled back, so run the same file (or the same `drizzle-kit migrate`) again.
+
+- **Mixing both methods.** The SQL editor does not write to `drizzle.__drizzle_migrations`, so a later `drizzle-kit migrate` reapplies every file newer than its last recorded one. For 0019 and later that is harmless, because they are idempotent. If the table is missing or empty (for example, the schema was always applied through the SQL editor), drizzle-kit would start again at 0000; in that case, stick to the SQL editor.
+
 **Add a migration:** create `drizzle/migrations/NNNN_short_name.sql` with idempotent SQL where possible (`IF NOT EXISTS`). Enable RLS and add policies and `GRANT`s for `authenticated` and `service_role`. Register the file in `meta/_journal.json` (or let drizzle-kit generate it), then regenerate `src/integrations/supabase/types.ts` (for example `supabase gen types typescript --project-id <id> > src/integrations/supabase/types.ts`).
 
 ---
