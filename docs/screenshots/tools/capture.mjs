@@ -29,6 +29,7 @@ const PAGES = [
   { name: "note", path: "/notes", openNote: "Printer Bluetooth ESC/POS" },
   { name: "graph", path: "/graph", settle: 4000 },
   { name: "reports", path: "/reports" },
+  { name: "habits", path: "/habits" },
   { name: "inbox", path: "/inbox" },
   { name: "automations", path: "/automations" },
 ];
