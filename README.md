@@ -15,22 +15,51 @@ Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgre
 
 ## Table of contents
 
-1. [Why Second Brain](#why-second-brain)
-2. [Features](#features)
-3. [Tech stack](#tech-stack)
-4. [Architecture](#architecture)
-5. [Directory structure](#directory-structure)
-6. [Data model](#data-model)
-7. [Environment variables](#environment-variables)
-8. [Local setup](#local-setup)
-9. [Scripts](#scripts)
-10. [Database migrations](#database-migrations)
-11. [Deployment to Vercel](#deployment-to-vercel)
-12. [Integrations](#integrations)
-13. [Testing](#testing)
-14. [Git history](#git-history)
-15. [Contributing / Community](#contributing--community)
-16. [License](#license)
+1. [Screenshots](#screenshots)
+2. [Why Second Brain](#why-second-brain)
+3. [Features](#features)
+4. [Tech stack](#tech-stack)
+5. [Architecture](#architecture)
+6. [Directory structure](#directory-structure)
+7. [Data model](#data-model)
+8. [Environment variables](#environment-variables)
+9. [Local setup](#local-setup)
+10. [Scripts](#scripts)
+11. [Database migrations](#database-migrations)
+12. [Deployment to Vercel](#deployment-to-vercel)
+13. [Integrations](#integrations)
+14. [Testing](#testing)
+15. [Git history](#git-history)
+16. [Contributing / Community](#contributing--community)
+17. [License](#license)
+
+---
+
+## Screenshots
+
+Captured from the seeded [public demo](https://demo-2ndbrain.ilramdhan.dev) (sign in with **Isi otomatis** on `/login`; data resets every night). GitHub shows the light or dark set to match your theme. The UI is in Indonesian by default; English is one switch away in Settings.
+
+<table>
+<tr><th>Today</th><th>Tasks · kanban</th></tr>
+<tr><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/today-desktop-dark.webp"><img src="docs/screenshots/today-desktop-light.webp" alt="Today dashboard: due and overdue tasks, milestones, project progress"></picture></td><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tasks-kanban-desktop-dark.webp"><img src="docs/screenshots/tasks-kanban-desktop-light.webp" alt="Task kanban board with status columns, priorities and blocked tasks"></picture></td></tr>
+<tr><th>Calendar</th><th>Timeline</th></tr>
+<tr><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/calendar-desktop-dark.webp"><img src="docs/screenshots/calendar-desktop-light.webp" alt="Monthly calendar with tasks and milestones"></picture></td><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/timeline-desktop-dark.webp"><img src="docs/screenshots/timeline-desktop-light.webp" alt="Gantt-style timeline with milestones and draggable task bars"></picture></td></tr>
+<tr><th>Notes</th><th>Note editor</th></tr>
+<tr><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/notes-desktop-dark.webp"><img src="docs/screenshots/notes-desktop-light.webp" alt="Notes grid with tags, status and project"></picture></td><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/note-desktop-dark.webp"><img src="docs/screenshots/note-desktop-light.webp" alt="Block-based note editor with links, backlinks and properties"></picture></td></tr>
+<tr><th>Knowledge graph</th><th>Reports</th></tr>
+<tr><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/graph-desktop-dark.webp"><img src="docs/screenshots/graph-desktop-light.webp" alt="Force-directed graph of notes and their links"></picture></td><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reports-desktop-dark.webp"><img src="docs/screenshots/reports-desktop-light.webp" alt="Focus report: time per day, per project and top tasks"></picture></td></tr>
+<tr><th>Inbox & AI</th><th>Automations</th></tr>
+<tr><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/inbox-desktop-dark.webp"><img src="docs/screenshots/inbox-desktop-light.webp" alt="Inbox with raw captures and the Process with AI action"></picture></td><td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/automations-desktop-dark.webp"><img src="docs/screenshots/automations-desktop-light.webp" alt="Automation rules with triggers, conditions and actions"></picture></td></tr>
+</table>
+
+**On a phone** (390×844). The Telegram chat is a static mockup of the bot's real replies (`src/server/n8n/bot.server.ts`), since a real chat would expose account details.
+
+<table>
+<tr><th>Today</th><th>Kanban</th><th>Calendar</th><th>Note</th><th>Inbox</th><th>Telegram bot</th></tr>
+<tr><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/today-mobile-dark.webp"><img src="docs/screenshots/today-mobile-light.webp" alt="Today on a phone" width="180"></picture></td><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tasks-kanban-mobile-dark.webp"><img src="docs/screenshots/tasks-kanban-mobile-light.webp" alt="Kanban on a phone" width="180"></picture></td><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/calendar-mobile-dark.webp"><img src="docs/screenshots/calendar-mobile-light.webp" alt="Calendar on a phone" width="180"></picture></td><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/note-mobile-dark.webp"><img src="docs/screenshots/note-mobile-light.webp" alt="Note on a phone" width="180"></picture></td><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/inbox-mobile-dark.webp"><img src="docs/screenshots/inbox-mobile-light.webp" alt="Inbox on a phone" width="180"></picture></td><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/telegram-mobile-dark.webp"><img src="docs/screenshots/telegram-mobile-light.webp" alt="Telegram bot on a phone" width="180"></picture></td></tr>
+</table>
+
+Every page in light and dark, desktop (1440×900) and mobile, is in [`docs/screenshots/`](docs/screenshots/) (WebP). See [`docs/screenshots/README.md`](docs/screenshots/README.md) for how they are captured and refreshed.
 
 ---
 
@@ -48,7 +77,7 @@ Built with TanStack Start (React 19 SSR + server functions) on Supabase (Postgre
 
 ### Landing page (`/`)
 
-A public, server-rendered page that introduces the app: a sticky header with anchor links (`#fitur`, `#cara-kerja`, `#integrasi`, `#self-host`, `#faq`; smooth scroll that falls back to an instant jump under `prefers-reduced-motion`, and a sheet menu on mobile), the hero with sign-in, GitHub and the optional **Coba Demo** button (`VITE_DEMO_URL`), the bento feature grid with lightweight HTML/SVG mockups, _How it works_, _Integrations_, _Self-host_ (Vercel + Supabase + n8n) and an FAQ. The column footer links to the docs, the legal pages and the running release (`v<version> · <sha>` → GitHub release tag). Signed-in visitors are forwarded to `/today`.
+A public, server-rendered page that introduces the app: a sticky header with anchor links (`#fitur`, `#cara-kerja`, `#integrasi`, `#self-host`, `#faq`; smooth scroll that falls back to an instant jump under `prefers-reduced-motion`, and a sheet menu on mobile), the hero with sign-in, GitHub and the optional **Coba Demo** button (`VITE_DEMO_URL`), a theme-aware screenshot of the demo, the bento feature grid with lightweight HTML/SVG mockups and cropped demo screenshots (light/dark follow the app's `.dark` class, see `src/components/landing/Screenshots.tsx`), _How it works_, _Integrations_, _Self-host_ (Vercel + Supabase + n8n) and an FAQ. The column footer links to the docs, the legal pages and the running release (`v<version> · <sha>` → GitHub release tag). Signed-in visitors are forwarded to `/today`.
 
 ### Legal pages (`/privacy`, `/terms`)
 

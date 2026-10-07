@@ -29,6 +29,7 @@ import {
   SkipLink,
 } from "@/components/landing/SiteChrome";
 import { BackToTop, TechMarquee } from "@/components/landing/LandingExtras";
+import { ThemedScreenshot } from "@/components/landing/Screenshots";
 import { DemoNotice } from "@/components/demo/DemoBanner";
 import { Button } from "@/components/ui/button";
 import { demoUrl, GITHUB_URL, SELF_HOST_DOCS_URL } from "@/lib/landing";
@@ -36,9 +37,9 @@ import { usePreferences, type MessageKey } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 /*
- * Public landing page. The visuals are static HTML/SVG mockups (no app components, no data
- * hooks, no Supabase) so this chunk stays small and renders on the server. Motion only runs
- * under `motion-safe:`, so `prefers-reduced-motion` turns it off.
+ * Public landing page. The visuals are static HTML/SVG mockups and real screenshots of the demo
+ * (no app components, no data hooks, no Supabase) so this chunk stays small and renders on the
+ * server. Motion only runs under `motion-safe:`, so `prefers-reduced-motion` turns it off.
  */
 
 type CardProps = {
@@ -106,32 +107,6 @@ function InboxMock() {
           </span>
         ))}
       </div>
-    </div>
-  );
-}
-
-function KanbanMock() {
-  const columns = [
-    { name: "To do", cards: [70, 45], tone: "bg-tone-slate" },
-    { name: "Doing", cards: [85], tone: "bg-tone-amber" },
-    { name: "Done", cards: [60, 75], tone: "bg-tone-green" },
-  ];
-  return (
-    <div className="grid grid-cols-3 gap-2 rounded-xl border bg-background p-3 text-[10px]">
-      {columns.map((col) => (
-        <div key={col.name} className="space-y-1.5">
-          <div className="flex items-center gap-1 font-medium text-muted-foreground">
-            <span className={cn("h-1.5 w-1.5 rounded-full", col.tone)} />
-            {col.name}
-          </div>
-          {col.cards.map((w, i) => (
-            <div key={i} className="space-y-1 rounded-md border bg-card p-1.5">
-              <div className="h-1.5 rounded-full bg-foreground/20" style={{ width: `${w}%` }} />
-              <div className="h-1.5 w-1/3 rounded-full bg-foreground/10" />
-            </div>
-          ))}
-        </div>
-      ))}
     </div>
   );
 }
@@ -300,6 +275,53 @@ const FAQ: { q: MessageKey; a: MessageKey }[] = [
   { q: "landingFaq6Q", a: "landingFaq6A" },
 ];
 
+/** Window chrome around a screenshot so it reads as "the app" rather than a loose image. */
+function ShotFrame({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border bg-card shadow-xl shadow-foreground/5",
+        className,
+      )}
+    >
+      <div className="flex items-center gap-1.5 border-b px-3 py-2" aria-hidden>
+        <span className="h-2.5 w-2.5 rounded-full bg-tone-rose/60" />
+        <span className="h-2.5 w-2.5 rounded-full bg-tone-amber/60" />
+        <span className="h-2.5 w-2.5 rounded-full bg-tone-green/60" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * A cropped demo screenshot inside a bento card: same border/radius as the mocks, faded at the
+ * bottom so a crop reads as "more below" rather than cut off. Decorative (the card text describes
+ * it), so empty alt; the card's children wrapper is already aria-hidden.
+ */
+function BentoShot({
+  name,
+  width,
+  height,
+  className,
+}: {
+  name: string;
+  width: number;
+  height: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border bg-background [mask-image:linear-gradient(to_bottom,black_80%,transparent)]",
+        className,
+      )}
+    >
+      <ThemedScreenshot name={`landing/${name}`} width={width} height={height} alt="" />
+    </div>
+  );
+}
+
 function IconTile({ icon: Icon }: { icon: typeof Inbox }) {
   return (
     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -357,6 +379,15 @@ export function Landing() {
               </a>
             </Button>
           </div>
+          <ShotFrame className="mx-auto mt-10 max-w-5xl text-left md:mt-14">
+            <ThemedScreenshot
+              name="today-desktop"
+              width={1440}
+              height={900}
+              phone={{ name: "today-mobile", width: 585, height: 1266 }}
+              alt={t("landingShotHeroAlt")}
+            />
+          </ShotFrame>
         </section>
 
         <Section id="fitur" title="landingFeatures" subtitle="landingFeaturesSubtitle">
@@ -367,7 +398,10 @@ export function Landing() {
               body="landingInboxBody"
               className="sm:col-span-2 lg:row-span-2"
             >
-              <InboxMock />
+              <div className="space-y-3">
+                <InboxMock />
+                <BentoShot name="inbox" width={720} height={470} />
+              </div>
             </BentoCard>
             <BentoCard
               icon={CheckSquare}
@@ -375,19 +409,24 @@ export function Landing() {
               body="landingTasksBody"
               className="sm:col-span-2"
             >
-              <KanbanMock />
+              <BentoShot name="kanban" width={892} height={440} />
             </BentoCard>
             <BentoCard icon={Users} title="landingCollabTitle" body="landingCollabBody">
               <CollabMock />
             </BentoCard>
-            <BentoCard icon={Smartphone} title="landingPwaTitle" body="landingPwaBody" />
+            <BentoCard icon={Smartphone} title="landingPwaTitle" body="landingPwaBody">
+              <BentoShot name="today" width={420} height={387} />
+            </BentoCard>
             <BentoCard
               icon={Network}
               title="landingNotesTitle"
               body="landingNotesBody"
               className="lg:row-span-2"
             >
-              <GraphMock />
+              <div className="space-y-3">
+                <GraphMock />
+                <BentoShot name="note" width={480} height={665} />
+              </div>
             </BentoCard>
             <BentoCard
               icon={Workflow}
@@ -395,7 +434,10 @@ export function Landing() {
               body="landingAutomationsBody"
               className="sm:col-span-2"
             >
-              <AutomationMock />
+              <div className="space-y-3">
+                <AutomationMock />
+                <BentoShot name="automations" width={720} height={215} />
+              </div>
             </BentoCard>
             <BentoCard icon={Scale} title="landingOssTitle" body="landingOssBody" />
             <BentoCard
@@ -404,7 +446,10 @@ export function Landing() {
               body="landingIntegrationsBody"
               className="sm:col-span-2 lg:col-span-3"
             >
-              <ChatMock />
+              <div className="grid items-center gap-4 sm:grid-cols-[1fr_minmax(0,16rem)]">
+                <ChatMock />
+                <BentoShot name="telegram" width={420} height={387} />
+              </div>
             </BentoCard>
           </div>
         </Section>

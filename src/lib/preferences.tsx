@@ -109,6 +109,8 @@ const messages = {
     loginLogoLabel: "Second Brain — beranda",
     landingFeaturesSubtitle:
       "Semua yang Anda perlukan untuk menangkap, merapikan, dan menyelesaikan pekerjaan di satu tempat.",
+    landingShotHeroAlt:
+      "Halaman Hari Ini: ringkasan tugas hari ini, yang terlambat, milestone terdekat, dan progres proyek",
     landingHowTitle: "Cara kerja",
     landingHowSubtitle:
       "Dari pikiran yang berserakan sampai pekerjaan selesai, dalam empat langkah.",
@@ -527,6 +529,8 @@ const messages = {
     loginLogoLabel: "Second Brain — home",
     landingFeaturesSubtitle:
       "Everything you need to capture, organize and finish your work in one place.",
+    landingShotHeroAlt:
+      "Today page: today's tasks, overdue work, upcoming milestones and project progress",
     landingHowTitle: "How it works",
     landingHowSubtitle: "From scattered thoughts to finished work, in four steps.",
     landingStep: "Step",
