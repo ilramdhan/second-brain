@@ -92,6 +92,7 @@ A daily agenda that shows overdue tasks, tasks due today and this week, upcoming
 - Inbox items come from manual entry, Telegram, voice or OCR (`inbox_items.source`).
 - **AI → structure** (`parseBrainDump`): the AI splits an item into separate `task` / `issue` / `note` entries. Each entry gets a priority, an ISO due date (relative dates like "besok"/"Jumat" are resolved), 1–3 tags, a short paraphrased description and a project name. The parser matches existing projects by name and creates missing ones. Tasks and notes are then inserted, and the item is marked `processed`.
 - **Full task capture** ("Jadikan tugas (AI)", `captureInboxTask`): turns one item into one task with every field the text clearly implies (see [Full-field task capture](#full-field-task-capture)).
+- **Full note capture** ("Jadikan catatan (AI)", `captureInboxNote`): turns one item into one structured note (see [Full-field note capture](#full-field-note-capture)).
 - **Paraphrase** (`paraphrasePoint`): expands a terse point into a 2–4 sentence description. The original text is kept in `ai_summary`.
 - You can archive items.
 
@@ -125,6 +126,15 @@ Telegram (app and n8n mode), n8n capture (`target: task|auto`) and the inbox "Ja
 - **Validated server-side** (`src/server/taskExtract.server.ts`): unknown projects, assignees who are not members of the matched project and tasks outside the user's open tasks are dropped; dependencies are cycle-checked with the same rule as the task editor; a task waiting on open blockers stays `todo`. Comments go to `task_comments`. The write runs the automation rules and is picked up by semantic search.
 - **Regex fallback**: when AI is not configured, the per-user AI budget is used up or the AI call fails, the local parser above fills what it can (`komentar: …` lines become comments, further lines the description).
 - The bot reply lists which fields were filled (and by AI or the local parser) and what was ignored.
+
+### Full-field note capture
+
+Telegram (`/note <text>`, or text starting with `catatan:`/`note:`/`notulen:`/`ide:` or containing a `[[link]]`, in app and n8n mode; voice/OCR with a `/note` caption; the inbox button in the bot), n8n capture (`target: note`, and `auto` for note-like text) and the inbox "Jadikan catatan (AI)" button turn one message into one structured note: title, blocks (headings, bullet and numbered lists, checklists, quotes, code), status (idea/draft/final), project, tags, links to existing notes, pin and properties.
+
+- **AI first** (`aiExtractNote`): the model sees only names (accessible projects, visible note titles, tags in use) and keeps all information of the message.
+- **Validated server-side** (`src/server/noteExtract.server.ts`): unknown projects and notes are dropped; `[[links]]` to existing notes are spelled like their titles (linked notes not mentioned inline get a "Terkait: …" line), invented links and `((refs))` are stripped; tags reuse existing spellings. Every write goes through `withNoteIndex` (content, links, refs, excerpt) and runs the note automation rules.
+- **Local fallback** without AI: first line = title (`Judul | isi` also works), `#tag`, `+proyek`, `status:draf`, `!pin`, `kunci:: nilai` properties, and markdown shortcuts (`## `, `- `, `1. `, `[] `, `> `) for the body.
+- **Catatan dari teks** (notes list, project notes tab and the knowledge graph): paste or describe a note, AI prefills title, content, status, project, tags, pin and properties in a form, and nothing is saved until you review and press save.
 
 ### Tasks (`/tasks`, project pages)
 
@@ -240,7 +250,7 @@ The sync is **two-way** (migration `0021_gcal_two_way_sync`):
 
 - Users link their account in **Settings → Bot Telegram → Hubungkan Telegram**, which shows a one-time code (valid for 10 minutes, single use), and send `/link <code>` to the bot. After that, any message they send goes to their Inbox, or becomes a fully filled task when it reads like one (a date, priority, estimate or status) or starts with `/task` (see [Full-field task capture](#full-field-task-capture)).
 - The app talks to the Telegram Bot API directly with `TELEGRAM_BOT_TOKEN`. With `TELEGRAM_BOT_USERNAME` set, Settings also shows a one-tap `t.me/<bot>?start=<code>` link.
-- Two modes (a bot has one webhook): **app mode** (webhook → `/api/public/telegram/webhook`: `/start`, `/link`, `/task`, text with a date/priority/estimate → full task, other text → Inbox) or **n8n mode** (webhook → n8n workflow 01 → `/api/public/n8n/bot`: all commands, inline buttons, OCR, voice).
+- Two modes (a bot has one webhook): **app mode** (webhook → `/api/public/telegram/webhook`: `/start`, `/link`, `/task`, text with a date/priority/estimate → full task, `/note` or `catatan: …` → full note, other text → Inbox) or **n8n mode** (webhook → n8n workflow 01 → `/api/public/n8n/bot`: all commands, inline buttons, OCR, voice).
 - Deadline reminders and digests are sent on a schedule (n8n `POST /api/public/n8n/reminders` every 15 minutes, or the `/api/public/hooks/reminders` fallback).
 - Automations and unblock notifications can also send Telegram messages.
 

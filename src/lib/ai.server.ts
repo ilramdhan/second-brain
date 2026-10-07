@@ -9,6 +9,7 @@ import {
   hashEmbedding,
 } from "@/lib/semantic";
 import type { DemoTextKind } from "@/server/demo/ai-fixtures.server";
+import type { ExtractedNote, NoteCandidates } from "@/server/noteExtract.server";
 import type { ExtractedTask, TaskCandidates } from "@/server/taskExtract.server";
 
 // Direct AI provider access through the Vercel AI SDK (no vendor gateway).
@@ -281,23 +282,67 @@ export async function aiExtractTask(
     await demo.demoDelay(request.signal);
     return demo.demoExtractTask(text, candidates, clock);
   }
+  return aiStructured(
+    request,
+    extract.extractedTaskSchema,
+    extract.extractSystemPrompt(clock),
+    extract.extractUserPrompt(text, candidates),
+  );
+}
+
+/**
+ * Full-field extraction of ONE note from a message (Telegram, inbox, n8n capture, the in-app
+ * "Catatan dari teks" prefill): title, structured blocks, status, project, tags, links to existing
+ * notes, pin and properties. Names only; src/server/noteExtract.server.ts validates afterwards.
+ */
+export async function aiExtractNote(
+  request: Request,
+  text: string,
+  candidates: NoteCandidates,
+  clock: { now: Date; tz: string },
+): Promise<ExtractedNote> {
+  const extract = await import("@/server/noteExtract.server");
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) {
+    const demo = await import("@/server/demo/ai-fixtures.server");
+    await demo.demoDelay(request.signal);
+    return demo.demoExtractNote(text, candidates);
+  }
+  return aiStructured(
+    request,
+    extract.extractedNoteSchema,
+    extract.noteExtractSystemPrompt(clock),
+    extract.noteExtractUserPrompt(text, candidates),
+  );
+}
+
+/**
+ * One structured-output call (AI SDK Output.object) with JSON recovery: when the provider wraps
+ * the object in prose, the first `{…}` is parsed against the same schema.
+ */
+export async function aiStructured<T>(
+  request: Request,
+  schema: z.ZodType<T>,
+  system: string,
+  user: string,
+): Promise<T> {
   const config = aiConfigFromEnv();
   const opts = providerOptions(config);
   try {
     const result = streamText({
       model: languageModel(config, config.model),
       abortSignal: request.signal,
-      output: Output.object({ schema: extract.extractedTaskSchema }),
-      system: extract.extractSystemPrompt(clock),
-      messages: [{ role: "user", content: extract.extractUserPrompt(text, candidates) }],
+      output: Output.object({ schema }),
+      system,
+      messages: [{ role: "user", content: user }],
       ...(opts ? { providerOptions: opts } : {}),
     });
-    return await result.output;
+    return (await result.output) as T;
   } catch (error) {
     if (NoObjectGeneratedError.isInstance(error) && error.text) {
       const match = error.text.match(/\{[\s\S]*\}/);
       if (match) {
-        const parsed = extract.extractedTaskSchema.safeParse(JSON.parse(match[0]));
+        const parsed = schema.safeParse(JSON.parse(match[0]));
         if (parsed.success) return parsed.data;
       }
     }

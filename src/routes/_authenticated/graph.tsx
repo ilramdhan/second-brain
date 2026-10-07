@@ -12,6 +12,7 @@ import {
 import { Minus, Plus, RotateCcw } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
+import { NoteFromTextButton } from "@/components/notes/NoteFromTextDialog";
 import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -294,6 +295,7 @@ function GraphPage() {
       <PageHeader
         title="Peta Pengetahuan"
         subtitle="Setiap titik adalah catatan; garis adalah tautan [[…]] atau referensi blok. Semakin besar, semakin sering dirujuk."
+        actions={<NoteFromTextButton />}
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Input

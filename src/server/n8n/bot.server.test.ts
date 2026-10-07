@@ -22,5 +22,7 @@ describe("capture auto target", () => {
   it("uses the NLP parser", () => {
     expect(autoTarget("Kirim proposal besok jam 9", now, "Asia/Jakarta")).toBe("task");
     expect(autoTarget("Ide artikel tentang PKM", now, "Asia/Jakarta")).toBe("inbox");
+    expect(autoTarget("Catatan: riset QRIS", now, "Asia/Jakarta")).toBe("note");
+    expect(autoTarget("lanjutan dari [[Mode offline]]", now, "Asia/Jakarta")).toBe("note");
   });
 });

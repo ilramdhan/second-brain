@@ -14,3 +14,15 @@ export const FIELD_LABEL: Record<string, string> = {
   comments: "komentar",
   recurrence: "pengulangan",
 };
+
+// Labels for the note fields a capture filled (mirrors NoteFilledField in
+// src/server/noteExtract.server.ts).
+export const NOTE_FIELD_LABEL: Record<string, string> = {
+  content: "isi",
+  status: "status",
+  project: "proyek",
+  tags: "tag",
+  links: "tautan",
+  pinned: "disematkan",
+  properties: "properti",
+};

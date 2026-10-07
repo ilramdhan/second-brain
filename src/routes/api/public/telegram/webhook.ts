@@ -16,7 +16,8 @@ const LINK_HOWTO =
 const START_TEXT =
   "Halo! Saya bot Second Brain. Kirim catatan apa pun ke sini dan akan masuk ke Inbox Anda. " +
   "Pesan dengan tanggal/prioritas/estimasi, atau /task <teks>, langsung jadi tugas lengkap " +
-  "(proyek, penanggung jawab, tanggal, estimasi, tag, dependensi, komentar).\n\n" +
+  "(proyek, penanggung jawab, tanggal, estimasi, tag, dependensi, komentar). /note <teks> atau " +
+  'pesan yang diawali "catatan:" jadi catatan rapi (subjudul, poin, checklist, tag, tautan).\n\n' +
   LINK_HOWTO;
 const NOT_LINKED_TEXT = "Akun belum terhubung.\n\n" + LINK_HOWTO;
 const LINK_FAILED_TEXT =
@@ -102,7 +103,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           return new Response(JSON.stringify({ ok: true }));
         }
 
-        // `/task …` or free text with a task signal (date, priority, estimate, status) → one
+        // `/note …` / note-like text → a full note (below). `/task …` or free text with a task signal (date, priority, estimate, status) → one
         // fully filled task (AI extraction, regex fallback), same pipeline as n8n mode.
         // Everything else lands in the Inbox.
         const { parseCommand } = await import("@/server/n8n/bot.server");
@@ -110,6 +111,27 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         const { appTimezone } = await import("@/server/n8n/time.server");
         const { looksLikeTask, describeResolvedTask } = await import("@/server/taskExtract.server");
         const clock = { now: new Date(), tz: appTimezone() };
+        const { looksLikeNote, describeResolvedNote } = await import("@/server/noteExtract.server");
+        // `/note …`, or free text starting with "catatan:"/"note:" or holding a [[link]] → one
+        // fully filled note (title, blocks, status, project, tags, links, properties).
+        const noteText =
+          command && (command.cmd === "note" || command.cmd === "catatan")
+            ? command.args
+            : !command && looksLikeNote(text)
+              ? text
+              : null;
+        if (noteText) {
+          const { captureNoteFromText } = await import("@/server/noteCapture.server");
+          const result = await captureNoteFromText(profile.id, noteText.slice(0, 4000), {
+            clock,
+            origin: new URL(request.url).origin,
+          });
+          const { sendTelegram } = await import("@/lib/telegram.server");
+          await sendTelegram(chatId, describeResolvedNote(result.resolved, result.via), {
+            parse_mode: "HTML",
+          });
+          return new Response(JSON.stringify({ ok: true }));
+        }
         const taskText =
           command && (command.cmd === "task" || command.cmd === "tugas")
             ? command.args

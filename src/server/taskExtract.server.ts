@@ -226,7 +226,7 @@ export function parseLocalDate(
 
 /* ---------------- resolve ---------------- */
 
-function cleanTags(tags: readonly string[]): string[] {
+export function cleanTags(tags: readonly string[]): string[] {
   const out = new Set<string>();
   for (const raw of tags) {
     const tag = raw

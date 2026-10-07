@@ -4,6 +4,7 @@
 import { escapeHtml, formatDue, taskLine, type ReplyMarkup } from "./format.server";
 import { parseCallback, type BotRequest } from "./schemas.server";
 import * as svc from "./service.server";
+import { looksLikeNote } from "../noteExtract.server";
 import { looksLikeTask } from "../taskExtract.server";
 import { appTimezone, startOfZonedDay } from "./time.server";
 
@@ -39,10 +40,10 @@ const callback = (toast: string, text: string, reply_markup: ReplyMarkup = null)
 
 export const HELP_TEXT = [
   "<b>Second Brain bot</b>",
-  "Kirim teks apa pun → Inbox (atau tugas bila ada tanggal/prioritas).",
+  "Kirim teks apa pun → Inbox (tugas bila ada tanggal/prioritas, catatan bila diawali <i>catatan:</i> atau berisi [[tautan]]).",
   "",
   "/task &lt;teks&gt; — buat tugas lengkap (AI mengisi proyek, PJ, tanggal, estimasi, tag, dependensi, komentar; tanpa AI: <i>besok 9:00 #tag !high +proyek @orang ~2j status:review</i>)",
-  "/note Judul | isi — buat catatan",
+  "/note &lt;teks&gt; — buat catatan lengkap (AI menyusun judul, subjudul/poin/checklist, status, proyek, tag, tautan [[catatan]], properti; tanpa AI: <i>Judul | isi #tag +proyek status:draf !pin</i>)",
   "/inbox — item Inbox yang menunggu",
   "/today, /upcoming, /overdue, /week — daftar tugas",
   "/done &lt;kata kunci&gt; — tandai selesai",
@@ -121,9 +122,31 @@ async function createTaskFromText(ctx: Ctx, text: string, source: string | null)
   );
 }
 
+/**
+ * Creates a fully filled note from free text: AI extraction (projects, note titles and tags of the
+ * user as candidates) with the local fallback; the reply lists the filled fields.
+ */
+async function createNoteFromText(ctx: Ctx, text: string, extraTags: string[] = []) {
+  const { captureNoteFromText } = await import("../noteCapture.server");
+  const { describeResolvedNote } = await import("../noteExtract.server");
+  const result = await captureNoteFromText(ctx.userId, text, {
+    clock: { now: ctx.now, tz: ctx.tz },
+    origin: ctx.origin,
+    adjust: (r) => {
+      if (!extraTags.length) return;
+      r.insert.tags = [...new Set([...r.insert.tags, ...extraTags])];
+      if (!r.filled.includes("tags")) r.filled.push("tags");
+    },
+  });
+  return describeResolvedNote(result.resolved, result.via);
+}
+
 async function captureText(ctx: Ctx, text: string, source: "telegram" | "ocr" | "voice") {
   // Plain text becomes a task only when the local parser finds a task signal (date, priority,
   // estimate or status token); the full field extraction then runs on the whole message.
+  // "catatan: …" / "note: …" or a [[link]] makes it a note instead.
+  if (source === "telegram" && looksLikeNote(text))
+    return send(await createNoteFromText(ctx, text));
   if (source === "telegram" && looksLikeTask(text, ctx.now, ctx.tz))
     return createTaskFromText(ctx, text, null);
   const item = await svc.createInboxItem(ctx.userId, text, source);
@@ -256,12 +279,10 @@ async function handleCommand(ctx: Ctx, cmd: string, args: string): Promise<BotRe
     case "tugas":
       return args ? createTaskFromText(ctx, args, null) : send("Pakai: <code>/task teks</code>");
     case "note":
-    case "catatan": {
-      const { title, body } = splitNote(args);
-      if (!title) return send("Pakai: <code>/note Judul | isi</code>");
-      const note = await svc.createNote(ctx.userId, title, body, {}, ctx.origin);
-      return send(`📝 Catatan dibuat: <b>${escapeHtml(note.title)}</b>`);
-    }
+    case "catatan":
+      return args
+        ? send(await createNoteFromText(ctx, args))
+        : send("Pakai: <code>/note teks</code> (atau <code>/note Judul | isi</code>)");
     case "inbox": {
       if (args) {
         const item = await svc.createInboxItem(ctx.userId, args, "telegram");
@@ -346,16 +367,9 @@ async function handleCallback(ctx: Ctx, data: string): Promise<BotReply> {
       { inline_keyboard: [[{ text: "✅ Selesai", callback_data: `done:${result.task.id}` }]] },
     );
   }
-  const [first, ...rest] = item.content.split("\n");
-  const note = await svc.createNote(
-    ctx.userId,
-    (first ?? "Catatan").slice(0, 120),
-    rest.join("\n") || item.content,
-    {},
-    ctx.origin,
-  );
+  const text = await createNoteFromText(ctx, item.content);
   await svc.setInboxStatus(ctx.userId, item.id, "processed");
-  return callback("Catatan dibuat", `📝 Catatan: <b>${escapeHtml(note.title)}</b>`);
+  return callback("Catatan dibuat", text);
 }
 
 /** OCR/voice: caption decides the target (/task, /note, /inbox, /sum); default note + inbox. */
@@ -366,6 +380,10 @@ async function handleMedia(ctx: Ctx, body: BotRequest): Promise<BotReply> {
   if (caption?.cmd === "task")
     return createTaskFromText(ctx, `${caption.args} ${content}`.trim().slice(0, 500), source);
   if (caption?.cmd === "sum") return sumReply(ctx, content);
+  // "/note" caption: the transcript/OCR text becomes a fully filled note (caption text first,
+  // so "/note Judul" still names it).
+  if (caption?.cmd === "note" || caption?.cmd === "catatan")
+    return send(await createNoteFromText(ctx, `${caption.args}\n${content}`.trim(), [source]));
   if (caption?.cmd === "inbox") {
     const item = await svc.createInboxItem(ctx.userId, content, source);
     return send("📥 Tersimpan di Inbox", inboxButtons(item.id));
@@ -376,12 +394,8 @@ async function handleMedia(ctx: Ctx, body: BotRequest): Promise<BotReply> {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(ctx.now);
-  const title =
-    caption?.cmd === "note" && caption.args
-      ? caption.args
-      : `${source === "ocr" ? "OCR" : "Voice"} ${stamp}`;
+  const title = `${source === "ocr" ? "OCR" : "Voice"} ${stamp}`;
   const note = await svc.createNote(ctx.userId, title, content, { tags: [source] }, ctx.origin);
-  if (caption?.cmd === "note") return send(`📝 Catatan dibuat: <b>${escapeHtml(note.title)}</b>`);
   const item = await svc.createInboxItem(ctx.userId, content, source);
   return send(
     `📝 <b>${escapeHtml(note.title)}</b> tersimpan.\n\n${escapeHtml(content.slice(0, 600))}${content.length > 600 ? "…" : ""}`,

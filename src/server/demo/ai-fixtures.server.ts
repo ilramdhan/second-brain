@@ -10,6 +10,7 @@
 import {
   DEMO_BRAIN_DUMP_EXAMPLES,
   DEMO_MEETING_EXAMPLES,
+  DEMO_NOTE_CAPTURE_EXAMPLES,
   DEMO_OCR_TEXT,
   DEMO_PARAPHRASE_EXAMPLES,
   DEMO_TASK_CAPTURE_EXAMPLES,
@@ -19,6 +20,11 @@ import {
 } from "@/lib/demo-examples";
 import type { ParsedTask } from "@/lib/ai.server";
 import { appTimezone, parseTaskTextInZone, zonedIsoDate } from "@/server/n8n/time.server";
+import {
+  fallbackNoteExtraction,
+  type ExtractedNote,
+  type NoteCandidates,
+} from "@/server/noteExtract.server";
 import {
   fallbackExtraction,
   type ExtractedTask,
@@ -375,6 +381,75 @@ export function demoExtractTask(
     depends_on: [],
     comments: [],
     recurrence: null,
+  };
+}
+
+/* ---------------- note extraction ---------------- */
+
+const NOTE_KEYWORDS = {
+  "note-research": ["qris", "midtrans", "xendit", "mdr", "rekonsiliasi"],
+  "note-book": ["atomic habits", "james clear", "kebiasaan", "sistem"],
+} as const;
+
+/**
+ * Simulated `aiExtractNote`: a structured note for the examples in DEMO_NOTE_CAPTURE_EXAMPLES,
+ * else the local fallback. Project and note names come from the user's candidates when they
+ * exist; the server-side validation drops them like any model answer when they do not.
+ */
+export function demoExtractNote(text: string, candidates: NoteCandidates): ExtractedNote {
+  const key = matchFixture(text, NOTE_KEYWORDS, DEMO_NOTE_CAPTURE_EXAMPLES);
+  if (!key) return fallbackNoteExtraction(text);
+  const pick = (name: string, names: string[]) =>
+    names.find((n) => n.toLowerCase() === name.toLowerCase()) ?? name;
+  if (key === "note-research")
+    return {
+      title: "Riset pembayaran QRIS",
+      blocks: [
+        { type: "h2", text: "Pembanding", checked: null },
+        { type: "bullet", text: "Midtrans", checked: null },
+        { type: "bullet", text: "Xendit", checked: null },
+        { type: "bullet", text: "DOKU", checked: null },
+        { type: "h2", text: "Temuan", checked: null },
+        { type: "bullet", text: "Biaya MDR sekitar 0,7% per transaksi", checked: null },
+        { type: "bullet", text: "Dana masuk H+1", checked: null },
+        { type: "h2", text: "Tindak lanjut", checked: null },
+        { type: "todo", text: "Tanya tim finance soal rekonsiliasi harian", checked: false },
+      ],
+      status: "draft",
+      project: pick(
+        "Aplikasi Kasir",
+        candidates.projects.map((p) => p.name),
+      ),
+      tags: ["riset", "pembayaran"],
+      links: [
+        pick(
+          "Mode offline",
+          candidates.notes.map((n) => n.title),
+        ),
+      ],
+      pinned: null,
+      properties: [],
+    };
+  return {
+    title: "Rangkuman Atomic Habits",
+    blocks: [
+      { type: "bullet", text: "Perbaikan 1% tiap hari", checked: null },
+      { type: "bullet", text: "Fokus ke sistem, bukan target", checked: null },
+      {
+        type: "bullet",
+        text: "Buat kebiasaan baik jelas, menarik, mudah, memuaskan",
+        checked: null,
+      },
+    ],
+    status: "idea",
+    project: null,
+    tags: ["buku"],
+    links: [],
+    pinned: true,
+    properties: [
+      { key: "penulis", value: "James Clear" },
+      { key: "rating", value: "5" },
+    ],
   };
 }
 

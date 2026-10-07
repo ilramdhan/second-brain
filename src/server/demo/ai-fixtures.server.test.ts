@@ -5,6 +5,7 @@ import {
   DEMO_INBOX_ITEMS,
   DEMO_MEETING_EXAMPLES,
   DEMO_MEETING_NOTE,
+  DEMO_NOTE_CAPTURE_EXAMPLES,
   DEMO_OCR_TEXT,
   DEMO_PARAPHRASE_EXAMPLES,
   DEMO_TASK_CAPTURE_EXAMPLES,
@@ -12,11 +13,13 @@ import {
   isDemoGenericReply,
 } from "@/lib/demo-examples";
 import { zonedIsoDate } from "@/server/n8n/time.server";
+import { extractedNoteSchema, resolveNoteExtraction } from "@/server/noteExtract.server";
 import { extractedTaskSchema, resolveExtraction } from "@/server/taskExtract.server";
 
 import {
   demoBrainDump,
   demoDelay,
+  demoExtractNote,
   demoExtractTask,
   demoText,
   demoTranscript,
@@ -186,5 +189,39 @@ describe("demoExtractTask", () => {
 
   it("is in the demo inbox seed", () => {
     expect(DEMO_INBOX_ITEMS.map((i) => i.content)).toContain(DEMO_TASK_CAPTURE_EXAMPLES[0]!.text);
+  });
+});
+
+describe("demoExtractNote", () => {
+  const candidates = {
+    projects: [{ id: "p1", name: "Aplikasi Kasir" }],
+    notes: [{ id: "n1", title: "Mode offline" }],
+    tags: ["riset"],
+  };
+
+  it("answers every note example with a valid, fully resolvable fixture", () => {
+    for (const ex of DEMO_NOTE_CAPTURE_EXAMPLES) {
+      const x = demoExtractNote(ex.text, candidates);
+      expect(extractedNoteSchema.safeParse(x).success).toBe(true);
+      const r = resolveNoteExtraction(x, candidates, ex.text);
+      expect(r.dropped).toEqual([]);
+      expect(r.filled).toContain("content");
+    }
+    const research = resolveNoteExtraction(
+      demoExtractNote(DEMO_NOTE_CAPTURE_EXAMPLES[0]!.text, candidates),
+      candidates,
+      "",
+    );
+    expect(research.insert.project_id).toBe("p1");
+    expect(research.links.map((l) => l.id)).toEqual(["n1"]);
+  });
+
+  it("falls back to the local parser for free input", () => {
+    const x = demoExtractNote("Ide podcast #konten", candidates);
+    expect(x).toMatchObject({ title: "Ide podcast", tags: ["konten"] });
+  });
+
+  it("is in the demo inbox seed", () => {
+    expect(DEMO_INBOX_ITEMS.map((i) => i.content)).toContain(DEMO_NOTE_CAPTURE_EXAMPLES[0]!.text);
   });
 });
