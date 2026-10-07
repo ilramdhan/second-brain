@@ -134,6 +134,17 @@ code doesn't match.
      (rerun the DO block of 0022 or add `mfa_aal2` in the new migration). The demo account cannot
      enroll (trigger on `auth.mfa_factors`) and the UI hides enrollment there. Owners can remove a
      lost factor in the Supabase dashboard (_Authentication → Users_).
+- **2FA recovery codes** (migration 0027, `src/server/mfaRecovery.server.ts`): an `aal2` session
+  can create 10 single-use codes (`XXXX-XXXX`, 40 random bits each from `crypto.getRandomValues`)
+  in _Settings → Keamanan_; a new batch replaces the old one. The plaintext is returned once; the
+  table `mfa_recovery_codes` stores only `HMAC-SHA256(TOKEN_ENCRYPTION_KEY-derived key,
+user_id:code)` (a user-salted SHA-256 when that secret is unset) and is service-role only (no
+  grants or permissive policies for `authenticated`, plus `mfa_aal2`). `redeemRecoveryCode` is the
+  one server function that accepts an `aal1` token (`requireSupabaseSession`): it is limited per IP
+  (10/min, in memory) and per user (5 per 15 min, `consume_rate_limit_for`, fail closed), compares
+  in constant time, claims the code with a compare-and-swap on `used_at`, drops the remaining
+  codes and deletes the user's MFA factors (`auth.admin.mfa.deleteFactor`), so the user signs in
+  and must enroll again. Codes are never logged; the feature is off in the demo (`assertNotDemo`).
 - **Supabase Auth settings** for these flows: Site URL = your app origin; Redirect URLs include
   `https://<your-app>/auth/set-password` and `https://<your-app>/auth/callback`; MFA → TOTP
   enabled (default); the **Magic Link** template uses `{{ .ConfirmationURL }}`; the **Invite user** and **Reset Password** templates use

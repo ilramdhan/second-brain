@@ -33,6 +33,30 @@ export const id = {
   authMockChatIn: "/task bayar listrik besok 09.00",
   authMockChatOut: "Tugas dibuat: Bayar listrik · besok 09.00",
   authMockChatSynced: "Tersinkron ke Google Calendar",
+  mfaUseRecovery: "Pakai kode pemulihan",
+  mfaUseTotp: "Pakai kode autentikator",
+  mfaRecoveryIntro:
+    "Masukkan salah satu kode pemulihan Anda. Verifikasi dua langkah akan dimatikan agar Anda bisa masuk dan mengaturnya lagi.",
+  mfaRecoveryLabel: "Kode pemulihan",
+  mfaRecoveryFormat: "Kode pemulihan berbentuk XXXX-XXXX.",
+  mfaRecoveryInvalid: "Kode pemulihan salah atau sudah dipakai.",
+  mfaRecoverySubmit: "Pulihkan akses",
+  mfaRecoveryDone:
+    "Verifikasi dua langkah diatur ulang. Aktifkan lagi di Pengaturan → Keamanan dan buat kode pemulihan baru.",
+  mfaRecoveryDoneSignIn:
+    "Verifikasi dua langkah diatur ulang. Silakan masuk lagi, lalu aktifkan kembali di Pengaturan → Keamanan.",
+  mfaCodesTitle: "Kode pemulihan",
+  mfaCodesIntro:
+    "Pakai salah satu kode ini untuk masuk jika autentikator Anda hilang. Setiap kode hanya berlaku sekali.",
+  mfaCodesRemaining: "Kode tersisa: {n}",
+  mfaCodesGenerate: "Buat kode pemulihan",
+  mfaCodesRegenerate: "Buat ulang kode pemulihan",
+  mfaCodesRegenerateConfirm: "Kode lama tidak akan berlaku lagi. Lanjutkan?",
+  mfaCodesShowOnce: "Simpan kode ini di tempat aman sekarang. Kode tidak akan ditampilkan lagi.",
+  mfaCodesCopy: "Salin semua",
+  mfaCodesDownload: "Unduh .txt",
+  mfaCodesDone: "Sudah saya simpan",
+  mfaCodesFileHeader: "Kode pemulihan Second Brain (masing-masing berlaku sekali)",
 } as const;
 
 export const en = {
@@ -67,4 +91,28 @@ export const en = {
   authMockChatIn: "/task pay electricity tomorrow 9am",
   authMockChatOut: "Task created: Pay electricity · tomorrow 09:00",
   authMockChatSynced: "Synced to Google Calendar",
+  mfaUseRecovery: "Use a recovery code",
+  mfaUseTotp: "Use an authenticator code",
+  mfaRecoveryIntro:
+    "Enter one of your recovery codes. Two-step verification will be turned off so you can sign in and set it up again.",
+  mfaRecoveryLabel: "Recovery code",
+  mfaRecoveryFormat: "Recovery codes look like XXXX-XXXX.",
+  mfaRecoveryInvalid: "Wrong or already used recovery code.",
+  mfaRecoverySubmit: "Recover access",
+  mfaRecoveryDone:
+    "Two-step verification was reset. Turn it on again in Settings → Security and create new recovery codes.",
+  mfaRecoveryDoneSignIn:
+    "Two-step verification was reset. Please sign in again, then turn it back on in Settings → Security.",
+  mfaCodesTitle: "Recovery codes",
+  mfaCodesIntro:
+    "Use one of these codes to sign in if you lose your authenticator. Each code works once.",
+  mfaCodesRemaining: "Codes left: {n}",
+  mfaCodesGenerate: "Create recovery codes",
+  mfaCodesRegenerate: "Regenerate recovery codes",
+  mfaCodesRegenerateConfirm: "Your old codes will stop working. Continue?",
+  mfaCodesShowOnce: "Store these codes somewhere safe now. They will not be shown again.",
+  mfaCodesCopy: "Copy all",
+  mfaCodesDownload: "Download .txt",
+  mfaCodesDone: "I have saved them",
+  mfaCodesFileHeader: "Second Brain recovery codes (each works once)",
 } satisfies Record<keyof typeof id, string>;
