@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 
 import type { Json, TablesInsert } from "@/integrations/supabase/types";
 import { noteIndexFields, shortcut, toMarkdown, type Block, type BlockType } from "@/lib/blocks";
+import { nextRun } from "@/lib/cron";
 import {
   DEMO_BRAIN_DUMP_EXAMPLES,
   DEMO_INBOX_ITEMS,
@@ -1378,7 +1379,7 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
     actions: Json;
     enabled: boolean;
     runs: [string, number, boolean, string][];
-    /** Scheduled rules (9.4): cron in the demo zone. Never run on the demo (no n8n tick). */
+    /** Scheduled rules (9.4): cron in the demo zone. Never actually run on the demo (no n8n tick). */
     cron?: string;
   }[] = [
     {
@@ -1465,8 +1466,11 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
     last_run_at: a.runs.length ? at(Math.max(...a.runs.map((r) => r[1])), 14) : null,
     schedule_cron: a.cron ?? null,
     schedule_tz: a.cron ? tz : null,
-    // Demo rules never run (the n8n tick is a 404 there), so no next run is stored.
-    next_run_at: null,
+    // Like `scheduleAutomation` (from the end of the reset day, so it is never in the past before
+    // the next daily reset): the list shows "berikutnya …" instead of
+    // looking broken. Nothing runs it: the n8n tick is a 404 on the demo.
+    next_run_at:
+      a.cron && a.enabled ? (nextRun(a.cron, tz, new Date(at(1, 0)))?.toISOString() ?? null) : null,
     created_at: at(-20 + i, 10),
   }));
   const titleOf = (key: string) => taskSpecs.find((t) => t.key === key)?.title ?? key;
