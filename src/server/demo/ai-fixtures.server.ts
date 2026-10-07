@@ -12,12 +12,18 @@ import {
   DEMO_MEETING_EXAMPLES,
   DEMO_OCR_TEXT,
   DEMO_PARAPHRASE_EXAMPLES,
+  DEMO_TASK_CAPTURE_EXAMPLES,
   DEMO_VOICE_TRANSCRIPT,
   demoGenericReply,
   type DemoExample,
 } from "@/lib/demo-examples";
 import type { ParsedTask } from "@/lib/ai.server";
 import { appTimezone, parseTaskTextInZone, zonedIsoDate } from "@/server/n8n/time.server";
+import {
+  fallbackExtraction,
+  type ExtractedTask,
+  type TaskCandidates,
+} from "@/server/taskExtract.server";
 
 export type DemoTextKind = "paraphrase" | "meeting" | "ocr" | "summary";
 
@@ -305,6 +311,71 @@ export function demoBrainDump(dump: string, existingProjects: string[], clock: C
   return key
     ? dumpFixture(key, existingProjects, full)
     : dumpFallback(dump, existingProjects, full);
+}
+
+/* ---------------- task extraction ---------------- */
+
+const TASK_KEYWORDS = {
+  "task-full": ["rina", "laporan harian", "aplikasi kasir", "toko pilot"],
+  "task-progress": ["banner", "promo", "sketsa", "ngerjain"],
+} as const;
+
+/**
+ * Simulated `aiExtractTask`: a full extraction for the examples in DEMO_TASK_CAPTURE_EXAMPLES,
+ * else the local regex fallback. Names are taken from the user's candidates when they exist, and
+ * the server-side validation drops them like any model answer when they do not.
+ */
+export function demoExtractTask(
+  text: string,
+  candidates: TaskCandidates,
+  clock: Clock = {},
+): ExtractedTask {
+  const now = clock.now ?? new Date();
+  const tz = clock.tz ?? appTimezone();
+  const key = matchFixture(text, TASK_KEYWORDS, DEMO_TASK_CAPTURE_EXAMPLES);
+  if (!key) return fallbackExtraction(text, { now, tz });
+  const day = (n: number) => zonedIsoDate(now, tz, n);
+  const pick = (name: string, names: string[]) =>
+    names.find((n) => n.toLowerCase() === name.toLowerCase()) ?? name;
+  if (key === "task-full") {
+    const dependency = candidates.tasks.find((t) => /api laporan penjualan/i.test(t.title));
+    return {
+      title: "Uji halaman laporan harian",
+      description: "Uji tampilan dan angka laporan penjualan harian sebelum rilis ke toko pilot.",
+      status: "todo",
+      priority: "high",
+      project: pick(
+        "Aplikasi Kasir",
+        candidates.projects.map((p) => p.name),
+      ),
+      start: `${day(1)}T09:00`,
+      due: day(daysUntilWeekday(now, tz, 5)),
+      estimate_minutes: 180,
+      assignee: pick(
+        "Rina",
+        candidates.members.map((m) => m.name),
+      ),
+      tags: ["qa", "laporan"],
+      depends_on: [dependency?.title ?? "API laporan penjualan harian"],
+      comments: ["Pakai data toko pilot minggu lalu."],
+      recurrence: null,
+    };
+  }
+  return {
+    title: "Sketsa banner promo akhir bulan",
+    description: null,
+    status: "in_progress",
+    priority: "low",
+    project: null,
+    start: null,
+    due: null,
+    estimate_minutes: 120,
+    assignee: null,
+    tags: ["desain", "promo"],
+    depends_on: [],
+    comments: [],
+    recurrence: null,
+  };
 }
 
 /* ---------------- text ---------------- */

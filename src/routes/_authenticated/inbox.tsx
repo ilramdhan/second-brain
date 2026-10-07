@@ -8,8 +8,11 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { parseBrainDump, paraphrasePoint } from "@/lib/ai.functions";
+import { captureInboxTask } from "@/lib/capture.functions";
 import { QuickCapture } from "@/components/QuickCapture";
 import { DemoExamples } from "@/components/demo/DemoExamples";
+import { FIELD_LABEL } from "@/lib/capture-fields";
+import { scheduleSemanticSync } from "@/lib/semantic-sync";
 import { isDemoGenericReply } from "@/lib/demo-examples";
 import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
@@ -55,6 +58,7 @@ function InboxPage() {
   const { data: projects = [] } = useProjects();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [expandingId, setExpandingId] = useState<string | null>(null);
+  const [taskingId, setTaskingId] = useState<string | null>(null);
   const { data: rules = [] } = useAutomations();
   const runRules = useServerFn(runAutomations);
 
@@ -147,6 +151,31 @@ function InboxPage() {
     }
   }
 
+  /** One item → one fully filled task (AI extraction, regex fallback), written server-side. */
+  async function handleToTask(item: InboxItem) {
+    setTaskingId(item.id);
+    try {
+      const r = await captureInboxTask({ data: { itemId: item.id, text: item.content } });
+      for (const key of [qk.tasks, qk.deps, ["inbox-count"]])
+        void qc.invalidateQueries({ queryKey: key });
+      scheduleSemanticSync();
+      const fields = r.filled.map((f) => FIELD_LABEL[f] ?? f).join(", ");
+      toast.success(`Tugas dibuat: ${r.title}`, {
+        description: [
+          `${r.via === "ai" ? "Diisi AI" : "Diisi parser lokal"}${fields ? `: ${fields}` : ""}`,
+          r.dropped.length ? `Diabaikan: ${r.dropped.join("; ")}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
+      load();
+    } catch (err) {
+      toastError(err, "Gagal membuat tugas");
+    } finally {
+      setTaskingId(null);
+    }
+  }
+
   async function handleParaphrase(item: InboxItem) {
     setExpandingId(item.id);
     try {
@@ -225,6 +254,18 @@ function InboxPage() {
                 Proses dengan AI
               </button>
               <button
+                onClick={() => handleToTask(item)}
+                disabled={taskingId === item.id}
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                {taskingId === item.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ListTodo className="h-3.5 w-3.5" />
+                )}
+                Jadikan tugas (AI)
+              </button>
+              <button
                 onClick={() => handleParaphrase(item)}
                 disabled={expandingId === item.id}
                 className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
@@ -265,7 +306,9 @@ function InboxPage() {
           ), issue (
           <Bug className="inline h-3 w-3" />
           ), dan catatan — lengkap dengan prioritas, deadline, dan proyek. "Perjelas poin"
-          memparafrase poin singkat menjadi deskripsi lengkap sebelum Anda lupa konteksnya.
+          memparafrase poin singkat menjadi deskripsi lengkap sebelum Anda lupa konteksnya. "Jadikan
+          tugas (AI)" membuat satu tugas lengkap: status, prioritas, proyek, penanggung jawab,
+          tanggal mulai/tenggat, estimasi, tag, dependensi dan komentar (tanpa AI: parser lokal).
         </p>
       </div>
     </PageContainer>

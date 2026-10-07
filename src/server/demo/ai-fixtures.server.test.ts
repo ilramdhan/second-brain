@@ -7,14 +7,17 @@ import {
   DEMO_MEETING_NOTE,
   DEMO_OCR_TEXT,
   DEMO_PARAPHRASE_EXAMPLES,
+  DEMO_TASK_CAPTURE_EXAMPLES,
   DEMO_VOICE_TRANSCRIPT,
   isDemoGenericReply,
 } from "@/lib/demo-examples";
 import { zonedIsoDate } from "@/server/n8n/time.server";
+import { extractedTaskSchema, resolveExtraction } from "@/server/taskExtract.server";
 
 import {
   demoBrainDump,
   demoDelay,
+  demoExtractTask,
   demoText,
   demoTranscript,
   matchFixture,
@@ -152,5 +155,36 @@ describe("demoDelay", () => {
     controller.abort();
     await expect(wait).rejects.toMatchObject({ name: "AbortError" });
     await expect(demoDelay(controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+describe("demoExtractTask", () => {
+  const candidates = {
+    projects: [{ id: "p1", name: "Aplikasi Kasir" }],
+    members: [{ project_id: "p1", user_id: "u-rina", name: "Rina" }],
+    tasks: [{ id: "t1", title: "API laporan penjualan harian" }],
+  };
+
+  it("fills every field for the full example, and the references resolve on the seed", () => {
+    const x = demoExtractTask(DEMO_TASK_CAPTURE_EXAMPLES[0]!.text, candidates, clock);
+    expect(extractedTaskSchema.safeParse(x).success).toBe(true);
+    const r = resolveExtraction(x, candidates, clock, "");
+    expect(r.insert).toMatchObject({ project_id: "p1", assignee_id: "u-rina", priority: "high" });
+    expect(r.dependsOn).toEqual([{ id: "t1", title: "API laporan penjualan harian" }]);
+    expect(r.comments).toHaveLength(1);
+    expect(r.dropped).toEqual([]);
+  });
+
+  it("answers every example and falls back to the regex parser for free input", () => {
+    for (const ex of DEMO_TASK_CAPTURE_EXAMPLES)
+      expect(
+        extractedTaskSchema.safeParse(demoExtractTask(ex.text, candidates, clock)).success,
+      ).toBe(true);
+    const free = demoExtractTask("Beli tinta printer besok !rendah", candidates, clock);
+    expect(free).toMatchObject({ title: "Beli tinta printer", priority: "low" });
+  });
+
+  it("is in the demo inbox seed", () => {
+    expect(DEMO_INBOX_ITEMS.map((i) => i.content)).toContain(DEMO_TASK_CAPTURE_EXAMPLES[0]!.text);
   });
 });

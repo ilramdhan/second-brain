@@ -91,6 +91,7 @@ A daily agenda that shows overdue tasks, tasks due today and this week, upcoming
 
 - Inbox items come from manual entry, Telegram, voice or OCR (`inbox_items.source`).
 - **AI → structure** (`parseBrainDump`): the AI splits an item into separate `task` / `issue` / `note` entries. Each entry gets a priority, an ISO due date (relative dates like "besok"/"Jumat" are resolved), 1–3 tags, a short paraphrased description and a project name. The parser matches existing projects by name and creates missing ones. Tasks and notes are then inserted, and the item is marked `processed`.
+- **Full task capture** ("Jadikan tugas (AI)", `captureInboxTask`): turns one item into one task with every field the text clearly implies (see [Full-field task capture](#full-field-task-capture)).
 - **Paraphrase** (`paraphrasePoint`): expands a terse point into a 2–4 sentence description. The original text is kept in `ai_summary`.
 - You can archive items.
 
@@ -109,9 +110,21 @@ A local regex parser for Indonesian and English. It makes no AI call and costs n
 - Dates: `hari ini/today`, `besok/tomorrow`, `lusa`, `minggu depan/next week`, `bulan depan`, `3 hari lagi`, `in 2 weeks`, weekdays (`senin`, `friday`, `jumat depan`), `12 agustus 2026`, `12/8`, `tgl 12`
 - Time: `jam 10 pagi`, `14:30`, `7pm`, `nanti malam`
 - `#tag`, `@assignee`, `+Project`, priority `!tinggi` / `!high` / `p1`
+- Estimate `~30m`, `~2j`, `~1.5h`, `~1j30m`; status `status:review`, `status:dikerjakan`, `status:selesai`
 - Recurrence: `setiap hari`, `every week`, `tiap bulan`
 
-Example: `Meeting evaluasi besok jam 10 pagi #urgent @budi !tinggi +Website`
+Example: `Meeting evaluasi besok jam 10 pagi #urgent @budi !tinggi +Website ~1j`
+
+Quick task (`Q`) always uses this parser only.
+
+### Full-field task capture
+
+Telegram (app and n8n mode), n8n capture (`target: task|auto`) and the inbox "Jadikan tugas (AI)" button turn one message into one fully filled task: title, description, status, priority, project, start and due dates, estimate, assignee, tags, dependencies, comments and recurrence.
+
+- **AI first** (`aiExtractTask`, structured output with a zod schema): the model gets compact candidate lists (the user's accessible projects, their members by display name, recent open task titles; never ids or emails) and fills a field only when the message clearly implies it. Dates are resolved in `APP_TIMEZONE`.
+- **Validated server-side** (`src/server/taskExtract.server.ts`): unknown projects, assignees who are not members of the matched project and tasks outside the user's open tasks are dropped; dependencies are cycle-checked with the same rule as the task editor; a task waiting on open blockers stays `todo`. Comments go to `task_comments`. The write runs the automation rules and is picked up by semantic search.
+- **Regex fallback**: when AI is not configured, the per-user AI budget is used up or the AI call fails, the local parser above fills what it can (`komentar: …` lines become comments, further lines the description).
+- The bot reply lists which fields were filled (and by AI or the local parser) and what was ignored.
 
 ### Tasks (`/tasks`, project pages)
 
@@ -225,9 +238,9 @@ The sync is **two-way** (migration `0021_gcal_two_way_sync`):
 
 ### Telegram bot
 
-- Users link their account in **Settings → Bot Telegram → Hubungkan Telegram**, which shows a one-time code (valid for 10 minutes, single use), and send `/link <code>` to the bot. After that, any message they send goes to their Inbox.
+- Users link their account in **Settings → Bot Telegram → Hubungkan Telegram**, which shows a one-time code (valid for 10 minutes, single use), and send `/link <code>` to the bot. After that, any message they send goes to their Inbox, or becomes a fully filled task when it reads like one (a date, priority, estimate or status) or starts with `/task` (see [Full-field task capture](#full-field-task-capture)).
 - The app talks to the Telegram Bot API directly with `TELEGRAM_BOT_TOKEN`. With `TELEGRAM_BOT_USERNAME` set, Settings also shows a one-tap `t.me/<bot>?start=<code>` link.
-- Two modes (a bot has one webhook): **app mode** (webhook → `/api/public/telegram/webhook`: `/start`, `/link`, text → Inbox) or **n8n mode** (webhook → n8n workflow 01 → `/api/public/n8n/bot`: all commands, inline buttons, OCR, voice).
+- Two modes (a bot has one webhook): **app mode** (webhook → `/api/public/telegram/webhook`: `/start`, `/link`, `/task`, text with a date/priority/estimate → full task, other text → Inbox) or **n8n mode** (webhook → n8n workflow 01 → `/api/public/n8n/bot`: all commands, inline buttons, OCR, voice).
 - Deadline reminders and digests are sent on a schedule (n8n `POST /api/public/n8n/reminders` every 15 minutes, or the `/api/public/hooks/reminders` fallback).
 - Automations and unblock notifications can also send Telegram messages.
 

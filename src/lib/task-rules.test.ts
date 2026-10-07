@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { dueShiftMs, parseCompleteResult, pickColumns } from "@/lib/task-rules";
+import {
+  createsDependencyCycle,
+  dueShiftMs,
+  parseCompleteResult,
+  pickColumns,
+} from "@/lib/task-rules";
 
 describe("dueShiftMs", () => {
   it("returns the positive delta when a due date moves later", () => {
@@ -53,5 +58,24 @@ describe("pickColumns", () => {
       id: "a",
       title: "T",
     });
+  });
+});
+
+describe("createsDependencyCycle", () => {
+  // a → b → c (a blocks b, b blocks c)
+  const edges: [string, string][] = [
+    ["a", "b"],
+    ["b", "c"],
+  ];
+  const next = (ids: string[]) => edges.filter(([from]) => ids.includes(from)).map(([, to]) => to);
+
+  it("rejects edges that close a cycle, including self-dependencies", async () => {
+    expect(await createsDependencyCycle("c", "a", next)).toBe(true);
+    expect(await createsDependencyCycle("b", "a", next)).toBe(true);
+    expect(await createsDependencyCycle("a", "a", next)).toBe(true);
+  });
+  it("accepts edges without a cycle (also with async lookups)", async () => {
+    expect(await createsDependencyCycle("a", "c", next)).toBe(false);
+    expect(await createsDependencyCycle("c", "d", async (ids) => next(ids))).toBe(false);
   });
 });

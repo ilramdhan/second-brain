@@ -63,6 +63,27 @@ export function zonedIsoDate(date: Date, tz: string, days = 0): string {
   return new Date(Date.UTC(y!, m! - 1, d! + days)).toISOString().slice(0, 10);
 }
 
+/** UTC instant of the wall-clock time `y-m-d h:min` in `tz` (two passes cover DST edges). */
+export function zonedLocalToUtc(
+  y: number,
+  m: number,
+  d: number,
+  h: number,
+  min: number,
+  tz: string,
+): Date {
+  const wall = Date.UTC(y, m - 1, d, h, min);
+  const first = wall - tzOffsetMs(new Date(wall), tz);
+  return new Date(wall - tzOffsetMs(new Date(first), tz));
+}
+
+/** Wall-clock `YYYY-MM-DDTHH:mm` of `date` in `tz` (inverse of zonedLocalToUtc). */
+export function zonedLocalString(date: Date, tz: string): string {
+  const p = zonedParts(date, tz);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`;
+}
+
 /** `parseTaskText` evaluated in `tz` instead of the server's local zone. */
 export function parseTaskTextInZone(text: string, now: Date, tz: string): ParsedTask {
   const shift = tzOffsetMs(now, tz) + now.getTimezoneOffset() * 60_000;

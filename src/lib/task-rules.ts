@@ -55,3 +55,32 @@ export function pickColumns<T extends object>(row: T, cols: string): Partial<T> 
   for (const c of cols.split(",")) if (c in row) out[c] = (row as Record<string, unknown>)[c];
   return out as Partial<T>;
 }
+
+/**
+ * True when adding the edge `blocker → blocked` would close a dependency cycle, i.e. `blocked`
+ * already (transitively) blocks `blocker`. `next(ids)` returns the tasks blocked by any of `ids`
+ * (an in-memory lookup in useDependencyActions, a scoped query in the server capture writer), so
+ * the browser and the server apply the same rule. Bounded by `maxDepth` levels.
+ */
+export async function createsDependencyCycle(
+  blocker: string,
+  blocked: string,
+  next: (ids: string[]) => string[] | Promise<string[]>,
+  maxDepth = 100,
+): Promise<boolean> {
+  if (blocker === blocked) return true;
+  const seen = new Set<string>([blocked]);
+  let frontier = [blocked];
+  for (let depth = 0; frontier.length && depth < maxDepth; depth++) {
+    const following = await next(frontier);
+    frontier = [];
+    for (const id of following) {
+      if (id === blocker) return true;
+      if (!seen.has(id)) {
+        seen.add(id);
+        frontier.push(id);
+      }
+    }
+  }
+  return false;
+}
