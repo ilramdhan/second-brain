@@ -12,6 +12,8 @@ import {
   DEMO_MEETING_EXAMPLES,
   DEMO_NOTE_CAPTURE_EXAMPLES,
   DEMO_OCR_TEXT,
+  DEMO_PROJECT_PREFILL_EXAMPLES,
+  DEMO_TEMPLATE_PREFILL_EXAMPLES,
   DEMO_PARAPHRASE_EXAMPLES,
   DEMO_TASK_CAPTURE_EXAMPLES,
   DEMO_VOICE_TRANSCRIPT,
@@ -20,6 +22,13 @@ import {
 } from "@/lib/demo-examples";
 import type { ParsedTask } from "@/lib/ai.server";
 import { appTimezone, parseTaskTextInZone, zonedIsoDate } from "@/server/n8n/time.server";
+import {
+  fallbackProjectExtraction,
+  fallbackTemplateExtraction,
+  type ExtractedProject,
+  type ExtractedTemplate,
+  type ProjectCandidates,
+} from "@/server/formPrefill.server";
 import {
   fallbackNoteExtraction,
   type ExtractedNote,
@@ -450,6 +459,75 @@ export function demoExtractNote(text: string, candidates: NoteCandidates): Extra
       { key: "penulis", value: "James Clear" },
       { key: "rating", value: "5" },
     ],
+  };
+}
+
+/* ---------------- form prefill ---------------- */
+
+const PROJECT_KEYWORDS = {
+  "project-loyalty": ["loyalti", "poin", "tukar diskon", "pelanggan"],
+} as const;
+const TEMPLATE_KEYWORDS = {
+  "template-retro": ["retro", "berjalan baik", "diperbaiki", "action item"],
+  "template-release": ["rilis", "changelog", "smoke test", "build"],
+} as const;
+
+/** Simulated `aiExtractProject`: a fixture for the example, else the local fallback. */
+export function demoExtractProject(
+  text: string,
+  candidates: ProjectCandidates,
+  clock: Clock = {},
+): ExtractedProject {
+  const now = clock.now ?? new Date();
+  const tz = clock.tz ?? appTimezone();
+  if (!matchFixture(text, PROJECT_KEYWORDS, DEMO_PROJECT_PREFILL_EXAMPLES))
+    return fallbackProjectExtraction(text, { now, tz });
+  const pick = (name: string, names: string[]) =>
+    names.find((n) => n.toLowerCase() === name.toLowerCase()) ?? name;
+  return {
+    name: "Program poin loyalti",
+    description:
+      "Pelanggan mendapat poin di setiap transaksi dan dapat menukarnya dengan diskon di kasir.",
+    para_type: "project",
+    status: "planning",
+    color: "violet",
+    parent: pick(
+      "Aplikasi Kasir",
+      candidates.projects.map((p) => p.name),
+    ),
+    start: zonedIsoDate(now, tz, 30),
+    due: zonedIsoDate(now, tz, 80),
+    launch: zonedIsoDate(now, tz, 85),
+    members: candidates.people.some((p) => p.name.toLowerCase() === "rina") ? ["Rina"] : [],
+  };
+}
+
+/** Simulated `aiExtractTemplate`: fixtures for the examples, else the local fallback. */
+export function demoExtractTemplate(text: string, clock: Clock = {}): ExtractedTemplate {
+  const key = matchFixture(text, TEMPLATE_KEYWORDS, DEMO_TEMPLATE_PREFILL_EXAMPLES);
+  if (!key)
+    return fallbackTemplateExtraction(text, {
+      now: clock.now ?? new Date(),
+      tz: clock.tz ?? appTimezone(),
+    });
+  if (key === "template-retro")
+    return {
+      kind: "note",
+      name: "Retro sprint",
+      title: "Retro sprint: ",
+      body: "## Yang berjalan baik\n- \n## Yang perlu diperbaiki\n- \n## Action item\n- [ ] ",
+      tags: ["retro"],
+      priority: null,
+      estimate_minutes: null,
+    };
+  return {
+    kind: "task",
+    name: "Rilis aplikasi",
+    title: "Rilis: ",
+    body: "- [ ] Cek changelog\n- [ ] Build\n- [ ] Uji smoke test\n- [ ] Umumkan ke tim",
+    tags: ["rilis"],
+    priority: "high",
+    estimate_minutes: 120,
   };
 }
 

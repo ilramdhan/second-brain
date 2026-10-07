@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { FillFromText } from "@/components/common/FillFromText";
 import { Field } from "@/components/common/TagInput";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PROJECT_FIELD_LABEL } from "@/lib/capture-fields";
 import { COLORS, PARA, PROJECT_STATUS } from "@/lib/constants";
+import { DEMO_PROJECT_PREFILL_EXAMPLES } from "@/lib/demo-examples";
+import { draftProjectFromText } from "@/lib/prefill.functions";
 import { useProjectActions, useProjects, type Project } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +47,7 @@ export function ProjectDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         {open && (
           <ProjectForm
             key={project?.id ?? "new"}
@@ -79,6 +84,7 @@ function ProjectForm({
   const [start, setStart] = useState(project?.start_date ?? "");
   const [due, setDue] = useState(project?.due_date ?? "");
   const [launch, setLaunch] = useState(project?.launch_date ?? "");
+  const draftProject = useServerFn(draftProjectFromText);
 
   async function save() {
     if (!name.trim()) {
@@ -123,6 +129,31 @@ function ProjectForm({
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
+        {!project && (
+          <FillFromText
+            examples={DEMO_PROJECT_PREFILL_EXAMPLES}
+            placeholder="Contoh: proyek program loyalti, sub-proyek Aplikasi Kasir, mulai bulan depan, rilis akhir kuartal, warna ungu…"
+            labels={PROJECT_FIELD_LABEL}
+            onFill={(text) => draftProject({ data: { text } })}
+            onApply={({ draft: d }) => {
+              setName(d.name);
+              setDescription(d.description ?? "");
+              setPara(d.para_type);
+              setStatus(d.status);
+              setCol(d.color);
+              setParent(d.parent_id ?? defaults?.parent_id ?? NONE);
+              setStart(d.start_date ?? "");
+              setDue(d.due_date ?? "");
+              setLaunch(d.launch_date ?? "");
+            }}
+            // Members are suggestions only: inviting stays an explicit owner action.
+            extraSummary={(r) =>
+              r.members.length
+                ? [`Undang ${r.members.join(", ")} lewat tab Tim setelah proyek dibuat`]
+                : []
+            }
+          />
+        )}
         <Input
           autoFocus
           value={name}

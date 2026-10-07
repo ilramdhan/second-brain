@@ -150,6 +150,33 @@ export const DEMO_NOTE_CAPTURE_EXAMPLES: readonly DemoExample[] = [
   },
 ];
 
+/** "Isi dari teks" in the new-project dialog (draftProjectFromText). */
+export const DEMO_PROJECT_PREFILL_EXAMPLES: readonly DemoExample[] = [
+  {
+    key: "project-loyalty",
+    label: { id: "Proyek program loyalti", en: "Loyalty programme project" },
+    text: [
+      "Proyek program poin loyalti pelanggan, sub-proyek dari Aplikasi Kasir",
+      "Tujuan: pelanggan dapat poin tiap transaksi dan bisa tukar diskon.",
+      "Mulai 1 bulan lagi, rilis akhir kuartal, warna ungu, masih tahap perencanaan. Ajak Rina.",
+    ].join("\n"),
+  },
+];
+
+/** "Isi dari teks" in the new-template dialog (draftTemplateFromText). */
+export const DEMO_TEMPLATE_PREFILL_EXAMPLES: readonly DemoExample[] = [
+  {
+    key: "template-retro",
+    label: { id: "Template retro sprint", en: "Sprint retro template" },
+    text: "Template catatan retro sprint: apa yang berjalan baik, yang perlu diperbaiki, action item dengan checklist #retro",
+  },
+  {
+    key: "template-release",
+    label: { id: "Template tugas rilis", en: "Release task template" },
+    text: "Template tugas rilis aplikasi: cek changelog, build, uji smoke test, umumkan ke tim. Prioritas tinggi, sekitar 2 jam #rilis",
+  },
+];
+
 /** What the demo "transcribes" from any recording (transcribeVoice). */
 export const DEMO_VOICE_TRANSCRIPT =
   "Ingatkan saya kirim proposal ke klien besok jam 10, terus beli kopi buat kantor.";

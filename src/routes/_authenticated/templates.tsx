@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { CheckSquare, Plus, StickyNote, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { FillFromText } from "@/components/common/FillFromText";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
@@ -26,7 +28,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { TEMPLATE_FIELD_LABEL } from "@/lib/capture-fields";
 import { PRIORITY } from "@/lib/constants";
+import { DEMO_TEMPLATE_PREFILL_EXAMPLES } from "@/lib/demo-examples";
+import { draftTemplateFromText } from "@/lib/prefill.functions";
 import { getUid, useNoteActions } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
@@ -228,6 +233,7 @@ function TemplateDialog({
   const [priority, setPriority] = useState("medium");
   const [tags, setTags] = useState("");
   const [estimate, setEstimate] = useState(25);
+  const draftTemplate = useServerFn(draftTemplateFromText);
   async function save() {
     if (!name.trim()) {
       toast.error("Beri nama template");
@@ -249,7 +255,7 @@ function TemplateDialog({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Template baru</DialogTitle>
           <DialogDescription>
@@ -257,6 +263,21 @@ function TemplateDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
+          <FillFromText
+            examples={DEMO_TEMPLATE_PREFILL_EXAMPLES}
+            placeholder="Contoh: template catatan retro sprint dengan bagian yang berjalan baik, yang perlu diperbaiki dan action item #retro"
+            labels={TEMPLATE_FIELD_LABEL}
+            onFill={(text) => draftTemplate({ data: { text } })}
+            onApply={({ draft: d }) => {
+              setKind(d.kind);
+              setName(d.name);
+              setTitle(d.title);
+              setBody(d.body);
+              setTags(d.tags.join(", "));
+              setPriority(d.priority);
+              setEstimate(d.estimate);
+            }}
+          />
           <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
             <Select value={kind} onValueChange={(v) => setKind(v as "task" | "note")}>
               <SelectTrigger aria-label="Jenis template">

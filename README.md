@@ -136,6 +136,14 @@ Telegram (`/note <text>`, or text starting with `catatan:`/`note:`/`notulen:`/`i
 - **Local fallback** without AI: first line = title (`Judul | isi` also works), `#tag`, `+proyek`, `status:draf`, `!pin`, `kunci:: nilai` properties, and markdown shortcuts (`## `, `- `, `1. `, `[] `, `> `) for the body.
 - **Catatan dari teks** (notes list, project notes tab and the knowledge graph): paste or describe a note, AI prefills title, content, status, project, tags, pin and properties in a form, and nothing is saved until you review and press save.
 
+### Fill forms from text
+
+The new-project and new-template dialogs have an **Isi dari teks (AI)** panel (`draftProjectFromText`, `draftTemplateFromText`, `src/server/formPrefill.server.ts`). It only prefills the form, and you review it and save as usual.
+
+- **Project**: name, description, PARA category, status, colour, parent project (only one of yours), start/due/launch dates. People mentioned are matched against people you already share projects with and shown as suggestions; nobody is invited automatically (invite them from the project's team tab).
+- **Template**: kind (task or note), name, initial title, body (markdown sections/checklists), tags, priority and estimate (task templates).
+- Same AI gate as capture (per-user AI budget, local fallback), demo fixtures and examples.
+
 ### Tasks (`/tasks`, project pages)
 
 - Fields: title, description, status (`todo` → `in_progress` → `review` → `done`), priority, start and due dates, tags, project, milestone, assignee (a project member or a free-text name), estimate in minutes, time-block end, recurrence (daily, weekly or monthly).
