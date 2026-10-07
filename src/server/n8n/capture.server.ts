@@ -3,6 +3,7 @@
 import type { CaptureRequest } from "./schemas.server";
 import { N8nHttpError } from "./http.server";
 import * as svc from "./service.server";
+import { looksLikeNote } from "../noteExtract.server";
 import { looksLikeTask, matchByName } from "../taskExtract.server";
 import { appTimezone } from "./time.server";
 
@@ -11,7 +12,7 @@ export type CaptureResult = {
   type: "task" | "note" | "inbox";
   id: string;
   duplicate: boolean;
-  /** Tasks only: who filled the fields ("ai" or the local "regex" parser) and which ones. */
+  /** Tasks and notes: who filled the fields ("ai" or the local "regex" parser) and which ones. */
   via?: "ai" | "regex";
   filled?: string[];
 };
@@ -26,8 +27,12 @@ export async function resolveCaptureUser(body: Pick<CaptureRequest, "user_email"
   return userId;
 }
 
-/** Decides the target for `auto` (pure): a date or priority in the text makes it a task. */
-export function autoTarget(text: string, now: Date, tz: string): "task" | "inbox" {
+/**
+ * Decides the target for `auto` (pure): "catatan:"/"note:" or a [[link]] makes it a note, a
+ * date, priority, estimate or status makes it a task, anything else goes to the inbox.
+ */
+export function autoTarget(text: string, now: Date, tz: string): "task" | "note" | "inbox" {
+  if (looksLikeNote(text)) return "note";
   return looksLikeTask(text, now, tz) ? "task" : "inbox";
 }
 
@@ -97,20 +102,49 @@ export async function capture(
 
   const summary = body.summarize && text ? await svc.summarizeForUser(userId, text) : null;
   if (target === "note") {
-    const content = [summary ? `> Ringkasan AI\n${summary}\n\n---` : "", text, body.url ?? ""]
-      .filter(Boolean)
-      .join("\n");
-    const note = await svc.createNote(
-      userId,
-      headline || "Catatan",
-      content,
-      {
-        tags: body.tags ?? [],
-        project_id: await svc.resolveProjectId(userId, body.project),
-      },
+    // Full-field extraction (AI, local fallback) over title + text; explicit body fields (tags,
+    // project) win, the AI summary and the url are appended as blocks.
+    const message = [title, text].filter(Boolean).join("\n") || "Catatan";
+    const { captureNoteFromText } = await import("../noteCapture.server");
+    const { loadBlocks } = await import("@/lib/blocks");
+    const result = await captureNoteFromText(userId, message, {
+      clock: { now, tz },
       origin,
-    );
-    return { ok: true, type: "note", id: note.id };
+      adjust: (resolved, candidates) => {
+        const n = resolved.insert;
+        if (title) n.title = title.slice(0, 300);
+        if (body.tags?.length) {
+          n.tags = [
+            ...new Set([...body.tags.map((x) => x.replace(/^#/, "").toLowerCase()), ...n.tags]),
+          ].slice(0, 20);
+          if (!resolved.filled.includes("tags")) resolved.filled.push("tags");
+        }
+        if (body.project) {
+          const project = matchByName(body.project, candidates.projects, (p) => p.name);
+          if (project) {
+            n.project_id = project.id;
+            resolved.project = project;
+            if (!resolved.filled.includes("project")) resolved.filled.push("project");
+          }
+        }
+        const extra = [summary ? `> Ringkasan AI\n${summary}\n\n---` : "", body.url ?? ""].filter(
+          Boolean,
+        );
+        if (extra.length) {
+          const blocks = loadBlocks({ blocks: [], content: extra.join("\n") });
+          // Drop the empty placeholder block a note without body gets.
+          const body = n.blocks.filter((b) => b.text || b.type === "divider");
+          n.blocks = summary ? [...blocks, ...body] : [...body, ...blocks];
+        }
+      },
+    });
+    return {
+      ok: true,
+      type: "note",
+      id: result.note.id,
+      via: result.via,
+      filled: result.resolved.filled,
+    };
   }
   const content = (title && text ? `${title}\n\n${text}` : title || text) + link;
   const item = await svc.createInboxItem(userId, content, inboxSource, summary);

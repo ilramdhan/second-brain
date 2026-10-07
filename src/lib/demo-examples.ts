@@ -120,6 +120,36 @@ export const DEMO_TASK_CAPTURE_EXAMPLES: readonly DemoExample[] = [
   },
 ];
 
+/**
+ * Messages that become one fully filled note: Telegram /note, inbox "Jadikan catatan (AI)", n8n
+ * capture target=note and the "Catatan dari teks" form (notes list and knowledge graph).
+ */
+export const DEMO_NOTE_CAPTURE_EXAMPLES: readonly DemoExample[] = [
+  {
+    key: "note-research",
+    label: { id: "Riset untuk proyek", en: "Project research" },
+    text: [
+      "Catatan: riset pembayaran QRIS untuk Aplikasi Kasir #riset",
+      "pembanding: Midtrans, Xendit, DOKU",
+      "- biaya MDR sekitar 0,7% per transaksi",
+      "- dana masuk H+1",
+      "todo: tanya tim finance soal rekonsiliasi harian",
+      "terkait catatan Mode offline",
+    ].join("\n"),
+  },
+  {
+    key: "note-book",
+    label: { id: "Catatan buku", en: "Book notes" },
+    text: [
+      "Ide: rangkuman buku Atomic Habits, sematkan",
+      "penulis: James Clear, rating 5",
+      "- perbaikan 1% tiap hari",
+      "- fokus ke sistem, bukan target",
+      "- buat kebiasaan baik jelas, menarik, mudah, memuaskan",
+    ].join("\n"),
+  },
+];
+
 /** What the demo "transcribes" from any recording (transcribeVoice). */
 export const DEMO_VOICE_TRANSCRIPT =
   "Ingatkan saya kirim proposal ke klien besok jam 10, terus beli kopi buat kantor.";
@@ -138,6 +168,7 @@ export const DEMO_CAPTURE_EXAMPLES: readonly DemoExample[] = [
   ...DEMO_BRAIN_DUMP_EXAMPLES,
   ...DEMO_PARAPHRASE_EXAMPLES,
   ...DEMO_TASK_CAPTURE_EXAMPLES,
+  ...DEMO_NOTE_CAPTURE_EXAMPLES,
 ];
 
 /**
@@ -152,6 +183,8 @@ export const DEMO_INBOX_ITEMS: readonly { content: string; source: "manual" | "v
     { content: DEMO_OCR_TEXT, source: "ocr" },
     // "Jadikan tugas (AI)" turns this one into a task with every field filled.
     { content: DEMO_TASK_CAPTURE_EXAMPLES[0]!.text, source: "manual" },
+    // "Jadikan catatan (AI)" turns this one into a structured note (blocks, tags, links).
+    { content: DEMO_NOTE_CAPTURE_EXAMPLES[0]!.text, source: "manual" },
   ];
 
 /** Raw meeting note for the demo seed ("Buat notulen" turns it into the weekly fixture). */

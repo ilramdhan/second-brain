@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Sparkles, Loader2, Archive, Check, FileText, Bug, ListTodo } from "lucide-react";
+import {
+  Sparkles,
+  Loader2,
+  Archive,
+  Check,
+  FileText,
+  Bug,
+  ListTodo,
+  NotebookPen,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
@@ -8,10 +17,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { parseBrainDump, paraphrasePoint } from "@/lib/ai.functions";
-import { captureInboxTask } from "@/lib/capture.functions";
+import { captureInboxNote, captureInboxTask } from "@/lib/capture.functions";
 import { QuickCapture } from "@/components/QuickCapture";
 import { DemoExamples } from "@/components/demo/DemoExamples";
-import { FIELD_LABEL } from "@/lib/capture-fields";
+import { FIELD_LABEL, NOTE_FIELD_LABEL } from "@/lib/capture-fields";
 import { scheduleSemanticSync } from "@/lib/semantic-sync";
 import { isDemoGenericReply } from "@/lib/demo-examples";
 import type { Tables } from "@/integrations/supabase/types";
@@ -59,6 +68,7 @@ function InboxPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [expandingId, setExpandingId] = useState<string | null>(null);
   const [taskingId, setTaskingId] = useState<string | null>(null);
+  const [notingId, setNotingId] = useState<string | null>(null);
   const { data: rules = [] } = useAutomations();
   const runRules = useServerFn(runAutomations);
 
@@ -176,6 +186,31 @@ function InboxPage() {
     }
   }
 
+  /** One item → one structured note (AI extraction, local fallback), written server-side. */
+  async function handleToNote(item: InboxItem) {
+    setNotingId(item.id);
+    try {
+      const r = await captureInboxNote({ data: { itemId: item.id, text: item.content } });
+      for (const key of [qk.notes, qk.noteBlocks, ["inbox-count"]])
+        void qc.invalidateQueries({ queryKey: key });
+      scheduleSemanticSync();
+      const fields = r.filled.map((f) => NOTE_FIELD_LABEL[f] ?? f).join(", ");
+      toast.success(`Catatan dibuat: ${r.title}`, {
+        description: [
+          `${r.via === "ai" ? "Diisi AI" : "Diisi parser lokal"}${fields ? `: ${fields}` : ""}`,
+          r.dropped.length ? `Diabaikan: ${r.dropped.join("; ")}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
+      load();
+    } catch (err) {
+      toastError(err, "Gagal membuat catatan");
+    } finally {
+      setNotingId(null);
+    }
+  }
+
   async function handleParaphrase(item: InboxItem) {
     setExpandingId(item.id);
     try {
@@ -266,6 +301,18 @@ function InboxPage() {
                 Jadikan tugas (AI)
               </button>
               <button
+                onClick={() => handleToNote(item)}
+                disabled={notingId === item.id}
+                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                {notingId === item.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <NotebookPen className="h-3.5 w-3.5" />
+                )}
+                Jadikan catatan (AI)
+              </button>
+              <button
                 onClick={() => handleParaphrase(item)}
                 disabled={expandingId === item.id}
                 className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
@@ -309,6 +356,8 @@ function InboxPage() {
           memparafrase poin singkat menjadi deskripsi lengkap sebelum Anda lupa konteksnya. "Jadikan
           tugas (AI)" membuat satu tugas lengkap: status, prioritas, proyek, penanggung jawab,
           tanggal mulai/tenggat, estimasi, tag, dependensi dan komentar (tanpa AI: parser lokal).
+          "Jadikan catatan (AI)" menyusun satu catatan rapi: judul, subjudul, poin dan checklist,
+          status, proyek, tag, tautan [[…]] ke catatan yang ada dan properti.
         </p>
       </div>
     </PageContainer>

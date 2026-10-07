@@ -174,19 +174,19 @@ App **tidak pernah memanggil n8n** (n8n yang memanggil `/api/public/n8n/*`; tida
 
 ### Perintah bot (diproses server di `/n8n/bot`)
 
-| Perintah                                                      | Aksi                                                                                                                                                                                                                        |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| _(teks bebas)_                                                | Capture: NLP lokal (`parseTaskText`) → bila ada tanggal/prioritas/estimasi/status jadi **tugas lengkap** (lihat di bawah), selain itu masuk Inbox; balasan Inbox berisi tombol _Jadikan tugas / Jadikan catatan / Hapus_    |
-| `/task <teks>`                                                | Buat tugas lengkap: AI mengisi deskripsi, status, prioritas, proyek, mulai/tenggat, estimasi, penanggung jawab, tag, dependensi, komentar; tanpa AI parser lokal (`besok 9:00 #tag !high +proyek @orang ~2j status:review`) |
-| `/note Judul \| isi`                                          | Buat catatan (blocks + mirror markdown `content`)                                                                                                                                                                           |
-| `/inbox`                                                      | 10 item Inbox pending + tombol proses                                                                                                                                                                                       |
-| `/today`, `/upcoming`, `/overdue`, `/week`                    | Daftar tugas (tombol ✅ selesai per tugas)                                                                                                                                                                                  |
-| `/done <kata kunci>`                                          | Tandai selesai (pilihan tombol bila >1 cocok)                                                                                                                                                                               |
-| `/search <kueri>`                                             | Cari tugas & catatan (judul/`content`)                                                                                                                                                                                      |
-| `/sum <teks/URL>`                                             | Ringkas AI → simpan sebagai catatan                                                                                                                                                                                         |
-| `/link KODE`, `/start KODE`, `/unlink`, `/help`, `/start`     | Akun & bantuan (kode sekali pakai dari Settings; `/start KODE` = deep link `t.me/<bot>?start=KODE`)                                                                                                                         |
-| Foto/gambar/PDF (+caption `/task`, `/note`, `/inbox`, `/sum`) | OCR → tujuan sesuai caption (default: catatan "OCR <tanggal>" + item Inbox)                                                                                                                                                 |
-| Voice note / audio                                            | Transkripsi → capture seperti teks (caption opsional)                                                                                                                                                                       |
+| Perintah                                                      | Aksi                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| _(teks bebas)_                                                | Capture: diawali `catatan:`/`note:`/`notulen:`/`ide:` atau berisi `[[tautan]]` → **catatan lengkap**; ada tanggal/prioritas/estimasi/status → **tugas lengkap**; selain itu Inbox (tombol _Jadikan tugas / Jadikan catatan / Hapus_) |
+| `/task <teks>`                                                | Buat tugas lengkap: AI mengisi deskripsi, status, prioritas, proyek, mulai/tenggat, estimasi, penanggung jawab, tag, dependensi, komentar; tanpa AI parser lokal (`besok 9:00 #tag !high +proyek @orang ~2j status:review`)          |
+| `/note <teks>`                                                | Buat catatan lengkap: AI menyusun judul, blok (subjudul, poin, checklist), status, proyek, tag, tautan `[[catatan]]`, sematkan, properti; tanpa AI parser lokal (`Judul \| isi #tag +proyek status:draf !pin`, `kunci:: nilai`)      |
+| `/inbox`                                                      | 10 item Inbox pending + tombol proses                                                                                                                                                                                                |
+| `/today`, `/upcoming`, `/overdue`, `/week`                    | Daftar tugas (tombol ✅ selesai per tugas)                                                                                                                                                                                           |
+| `/done <kata kunci>`                                          | Tandai selesai (pilihan tombol bila >1 cocok)                                                                                                                                                                                        |
+| `/search <kueri>`                                             | Cari tugas & catatan (judul/`content`)                                                                                                                                                                                               |
+| `/sum <teks/URL>`                                             | Ringkas AI → simpan sebagai catatan                                                                                                                                                                                                  |
+| `/link KODE`, `/start KODE`, `/unlink`, `/help`, `/start`     | Akun & bantuan (kode sekali pakai dari Settings; `/start KODE` = deep link `t.me/<bot>?start=KODE`)                                                                                                                                  |
+| Foto/gambar/PDF (+caption `/task`, `/note`, `/inbox`, `/sum`) | OCR → tujuan sesuai caption (default: catatan "OCR <tanggal>" + item Inbox)                                                                                                                                                          |
+| Voice note / audio                                            | Transkripsi → capture seperti teks (caption opsional)                                                                                                                                                                                |
 
 ### Tugas lengkap dari satu pesan
 
@@ -204,6 +204,20 @@ App **tidak pernah memanggil n8n** (n8n yang memanggil `/api/public/n8n/*`; tida
 🔗 Menunggu: "API laporan penjualan harian"
 💬 1 komentar
 Diisi AI · 10 kolom terisi
+```
+
+### Catatan lengkap dari satu pesan
+
+`/note`, teks bebas yang terdeteksi sebagai catatan, voice/OCR dengan caption `/note`, tombol _Jadikan catatan_ dan capture `target=note` (atau `auto` untuk teks seperti catatan) memakai `src/server/noteCapture.server.ts`: AI (kuota AI per user) menerima nama proyek, judul catatan dan tag milik user; server mencocokkan proyek/tag/tautan, membuang tautan dan referensi karangan, menulis `blocks` + `content`/`links`/`refs`/`excerpt` (`withNoteIndex`) dan menjalankan automations catatan. Tanpa AI → parser lokal. Contoh balasan:
+
+```
+📝 Catatan dibuat: Riset pembayaran QRIS
+📌 Status: Draf
+📁 Aplikasi Kasir
+🏷 #riset #pembayaran
+🔗 Tertaut: "Mode offline"
+🧱 10 blok (3 subjudul, 1 checklist, 5 poin)
+Diisi AI · 5 kolom terisi
 ```
 
 ## OCR & AI: pilihan provider dan biaya
@@ -335,7 +349,7 @@ Capture generik (email, Google Calendar, integrasi lain).
 }
 ```
 
-Satu dari `user_email`/`chat_id` wajib, juga salah satu `title`/`text`. `user_email` dicocokkan (case-insensitive) dengan email akun; `chat_id` dengan `profiles.telegram_chat_id`. `target=auto` → `parseTaskText` (zona `APP_TIMEZONE`): ada tanggal/prioritas/estimasi/status → tugas, selain itu inbox. Tugas (`task`/`auto`) diisi lengkap oleh ekstraksi AI (fallback parser lokal, lihat _Tugas lengkap dari satu pesan_); field eksplisit di body (`description`, `start_date`, `due_date`, `priority`, `tags`, `project`, `url`) selalu menang. `summarize=true` → isi `ai_summary` (inbox) atau ringkasan di awal catatan (memakai kuota AI user; dilewati bila AI belum dikonfigurasi). Response: `201 {"ok": true, "type": "task|note|inbox", "id": "uuid", "duplicate": false}`; untuk tugas ditambah `"via": "ai|regex"` dan `"filled": ["project", "due", …]`; `external_id` yang sama → `200 {..., "duplicate": true}`; user tidak ditemukan → `404`.
+Satu dari `user_email`/`chat_id` wajib, juga salah satu `title`/`text`. `user_email` dicocokkan (case-insensitive) dengan email akun; `chat_id` dengan `profiles.telegram_chat_id`. `target=auto`: diawali `catatan:`/`note:`/`notulen:`/`ide:` atau berisi `[[…]]` → catatan; `parseTaskText` (zona `APP_TIMEZONE`) menemukan tanggal/prioritas/estimasi/status → tugas; selain itu inbox. Catatan (`note`/`auto`) diisi lengkap oleh ekstraksi AI (fallback parser lokal); `title`, `tags` dan `project` di body selalu menang, ringkasan AI ditaruh di awal dan `url` di akhir. Tugas (`task`/`auto`) diisi lengkap oleh ekstraksi AI (fallback parser lokal, lihat _Tugas lengkap dari satu pesan_); field eksplisit di body (`description`, `start_date`, `due_date`, `priority`, `tags`, `project`, `url`) selalu menang. `summarize=true` → isi `ai_summary` (inbox) atau ringkasan di awal catatan (memakai kuota AI user; dilewati bila AI belum dikonfigurasi). Response: `201 {"ok": true, "type": "task|note|inbox", "id": "uuid", "duplicate": false}`; untuk tugas dan catatan ditambah `"via": "ai|regex"` dan `"filled": ["project", "due", …]` (catatan: `content`, `status`, `project`, `tags`, `links`, `pinned`, `properties`); `external_id` yang sama → `200 {..., "duplicate": true}`; user tidak ditemukan → `404`.
 
 ### `GET /api/public/n8n/digest?kind=morning|overdue|evening|weekly`
 

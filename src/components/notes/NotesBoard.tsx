@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { KanbanSquare, LayoutGrid, Pin, Plus, Search } from "lucide-react";
+import { KanbanSquare, LayoutGrid, Pin, Plus, Search, Sparkles } from "lucide-react";
 
 import { Kanban } from "@/components/Kanban";
+import { NoteFromTextDialog } from "@/components/notes/NoteFromTextDialog";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { VirtualList } from "@/components/common/VirtualList";
 import { chunk, shouldVirtualize } from "@/components/common/virtual";
@@ -46,6 +47,7 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
     if (row) open(row);
   }
   const [view, setView] = useState("grid");
+  const [fromText, setFromText] = useState(false);
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("all");
 
@@ -89,9 +91,15 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <Button size="sm" onClick={() => newNote()}>
-          <Plus /> Catatan
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setFromText(true)}>
+            <Sparkles /> Dari teks
+          </Button>
+          <Button size="sm" onClick={() => newNote()}>
+            <Plus /> Catatan
+          </Button>
+        </div>
+        <NoteFromTextDialog open={fromText} onOpenChange={setFromText} projectId={projectId} />
       </div>
       <div className="flex flex-wrap gap-2">
         <div className="relative w-full sm:w-64">

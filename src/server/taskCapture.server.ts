@@ -102,25 +102,40 @@ export async function extractTaskFields(
   deps: ExtractDeps,
 ): Promise<{ extraction: ExtractedTask; via: ExtractVia; reason?: string }> {
   const input = text.slice(0, MAX_EXTRACT_INPUT);
-  const fallback = (reason: string) => ({
-    extraction: fallbackExtraction(input, clock),
-    via: "regex" as const,
-    reason,
-  });
+  return extractWithFallback(
+    "task",
+    deps,
+    () => deps.ai(input, candidates, clock),
+    () => fallbackExtraction(input, clock),
+  );
+}
+
+/**
+ * Shared AI-or-fallback gate for every capture extractor (tasks, notes, form prefill): AI not
+ * configured → fallback without spending budget; budget exhausted or the limiter failing →
+ * fallback; any AI error → fallback. Never throws for AI reasons.
+ */
+export async function extractWithFallback<T>(
+  label: string,
+  gate: Pick<ExtractDeps, "assertAi" | "consume">,
+  ai: () => Promise<T>,
+  fallback: () => T,
+): Promise<{ extraction: T; via: ExtractVia; reason?: string }> {
+  const local = (reason: string) => ({ extraction: fallback(), via: "regex" as const, reason });
   try {
-    await deps.assertAi();
+    await gate.assertAi();
   } catch {
-    return fallback("ai_not_configured");
+    return local("ai_not_configured");
   }
-  if (!(await deps.consume().catch(() => false))) return fallback("rate_limited");
+  if (!(await gate.consume().catch(() => false))) return local("rate_limited");
   try {
-    return { extraction: await deps.ai(input, candidates, clock), via: "ai" };
+    return { extraction: await ai(), via: "ai" };
   } catch (error) {
     console.error(
-      "[capture] AI task extraction failed",
+      `[capture] AI ${label} extraction failed`,
       error instanceof Error ? error.message : error,
     );
-    return fallback("ai_failed");
+    return local("ai_failed");
   }
 }
 
