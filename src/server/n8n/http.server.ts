@@ -55,6 +55,39 @@ export function readQuery<S extends ZodType>(request: Request, schema: S): z.inf
   return schema.parse(Object.fromEntries(new URL(request.url).searchParams));
 }
 
+/** Postgres / PostgREST codes for a missing column, table or function (schema behind the code). */
+const SCHEMA_OUTDATED_CODES = new Set([
+  "42703",
+  "42P01",
+  "42883",
+  "PGRST202",
+  "PGRST204",
+  "PGRST205",
+]);
+const SCHEMA_OUTDATED_MESSAGE =
+  /\b(column|relation|table|function)\b[^\n]* does not exist|Could not find the [^\n]*\b(column|table|function)\b/i;
+
+export const SCHEMA_OUTDATED_BODY = {
+  error: "schema_outdated",
+  hint: "Apply database migrations (drizzle/migrations) up to the latest version.",
+} as const;
+
+/**
+ * True when an error means the database is missing a column/table the code expects, i.e. the
+ * deployment is ahead of the applied migrations. Checks the PostgREST/Postgres `code` (on the
+ * error or its `cause`) and, because services usually rethrow `new Error(error.message)`, the
+ * message text as well.
+ */
+export function isSchemaOutdatedError(error: unknown): boolean {
+  for (let e: unknown = error, depth = 0; e && typeof e === "object" && depth < 5; depth++) {
+    const { code, message, cause } = e as { code?: unknown; message?: unknown; cause?: unknown };
+    if (typeof code === "string" && SCHEMA_OUTDATED_CODES.has(code)) return true;
+    if (typeof message === "string" && SCHEMA_OUTDATED_MESSAGE.test(message)) return true;
+    e = cause;
+  }
+  return false;
+}
+
 export type HandleN8nOptions = {
   /**
    * Keep the endpoint reachable on the public demo (`APP_MODE=demo`). Every n8n endpoint is a
@@ -66,7 +99,9 @@ export type HandleN8nOptions = {
 
 /**
  * Wraps a handler with x-api-key auth and error mapping. Unexpected errors are logged and
- * returned as a generic 500 (no stack traces or database messages leak to n8n).
+ * returned as a generic 500 (no stack traces or database messages leak to n8n). A missing
+ * column/table (migrations not applied yet) is logged too but returned as 503 `schema_outdated`
+ * so the n8n execution log says what to do instead of "internal error".
  */
 export async function handleN8n(
   request: Request,
@@ -88,6 +123,7 @@ export async function handleN8n(
     console.error("[n8n] handler failed", error instanceof Error ? error.message : error);
     const { captureServerError } = await import("../sentry.server");
     await captureServerError(error, { source: "n8n", request });
+    if (isSchemaOutdatedError(error)) return json(SCHEMA_OUTDATED_BODY, 503);
     return json({ error: "internal error" }, 500);
   }
 }
