@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { linksOf, loadBlocks, noteIndexFields, toMarkdown, type Block } from "@/lib/blocks";
 import { DEMO_INBOX_ITEMS, DEMO_MEETING_NOTE, DEMO_PROJECT_NAMES } from "@/lib/demo-examples";
 import type { Json } from "@/integrations/supabase/types";
+import { isValidCron } from "@/lib/cron";
 
 import {
   buildDemoSeed,
@@ -331,7 +332,16 @@ describe("buildDemoSeed: every page has data", () => {
       (a) => (a.trigger as { type: string }).type === "schedule",
     );
     expect(scheduled).toHaveLength(1);
-    expect(scheduled[0]).toMatchObject({ schedule_cron: "0 8 * * 1", next_run_at: null });
+    expect(scheduled[0]).toMatchObject({ schedule_cron: "0 8 * * 1", schedule_tz: "Asia/Jakarta" });
+    // Regression: the seed stored next_run_at = null, which the list showed as "jadwal tidak
+    // valid". It now stores what scheduleAutomation would: next Monday 08:00 WIB after today.
+    expect(isValidCron(scheduled[0]!.schedule_cron!)).toBe(true);
+    expect(scheduled[0]!.next_run_at).toBe("2026-10-12T01:00:00.000Z");
+    // Conditions on project_id reference a seeded project (the UI resolves it to a name).
+    const projectIds = new Set(seed.projects.map((p) => p.id));
+    for (const a of seed.automations)
+      for (const c of a.conditions as { field: string; value: string }[])
+        if (c.field === "project_id") expect(projectIds.has(c.value)).toBe(true);
     expect(
       seed.automations.some((a) => (a.trigger as { type: string }).type === "note_tagged"),
     ).toBe(true);

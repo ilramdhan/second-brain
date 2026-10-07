@@ -54,45 +54,56 @@ export const RECURRENCE = [
 ] as const;
 
 // Literal class names so Tailwind keeps them.
-export const COLORS: Record<string, { dot: string; soft: string; bar: string; label: string }> = {
+/** `fill` is the SVG equivalent of `dot` (graph nodes); never derive it with string replace. */
+export const COLORS: Record<
+  string,
+  { dot: string; fill: string; soft: string; bar: string; label: string }
+> = {
   teal: {
     dot: "bg-tone-teal",
+    fill: "fill-tone-teal",
     soft: "bg-tone-teal/15 text-tone-teal",
     bar: "bg-tone-teal",
     label: "Teal",
   },
   blue: {
     dot: "bg-tone-blue",
+    fill: "fill-tone-blue",
     soft: "bg-tone-blue/15 text-tone-blue",
     bar: "bg-tone-blue",
     label: "Biru",
   },
   amber: {
     dot: "bg-tone-amber",
+    fill: "fill-tone-amber",
     soft: "bg-tone-amber/15 text-tone-amber",
     bar: "bg-tone-amber",
     label: "Kuning",
   },
   rose: {
     dot: "bg-tone-rose",
+    fill: "fill-tone-rose",
     soft: "bg-tone-rose/15 text-tone-rose",
     bar: "bg-tone-rose",
     label: "Merah",
   },
   violet: {
     dot: "bg-tone-violet",
+    fill: "fill-tone-violet",
     soft: "bg-tone-violet/15 text-tone-violet",
     bar: "bg-tone-violet",
     label: "Ungu",
   },
   green: {
     dot: "bg-tone-green",
+    fill: "fill-tone-green",
     soft: "bg-tone-green/15 text-tone-green",
     bar: "bg-tone-green",
     label: "Hijau",
   },
   slate: {
     dot: "bg-tone-slate",
+    fill: "fill-tone-slate",
     soft: "bg-tone-slate/15 text-tone-slate",
     bar: "bg-tone-slate",
     label: "Abu",
