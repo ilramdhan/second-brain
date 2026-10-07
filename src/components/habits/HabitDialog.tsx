@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/select";
 import { COLORS } from "@/lib/constants";
 import type { Habit, Project } from "@/lib/data";
-import { ALL_DAYS, WEEKDAY_LABELS, WORKDAYS, type ScheduleType } from "@/lib/habits";
+import { ALL_DAYS, weekdayLabels, WORKDAYS, type ScheduleType } from "@/lib/habits";
+import { useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 export type HabitDraft = {
@@ -101,6 +102,7 @@ function HabitForm({
   onSave: (draft: HabitDraft) => Promise<void> | void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [d, setD] = useState<HabitDraft>(() => (habit ? draftOf(habit) : EMPTY));
   const [saving, setSaving] = useState(false);
   const set = (p: Partial<HabitDraft>) => setD((x) => ({ ...x, ...p }));
@@ -121,37 +123,35 @@ function HabitForm({
   return (
     <form onSubmit={submit} className="contents">
       <DialogHeader>
-        <DialogTitle>{habit ? "Ubah kebiasaan" : "Kebiasaan baru"}</DialogTitle>
-        <DialogDescription>
-          Rutinitas kecil yang ingin dijaga setiap hari atau minggu.
-        </DialogDescription>
+        <DialogTitle>{habit ? t("admHabitEdit") : t("admHabitNew")}</DialogTitle>
+        <DialogDescription>{t("admHabitDescription")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium">Nama</span>
+          <span className="text-sm font-medium">{t("admName")}</span>
           <Input
             autoFocus
             maxLength={200}
             value={d.name}
             onChange={(e) => set({ name: e.target.value })}
-            placeholder="mis. Jalan kaki 20 menit"
+            placeholder={t("admHabitPlaceholder")}
           />
         </label>
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Jadwal</legend>
+          <legend className="text-sm font-medium">{t("admSchedule")}</legend>
           <Segmented
-            label="Jadwal"
+            label={t("admSchedule")}
             value={d.schedule_type}
             onChange={(v) => set({ schedule_type: v as ScheduleType })}
             options={[
-              { value: "daily", label: "Setiap hari" },
-              { value: "weekdays", label: "Hari tertentu" },
-              { value: "weekly", label: "N× seminggu" },
+              { value: "daily", label: t("admSchedDaily") },
+              { value: "weekdays", label: t("admSchedSpecific") },
+              { value: "weekly", label: t("admSchedNWeek") },
             ]}
           />
           {d.schedule_type === "weekdays" && (
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Hari">
-              {WEEKDAY_LABELS.map((label, i) => {
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admDay")}>
+              {weekdayLabels().map((label, i) => {
                 const on = (d.weekdays_mask & (1 << i)) !== 0;
                 return (
                   <button
@@ -176,13 +176,13 @@ function HabitForm({
                   set({ weekdays_mask: d.weekdays_mask === WORKDAYS ? ALL_DAYS : WORKDAYS })
                 }
               >
-                {d.weekdays_mask === WORKDAYS ? "Semua hari" : "Hari kerja"}
+                {d.weekdays_mask === WORKDAYS ? t("admAllDays") : t("admSchedWorkdays")}
               </Button>
             </div>
           )}
           {d.schedule_type === "weekly" && (
             <NumberField
-              label="Kali per minggu"
+              label={t("admTimesPerWeek")}
               value={d.times_per_week}
               min={1}
               max={7}
@@ -191,7 +191,7 @@ function HabitForm({
           )}
         </fieldset>
         <NumberField
-          label="Target per hari (check-in)"
+          label={t("admTargetPerDay")}
           value={d.target}
           min={1}
           max={100}
@@ -199,7 +199,7 @@ function HabitForm({
         />
         <div className="space-y-1.5">
           <span className="text-sm font-medium" id="habit-color">
-            Warna
+            {t("admColor")}
           </span>
           <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="habit-color">
             {Object.entries(COLORS).map(([key, c]) => (
@@ -220,7 +220,7 @@ function HabitForm({
           </div>
         </div>
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium">Proyek (opsional)</span>
+          <span className="text-sm font-medium">{t("admProjectOptional")}</span>
           <Select
             value={d.project_id ?? NONE}
             onValueChange={(v) => set({ project_id: v === NONE ? null : v })}
@@ -229,7 +229,7 @@ function HabitForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE}>Tanpa proyek</SelectItem>
+              <SelectItem value={NONE}>{t("admNoProject")}</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
@@ -241,10 +241,10 @@ function HabitForm({
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>
-          Batal
+          {t("admCancel")}
         </Button>
         <Button type="submit" disabled={!valid || saving}>
-          {habit ? "Simpan" : "Tambah"}
+          {habit ? t("admSave") : t("admAdd")}
         </Button>
       </DialogFooter>
     </form>

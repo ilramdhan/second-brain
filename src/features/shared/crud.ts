@@ -22,6 +22,7 @@ import {
   removeRows,
 } from "@/lib/query-cache";
 import { toastError } from "@/lib/errors";
+import { tr } from "@/lib/preferences";
 import { scheduleSemanticSync } from "@/lib/semantic-sync";
 
 type TableName = "tasks" | "projects" | "notes" | "milestones" | "automations" | "habits";
@@ -192,12 +193,7 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
   async function remove(id: string) {
     const soft =
       table === "tasks" || table === "notes" || table === "projects" || table === "habits";
-    if (soft)
-      return hide(
-        id,
-        { deleted_at: new Date().toISOString() },
-        "Dipindah ke Tempat Sampah — bisa dikembalikan dalam 30 hari",
-      );
+    if (soft) return hide(id, { deleted_at: new Date().toISOString() }, tr("taskMovedToTrash"));
     const snap = snapshot(qc, key);
     mapCached((data) =>
       Array.isArray(data) ? removeRows(data as Row[], (r) => r.id === id) : data,
@@ -206,7 +202,7 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
     if (error) fail(snap, error);
   }
   async function archive(id: string) {
-    return hide(id, { archived_at: new Date().toISOString() }, "Diarsipkan");
+    return hide(id, { archived_at: new Date().toISOString() }, tr("taskArchived"));
   }
   return { create, update, remove, archive, invalidate };
 }

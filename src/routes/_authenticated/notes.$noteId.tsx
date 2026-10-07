@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import {
   Archive,
   ArrowLeft,
@@ -90,6 +89,7 @@ const SAVE_DEBOUNCE_MS = 1500;
 function NotePage() {
   const { noteId } = Route.useParams();
   const { data: note, isLoading } = useNote(noteId);
+  const { t } = usePreferences();
   if (isLoading)
     return (
       <div className="flex justify-center py-20">
@@ -99,9 +99,9 @@ function NotePage() {
   if (!note)
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Catatan tidak ditemukan.</p>
+        <p className="text-sm text-muted-foreground">{t("noteNotFound")}</p>
         <Button asChild variant="outline" size="sm" className="mt-4">
-          <Link to="/notes">Kembali ke catatan</Link>
+          <Link to="/notes">{t("noteBackToList")}</Link>
         </Button>
       </div>
     );
@@ -126,7 +126,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   );
   const [saving, setSaving] = useState<"idle" | "dirty" | "saving">("idle");
   const [busy, setBusy] = useState(false);
-  const { t } = usePreferences();
+  const { t, dateFns } = usePreferences();
   const demo = isDemo();
   const [historyOpen, setHistoryOpen] = useState(false);
   const qc = useQueryClient();
@@ -138,7 +138,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   });
 
   async function flush() {
-    const { title: t, blocks: b, props: p } = latest.current;
+    const { title: ttl, blocks: b, props: p } = latest.current;
     setSaving("saving");
     const properties = Object.fromEntries(
       p
@@ -149,7 +149,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
         ]),
     );
     await actions.update(note.id, {
-      title: t.trim() || "Tanpa judul",
+      title: ttl.trim() || t("noteUntitled"),
       blocks: b as unknown as Json,
       content: toMarkdown(b),
       properties: properties as Json,
@@ -225,7 +225,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   async function summarize() {
     const text = toMarkdown(blocks);
     if (!text.trim()) {
-      toast.error("Isi catatan dulu");
+      toast.error(t("noteFillFirst"));
       return;
     }
     setBusy(true);
@@ -237,9 +237,9 @@ function NoteEditor({ note }: { note: NoteDetail }) {
         return;
       }
       changeBlocks(loadBlocks({ blocks: [], content: out }));
-      toast.success("Notulen dibuat dari poin-poin Anda");
+      toast.success(t("noteMinutesCreated"));
     } catch (e) {
-      toastError(e, "Gagal meringkas");
+      toastError(e, t("noteSummarizeFailed"));
     } finally {
       setBusy(false);
     }
@@ -257,7 +257,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   }
 
   async function remove() {
-    if (!confirm("Pindahkan catatan ini ke Tempat Sampah?")) return;
+    if (!confirm(t("noteTrashConfirm"))) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     await actions.remove(note.id);
@@ -270,23 +270,28 @@ function NoteEditor({ note }: { note: NoteDetail }) {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <Button asChild variant="ghost" size="sm" className="-ml-2">
             <Link to="/notes">
-              <ArrowLeft /> Catatan
+              <ArrowLeft /> {t("notes")}
             </Link>
           </Button>
           <div className="-mr-2 ml-auto flex items-center gap-0.5 sm:gap-1">
             <span className="mr-1 text-[11px] text-muted-foreground sm:mr-2">
-              {saving === "idle" ? "Tersimpan" : saving === "saving" ? "Menyimpan…" : "Mengetik…"}
+              {saving === "idle"
+                ? t("saved")
+                : saving === "saving"
+                  ? t("noteSaving")
+                  : t("noteTyping")}
             </span>
             {collaboration.peers.length > 0 && (
               <span className="hidden items-center gap-1 text-xs text-success sm:flex">
-                <Users className="h-3.5 w-3.5" /> {collaboration.peers.length + 1} aktif
+                <Users className="h-3.5 w-3.5" />{" "}
+                {t("notePeersActive", { count: collaboration.peers.length + 1 })}
               </span>
             )}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setHistoryOpen(true)}
-              aria-label="Riwayat versi"
+              aria-label={t("noteVersionHistory")}
             >
               <History />
             </Button>
@@ -294,14 +299,14 @@ function NoteEditor({ note }: { note: NoteDetail }) {
               variant="ghost"
               size="icon"
               onClick={() => actions.update(note.id, { pinned: !note.pinned })}
-              aria-label="Sematkan"
+              aria-label={t("notePin")}
             >
               <Pin className={cn(note.pinned && "fill-current text-primary")} />
             </Button>
             <ShareButton resourceType="note" resourceId={note.id} />
             <Button variant="ghost" size="sm" onClick={summarize} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-              <span className="hidden sm:inline">Buat notulen</span>
+              <span className="hidden sm:inline">{t("noteMakeMinutes")}</span>
             </Button>
             <Button
               variant="ghost"
@@ -312,7 +317,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
                 await actions.archive(note.id);
                 navigate({ to: "/notes" });
               }}
-              aria-label="Arsipkan catatan"
+              aria-label={t("noteArchive")}
             >
               <Archive />
             </Button>
@@ -320,7 +325,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
               variant="ghost"
               size="icon"
               onClick={remove}
-              aria-label="Hapus catatan"
+              aria-label={t("noteDelete")}
               className="text-destructive hover:text-destructive"
             >
               <Trash2 />
@@ -342,9 +347,9 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             setTitle(e.target.value);
             schedule();
           }}
-          placeholder="Tanpa judul"
+          placeholder={t("noteUntitled")}
           className="mb-3 w-full bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/50"
-          aria-label="Judul catatan"
+          aria-label={t("noteTitle")}
         />
         <Properties
           props={props}
@@ -378,15 +383,15 @@ function NoteEditor({ note }: { note: NoteDetail }) {
         <NoteLinksContext.Provider value={noteLinks}>
           <section className="mt-6 border-t pt-5">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <Link2 className="h-4 w-4" /> Disebut di{" "}
+              <Link2 className="h-4 w-4" /> {t("noteMentionedIn")}{" "}
               {linked.length > 0 && (
                 <span className="font-normal text-muted-foreground">{linked.length}</span>
               )}
             </h2>
             {linked.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Belum ada catatan lain yang menautkan ke sini. Ketik <code>[[{note.title}]]</code>{" "}
-                di catatan lain.
+                {t("noteNoBacklinksBefore")} <code>[[{note.title}]]</code>{" "}
+                {t("noteNoBacklinksAfter")}
               </p>
             )}
             <ul className="space-y-3">
@@ -410,7 +415,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             {unlinked.length > 0 && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-xs text-muted-foreground">
-                  Disebut tanpa tautan ({unlinked.length})
+                  {t("noteUnlinkedMentions", { count: unlinked.length })}
                 </summary>
                 <ul className="mt-2 space-y-1">
                   {unlinked.map((n) => (
@@ -434,7 +439,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
       <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
         <div className="space-y-3 rounded-xl border bg-card p-4">
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Status</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("noteStatus")}</p>
             <Select
               value={note.status}
               onValueChange={(v) => actions.update(note.id, { status: v })}
@@ -452,7 +457,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Proyek</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("noteProject")}</p>
             <Select
               value={note.project_id ?? NONE}
               onValueChange={(v) => actions.update(note.id, { project_id: v === NONE ? null : v })}
@@ -461,7 +466,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Tanpa proyek</SelectItem>
+                <SelectItem value={NONE}>{t("noteNoProject")}</SelectItem>
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -471,17 +476,21 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Tag</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("noteTag")}</p>
             <TagInput value={note.tags} onChange={(tags) => actions.update(note.id, { tags })} />
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Diubah{" "}
-            {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: localeId })}
+            {t("noteEdited", {
+              time: formatDistanceToNow(new Date(note.updated_at), {
+                addSuffix: true,
+                locale: dateFns,
+              }),
+            })}
           </p>
         </div>
         {outgoing.length > 0 && (
           <div className="rounded-xl border bg-card p-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Menautkan ke</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">{t("noteLinksTo")}</p>
             <ul className="space-y-1">
               {outgoing.map((n) => (
                 <li key={n.id}>
@@ -499,19 +508,20 @@ function NoteEditor({ note }: { note: NoteDetail }) {
         )}
         <Button asChild variant="outline" size="sm" className="w-full">
           <Link to="/graph" search={{ focus: note.id }}>
-            <Network /> Lihat di peta
+            <Network /> {t("noteShowInGraph")}
           </Link>
         </Button>
         <div className="rounded-xl border border-dashed p-4 text-[11px] leading-relaxed text-muted-foreground">
-          <p className="mb-1 font-medium text-foreground">Pintasan</p>
+          <p className="mb-1 font-medium text-foreground">{t("noteShortcuts")}</p>
           <p>
-            <b>/</b> menu blok · <b>#</b> judul · <b>-</b> daftar · <b>[]</b> to-do · <b>&gt;</b>{" "}
-            kutipan
+            <b>/</b> {t("noteShortcutBlockMenu")} · <b>#</b> {t("noteShortcutHeading")} · <b>-</b>{" "}
+            {t("noteShortcutList")} · <b>[]</b> {t("noteShortcutTodo")} · <b>&gt;</b>{" "}
+            {t("noteShortcutQuote")}
           </p>
           <p>
-            <b>[[</b> tautkan catatan · <b>((</b> referensi blok
+            <b>[[</b> {t("noteShortcutLink")} · <b>((</b> {t("noteShortcutRef")}
           </p>
-          <p>Tarik ⋮⋮ untuk memindah blok.</p>
+          <p>{t("noteShortcutDrag")}</p>
           <p className="mt-1">
             Query: <code>TABLE rating FROM #buku WHERE rating &gt; 4</code>
           </p>
@@ -529,7 +539,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
           latest.current = { title: version.title, blocks: version.blocks, props };
           void flush().then(() => {
             void qc.invalidateQueries({ queryKey: ["notes"] });
-            toast.success("Versi dipulihkan");
+            toast.success(t("noteVersionRestored"));
           });
         }}
       />
@@ -548,6 +558,7 @@ function VersionHistory({
   onOpenChange: (open: boolean) => void;
   onRestore: (version: { title: string; blocks: Block[] }) => void;
 }) {
+  const { t, intl } = usePreferences();
   const { data = [], isLoading } = useQuery({
     queryKey: ["note-versions", note.id],
     enabled: open,
@@ -567,20 +578,18 @@ function VersionHistory({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Riwayat versi</SheetTitle>
-          <SheetDescription>
-            Snapshot otomatis disimpan paling banyak setiap 10 menit.
-          </SheetDescription>
+          <SheetTitle>{t("noteVersionHistory")}</SheetTitle>
+          <SheetDescription>{t("noteVersionsDescription")}</SheetDescription>
         </SheetHeader>
         <ul className="mt-6 space-y-2">
-          {isLoading && <li className="text-sm text-muted-foreground">Memuat…</li>}
+          {isLoading && <li className="text-sm text-muted-foreground">{t("noteLoading")}</li>}
           {data.map((version) => (
             <li key={version.id} className="rounded-md border p-3">
               <p className="text-sm font-medium">
-                Versi {version.version_number} · {version.title}
+                {t("noteVersionLabel", { number: version.version_number, title: version.title })}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(version.created_at).toLocaleString()}
+                {new Date(version.created_at).toLocaleString(intl)}
               </p>
               <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-muted-foreground">
                 {version.content}
@@ -597,14 +606,12 @@ function VersionHistory({
                   onOpenChange(false);
                 }}
               >
-                Pulihkan
+                {t("noteRestore")}
               </Button>
             </li>
           ))}
           {!isLoading && data.length === 0 && (
-            <li className="text-sm text-muted-foreground">
-              Belum ada snapshot. Riwayat pertama muncul setelah perubahan berikutnya.
-            </li>
+            <li className="text-sm text-muted-foreground">{t("noteNoVersions")}</li>
           )}
         </ul>
       </SheetContent>
@@ -619,6 +626,7 @@ function Properties({
   props: [string, string][];
   onChange: (p: [string, string][]) => void;
 }) {
+  const { t } = usePreferences();
   return (
     <div className="space-y-1">
       {props.map(([k, v], i) => (
@@ -626,19 +634,19 @@ function Properties({
           <Input
             value={k}
             onChange={(e) => onChange(props.map((p, j) => (j === i ? [e.target.value, p[1]] : p)))}
-            placeholder="properti"
+            placeholder={t("notePropertyPlaceholder")}
             className="h-8 border-transparent bg-transparent px-2 text-xs text-muted-foreground hover:border-input focus:border-input"
           />
           <Input
             value={v}
             onChange={(e) => onChange(props.map((p, j) => (j === i ? [p[0], e.target.value] : p)))}
-            placeholder="nilai"
+            placeholder={t("noteValuePlaceholder")}
             className="h-8 border-transparent bg-transparent px-2 text-sm hover:border-input focus:border-input"
           />
           <button
             onClick={() => onChange(props.filter((_, j) => j !== i))}
             className="rounded p-1 text-muted-foreground opacity-60 hover:opacity-100"
-            aria-label="Hapus properti"
+            aria-label={t("noteRemoveProperty")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -648,8 +656,8 @@ function Properties({
         onClick={() => onChange([...props, ["", ""]])}
         className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
       >
-        <Plus className="h-3 w-3" /> Tambah properti{" "}
-        <span className="text-muted-foreground/70">(mis. rating: 5, genre: fiksi)</span>
+        <Plus className="h-3 w-3" /> {t("noteAddProperty")}{" "}
+        <span className="text-muted-foreground/70">{t("notePropertyExample")}</span>
       </button>
     </div>
   );

@@ -12,6 +12,7 @@ import { getUid } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/canvas")({
   head: () => ({
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/canvas")({
 type Pos = { x: number; y: number };
 
 function CanvasPage() {
+  const { t } = usePreferences();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string[]>([]);
   const [local, setLocal] = useState<Record<string, Pos>>({});
@@ -92,7 +94,7 @@ function CanvasPage() {
     const user_id = await getUid();
     const { data, error } = await supabase
       .from("canvas_boards")
-      .insert({ user_id, title: "Kanvas utama" })
+      .insert({ user_id, title: t("noteCanvasDefaultBoard") })
       .select()
       .single();
     if (error) throw error;
@@ -106,7 +108,7 @@ function CanvasPage() {
     const { error } = await supabase.from("canvas_nodes").insert({
       board_id: current.id,
       user_id,
-      title: "Ide baru",
+      title: t("noteCanvasNewIdea"),
       content: "",
       x: 40 + offset,
       y: 40 + offset,
@@ -179,15 +181,15 @@ function CanvasPage() {
   return (
     <PageContainer size="wide">
       <PageHeader
-        title="Kanvas"
-        subtitle="Seret kartu lewat pegangannya; pilih dua kartu untuk menghubungkan."
+        title={t("canvas")}
+        subtitle={t("noteCanvasSubtitle")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={connect} disabled={selected.length !== 2}>
-              <Link2 /> Hubungkan
+              <Link2 /> {t("noteCanvasConnect")}
             </Button>
             <Button size="sm" onClick={addNode}>
-              <Plus /> Kartu
+              <Plus /> {t("noteCanvasCard")}
             </Button>
           </div>
         }
@@ -272,7 +274,7 @@ function CanvasPage() {
                       size="icon"
                       className="tap-target h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => removeNode(node.id)}
-                      aria-label="Hapus kartu"
+                      aria-label={t("noteCanvasDeleteCard")}
                     >
                       <Trash2 />
                     </Button>
@@ -281,7 +283,7 @@ function CanvasPage() {
                 <textarea
                   defaultValue={node.content}
                   disabled={!mine}
-                  placeholder="Tulis ide…"
+                  placeholder={t("noteCanvasIdeaPlaceholder")}
                   onBlur={(e) =>
                     e.target.value !== node.content &&
                     updateNode(node.id, { content: e.target.value })
@@ -295,9 +297,9 @@ function CanvasPage() {
         {!nodes.length && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-sm text-muted-foreground">
             <Unlink className="mb-2 h-7 w-7" />
-            <p>Kanvas masih kosong.</p>
+            <p>{t("noteCanvasEmpty")}</p>
             <Button className="mt-3" size="sm" onClick={addNode}>
-              <Plus /> Tambah ide pertama
+              <Plus /> {t("noteCanvasFirstIdea")}
             </Button>
           </div>
         )}

@@ -1,6 +1,7 @@
 // Pure habit math for /habits: schedules, streaks and completion rates (migration 0025).
 // Days are `YYYY-MM-DD` calendar dates in the user's zone (the client writes `habit_logs.date`
 // with `localIsoDate()`), and all math is UTC calendar math on those strings.
+import { tr, type MessageKey } from "@/lib/preferences";
 import { addDays, daysBetween, weekStart } from "@/lib/reports";
 
 export type ScheduleType = "daily" | "weekdays" | "weekly";
@@ -19,6 +20,19 @@ export const ALL_DAYS = 0b1111111;
 export const WORKDAYS = 0b0011111;
 /** Monday-first short weekday labels (Indonesian). */
 export const WEEKDAY_LABELS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"] as const;
+
+const WEEKDAY_KEYS: readonly MessageKey[] = [
+  "admWd0",
+  "admWd1",
+  "admWd2",
+  "admWd3",
+  "admWd4",
+  "admWd5",
+  "admWd6",
+];
+
+/** Monday-first short weekday labels in the active UI language. */
+export const weekdayLabels = (): string[] => WEEKDAY_KEYS.map((k) => tr(k));
 
 /** ISO weekday index of a date, 0 = Monday ... 6 = Sunday. */
 export const isoWeekday = (iso: string) => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
@@ -42,11 +56,13 @@ export function doneDays(h: HabitSchedule & { id: string }, logs: readonly LogLi
 /** Human summary of a schedule, e.g. "Setiap hari", "Sen, Rab, Jum", "3× per minggu". */
 export function describeSchedule(h: HabitSchedule) {
   const type = scheduleType(h);
-  const target = h.target > 1 ? ` · ${h.target}× per hari` : "";
-  if (type === "weekly") return `${h.times_per_week}× per minggu${target}`;
-  if (type === "daily" || h.weekdays_mask === ALL_DAYS) return `Setiap hari${target}`;
-  if (h.weekdays_mask === WORKDAYS) return `Hari kerja${target}`;
-  const days = WEEKDAY_LABELS.filter((_, i) => h.weekdays_mask & (1 << i)).join(", ");
+  const target = h.target > 1 ? ` · ${tr("admSchedTarget", { n: h.target })}` : "";
+  if (type === "weekly") return `${tr("admSchedWeekly", { n: h.times_per_week })}${target}`;
+  if (type === "daily" || h.weekdays_mask === ALL_DAYS) return `${tr("admSchedDaily")}${target}`;
+  if (h.weekdays_mask === WORKDAYS) return `${tr("admSchedWorkdays")}${target}`;
+  const days = weekdayLabels()
+    .filter((_, i) => h.weekdays_mask & (1 << i))
+    .join(", ");
   return `${days}${target}`;
 }
 

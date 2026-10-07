@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { differenceInCalendarDays, format, isBefore, startOfDay } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import {
   ArrowLeft,
   CalendarDays,
@@ -49,7 +48,7 @@ import { toastError } from "@/lib/errors";
 import { DemoDisabled } from "@/components/demo/DemoDisabled";
 import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
 import { normalizeEmail } from "@/lib/password";
-import { usePreferences } from "@/lib/preferences";
+import { useI18n, usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
@@ -69,7 +68,11 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   errorComponent: RouteError,
 });
 
-const fmt = (d: string) => format(new Date(`${d}T00:00:00`), "d MMM yyyy", { locale: localeId });
+/** "d MMM yyyy" in the active locale (a hook: call it at the top of a component). */
+function useFmt() {
+  const { dateFns } = useI18n();
+  return (d: string) => format(new Date(`${d}T00:00:00`), "d MMM yyyy", { locale: dateFns });
+}
 
 function ProjectDetail() {
   const { projectId } = Route.useParams();
@@ -80,16 +83,16 @@ function ProjectDetail() {
   const [editing, setEditing] = useState(false);
   const { data: me } = useMe();
   const project = projects.find((p) => p.id === projectId);
+  const { t } = usePreferences();
+  const fmt = useFmt();
 
-  if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Memuat…</div>;
+  if (isLoading) return <div className="p-8 text-sm text-muted-foreground">{t("wsLoading")}</div>;
   if (!project)
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <p className="text-sm text-muted-foreground">
-          Proyek tidak ditemukan atau Anda tidak punya akses.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("wsProjectNotFound")}</p>
         <Link to="/projects" className="mt-4 inline-block text-sm text-primary">
-          Kembali ke proyek
+          {t("wsBackToProjects")}
         </Link>
       </div>
     );
@@ -104,7 +107,7 @@ function ProjectDetail() {
         to="/projects"
         className="mb-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-3.5 w-3.5" /> {parent ? parent.name : "Semua proyek"}
+        <ArrowLeft className="h-3.5 w-3.5" /> {parent ? parent.name : t("wsAllProjects")}
       </Link>
       <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -129,7 +132,7 @@ function ProjectDetail() {
             {project.launch_date && (
               <span className="flex items-center gap-1">
                 <Rocket className="h-3 w-3" />
-                Launch {fmt(project.launch_date)}
+                {t("wsLaunchOn", { date: fmt(project.launch_date) })}
               </span>
             )}
           </div>
@@ -139,7 +142,7 @@ function ProjectDetail() {
           <div className="flex items-center gap-1">
             <ShareButton resourceType="project" resourceId={project.id} />
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-              <Pencil /> Ubah
+              <Pencil /> {t("wsEdit")}
             </Button>
           </div>
         )}
@@ -148,12 +151,12 @@ function ProjectDetail() {
       <Tabs defaultValue="overview">
         <div className="scrollbar-subtle -mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
           <TabsList>
-            <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-            <TabsTrigger value="tasks">Tugas</TabsTrigger>
-            <TabsTrigger value="milestones">Milestone</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="notes">Catatan</TabsTrigger>
-            <TabsTrigger value="team">Tim</TabsTrigger>
+            <TabsTrigger value="overview">{t("wsTabOverview")}</TabsTrigger>
+            <TabsTrigger value="tasks">{t("tasks")}</TabsTrigger>
+            <TabsTrigger value="milestones">{t("wsTabMilestones")}</TabsTrigger>
+            <TabsTrigger value="timeline">{t("timeline")}</TabsTrigger>
+            <TabsTrigger value="notes">{t("notes")}</TabsTrigger>
+            <TabsTrigger value="team">{t("wsTabTeam")}</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="overview">
@@ -194,6 +197,8 @@ function ProjectDetail() {
 function Overview({ project, projects }: { project: Project; projects: Project[] }) {
   const { data: tasks = [] } = useTasks();
   const { data: milestones = [] } = useMilestones();
+  const { t: tr } = usePreferences();
+  const fmt = useFmt();
   const ts = tasks.filter((t) => t.project_id === project.id && !t.parent_id);
   const done = ts.filter((t) => t.status === "done").length;
   const today = startOfDay(new Date());
@@ -214,25 +219,24 @@ function Overview({ project, projects }: { project: Project; projects: Project[]
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
         <section className="rounded-2xl border bg-card p-5">
-          <h2 className="mb-2 text-sm font-semibold">Deskripsi</h2>
+          <h2 className="mb-2 text-sm font-semibold">{tr("wsDescription")}</h2>
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-            {project.description ||
-              "Belum ada deskripsi. Klik Ubah untuk menambahkan tujuan proyek."}
+            {project.description || tr("wsNoDescription")}
           </p>
         </section>
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Total tugas" value={ts.length} />
-          <Stat label="Dikerjakan" value={inProgress} />
-          <Stat label="Selesai" value={done} />
+          <Stat label={tr("wsStatTotal")} value={ts.length} />
+          <Stat label={tr("wsStatInProgress")} value={inProgress} />
+          <Stat label={tr("wsStatDone")} value={done} />
           <Stat
-            label="Terlambat"
+            label={tr("wsStatOverdue")}
             value={overdue}
             tone={overdue ? "text-priority-high" : undefined}
           />
         </section>
         <section className="rounded-2xl border bg-card p-5">
           <div className="mb-2 flex justify-between text-sm">
-            <span className="font-semibold">Progres</span>
+            <span className="font-semibold">{tr("wsProgress")}</span>
             <span className="text-muted-foreground">{pct}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-secondary">
@@ -247,21 +251,21 @@ function Overview({ project, projects }: { project: Project; projects: Project[]
         {launchIn !== null && (
           <section className="rounded-2xl border bg-card p-5">
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Rocket className="h-3.5 w-3.5" /> Launch date
+              <Rocket className="h-3.5 w-3.5" /> {tr("wsLaunchDate")}
             </p>
             <p className="mt-1 text-2xl font-semibold">
               {launchIn > 0
-                ? `${launchIn} hari lagi`
+                ? tr("wsDaysLeft", { n: launchIn })
                 : launchIn === 0
-                  ? "Hari ini!"
-                  : "Sudah launch"}
+                  ? tr("wsLaunchToday")
+                  : tr("wsLaunched")}
             </p>
             <p className="text-xs text-muted-foreground">{fmt(project.launch_date!)}</p>
           </section>
         )}
         <section className="rounded-2xl border bg-card p-5">
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Diamond className="h-3.5 w-3.5" /> Milestone berikutnya
+            <Diamond className="h-3.5 w-3.5" /> {tr("wsNextMilestone")}
           </p>
           {nextMs ? (
             <>
@@ -271,12 +275,12 @@ function Overview({ project, projects }: { project: Project; projects: Project[]
               )}
             </>
           ) : (
-            <p className="mt-1 text-sm text-muted-foreground">Belum ada.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{tr("wsNoneYet")}</p>
           )}
         </section>
         {kids.length > 0 && (
           <section className="rounded-2xl border bg-card p-5">
-            <p className="mb-2 text-xs text-muted-foreground">Sub-proyek</p>
+            <p className="mb-2 text-xs text-muted-foreground">{tr("wsSubprojects")}</p>
             <ul className="space-y-1">
               {kids.map((k) => (
                 <li key={k.id}>
@@ -311,6 +315,8 @@ function Milestones({ project }: { project: Project }) {
   const { data: milestones = [] } = useMilestones();
   const { data: tasks = [] } = useTasks();
   const actions = useMilestoneActions();
+  const { t: tr } = usePreferences();
+  const fmt = useFmt();
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const list = milestones.filter((m) => m.project_id === project.id);
@@ -336,7 +342,7 @@ function Milestones({ project }: { project: Project }) {
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Nama milestone, mis. Beta release"
+          placeholder={tr("wsMilestonePlaceholder")}
         />
         <Input
           type="date"
@@ -345,7 +351,7 @@ function Milestones({ project }: { project: Project }) {
           className="sm:w-44"
         />
         <Button type="submit">
-          <Plus /> Tambah
+          <Plus /> {tr("wsAdd")}
         </Button>
       </form>
       <ol className="relative space-y-3 border-l pl-6">
@@ -376,7 +382,8 @@ function Milestones({ project }: { project: Project }) {
                     {m.title}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {m.due_date ? fmt(m.due_date) : "Tanpa tanggal"} · {d}/{ts.length} tugas
+                    {m.due_date ? fmt(m.due_date) : tr("wsNoDate")} ·{" "}
+                    {tr("wsTasksProgress", { done: d, total: ts.length })}
                   </p>
                 </div>
                 <Input
@@ -386,9 +393,9 @@ function Milestones({ project }: { project: Project }) {
                   className="hidden h-8 w-40 sm:block"
                 />
                 <button
-                  onClick={() => confirm("Hapus milestone?") && actions.remove(m.id)}
+                  onClick={() => confirm(tr("wsDeleteMilestoneConfirm")) && actions.remove(m.id)}
                   className="rounded p-1 text-muted-foreground hover:text-destructive"
-                  aria-label="Hapus milestone"
+                  aria-label={tr("wsDeleteMilestone")}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -397,9 +404,7 @@ function Milestones({ project }: { project: Project }) {
           );
         })}
         {list.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Belum ada milestone. Pecah proyek menjadi tahapan, lalu hubungkan tugas ke milestone.
-          </p>
+          <p className="text-sm text-muted-foreground">{tr("wsMilestonesEmpty")}</p>
         )}
       </ol>
     </div>
@@ -450,7 +455,7 @@ function Team({ project }: { project: Project }) {
   }
 
   async function removeMember(userId: string) {
-    if (!confirm("Keluarkan anggota ini dari proyek?")) return;
+    if (!confirm(t("wsRemoveMemberConfirm"))) return;
     const { error } = await supabase
       .from("project_members")
       .delete()
@@ -500,18 +505,18 @@ function Team({ project }: { project: Project }) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">
                 {p.display_name || p.email}
-                {p.user_id === me?.id && " (Anda)"}
+                {p.user_id === me?.id && ` ${t("wsYouSuffix")}`}
               </p>
               <p className="truncate text-xs text-muted-foreground">{p.email}</p>
             </div>
             <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
-              {p.role === "owner" ? "Pemilik" : "Anggota"}
+              {p.role === "owner" ? t("wsRoleOwner") : t("wsRoleMember")}
             </span>
             {isOwner && p.role !== "owner" && (
               <button
                 onClick={() => removeMember(p.user_id)}
                 className="rounded p-1 text-muted-foreground hover:text-destructive"
-                aria-label="Keluarkan"
+                aria-label={t("wsRemoveMember")}
               >
                 <UserMinus className="h-4 w-4" />
               </button>
@@ -565,10 +570,7 @@ function Team({ project }: { project: Project }) {
           {isOwner && <p className="text-xs text-muted-foreground">{t("teamInviteHint")}</p>}
         </section>
       )}
-      <p className="text-xs text-muted-foreground">
-        Anggota bisa melihat dan mengubah tugas, milestone, dan catatan di proyek ini, serta bisa
-        ditugaskan ke tugas.
-      </p>
+      <p className="text-xs text-muted-foreground">{t("wsTeamNote")}</p>
     </div>
   );
 }

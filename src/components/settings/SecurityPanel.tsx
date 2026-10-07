@@ -43,7 +43,7 @@ function newFactorName(existing: Factor[]): string {
  * refuses enrollment for it as well, migration 0022).
  */
 export function SecurityPanel() {
-  const { t } = usePreferences();
+  const { t, intl } = usePreferences();
   const demo = isDemo();
   const [state, setState] = useState<PanelState>({ step: "loading" });
   const [removing, setRemoving] = useState<Factor | null>(null);
@@ -127,7 +127,7 @@ export function SecurityPanel() {
                   <div className="min-w-0 text-sm">
                     <p className="truncate font-medium">{f.friendly_name || "TOTP"}</p>
                     <p className="text-xs text-muted-foreground">
-                      {t("mfaAddedOn")} {new Date(f.created_at).toLocaleDateString()}
+                      {t("mfaAddedOn")} {new Date(f.created_at).toLocaleDateString(intl)}
                     </p>
                   </div>
                   <Button

@@ -6,6 +6,7 @@ import { useMilestones, useProjects, useTasks } from "@/lib/data";
 import { PageContainer } from "@/components/common/PageContainer";
 import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/timeline")({
   head: () => ({
@@ -29,12 +30,10 @@ function TimelinePage() {
   const { data: tasks = [] } = useTasks();
   const { data: projects = [] } = useProjects();
   const { data: milestones = [] } = useMilestones();
+  const { t } = usePreferences();
   return (
     <PageContainer>
-      <PageHeader
-        title="Timeline"
-        subtitle="Geser batang untuk memindah jadwal, tarik ujungnya untuk memperpanjang."
-      />
+      <PageHeader title={t("taskTlTitle")} subtitle={t("taskTlSubtitle")} />
       <Timeline
         tasks={tasks.filter((t) => !t.parent_id)}
         projects={projects}

@@ -8,6 +8,7 @@ import { isDemo } from "@/lib/app-mode";
 import { fillSummary, type FillResult } from "@/lib/capture-fields";
 import type { DemoExample } from "@/lib/demo-examples";
 import { toastError } from "@/lib/errors";
+import { useI18n } from "@/lib/preferences";
 
 /**
  * Collapsible "Isi dari teks" panel above a create form: the user pastes or describes the item,
@@ -28,6 +29,7 @@ export function FillFromText<R extends FillResult>({
   onApply: (result: R) => void;
   extraSummary?: (result: R) => string[];
 }) {
+  const { t } = useI18n();
   const demo = isDemo();
   const [open, setOpen] = useState(demo);
   const [text, setText] = useState(() => (demo ? (examples[0]?.text ?? "") : ""));
@@ -42,7 +44,7 @@ export function FillFromText<R extends FillResult>({
       onApply(r);
       setSummary(fillSummary(r, labels, extraSummary?.(r)));
     } catch (err) {
-      toastError(err, "Gagal mengisi dari teks");
+      toastError(err, t("noteFillFailed"));
     } finally {
       setBusy(false);
     }
@@ -57,7 +59,7 @@ export function FillFromText<R extends FillResult>({
         className="flex w-full items-center gap-1.5 text-left text-xs font-medium"
       >
         <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
-        Isi dari teks (AI)
+        {t("noteFillToggle")}
         <ChevronDown
           className={`ml-auto h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
           aria-hidden
@@ -71,7 +73,7 @@ export function FillFromText<R extends FillResult>({
             maxLength={4000}
             rows={3}
             placeholder={placeholder}
-            aria-label="Teks untuk mengisi formulir"
+            aria-label={t("noteFillTextLabel")}
           />
           <DemoExamples
             examples={examples}
@@ -86,7 +88,7 @@ export function FillFromText<R extends FillResult>({
             disabled={busy || !text.trim()}
           >
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
-            Isi formulir
+            {t("noteFillSubmit")}
           </Button>
           {summary && (
             <p role="status" className="text-xs text-muted-foreground">

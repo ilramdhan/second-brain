@@ -9,7 +9,6 @@ import {
   startOfDay,
   startOfWeek,
 } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Diamond, Rocket } from "lucide-react";
 
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
@@ -24,6 +23,7 @@ import {
   type Task,
 } from "@/lib/data";
 import { timelineKeyAction } from "@/lib/dnd-a11y";
+import { currentDateLocale, tr, useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 const W = 36;
@@ -48,6 +48,7 @@ export function Timeline({
   const { update } = useTaskActions();
   const { openTask } = useTaskDialog();
   const hintId = useId();
+  const { t: tl, dateFns } = useI18n();
   const [status, setStatus] = useState("");
   const days = eachDayOfInterval({ start: from, end: addDays(from, DAYS - 1) });
 
@@ -133,7 +134,7 @@ export function Timeline({
     e.preventDefault();
     const r = taskRange(t)!;
     if (!apply(t, a.mode, a.delta)) {
-      setStatus("Tenggat tidak boleh sebelum tanggal mulai.");
+      setStatus(tl("taskTlDueBeforeStart"));
       return;
     }
     const start = a.mode === "move" ? addDays(r.start, a.delta) : r.start;
@@ -164,7 +165,7 @@ export function Timeline({
           size="icon"
           className="h-8 w-8"
           onClick={() => setFrom((f) => addDays(f, -14))}
-          aria-label="Mundur"
+          aria-label={tl("taskTlBack")}
         >
           <ChevronLeft />
         </Button>
@@ -174,20 +175,20 @@ export function Timeline({
           className="h-8"
           onClick={() => setFrom(startOfWeek(addDays(new Date(), -7), { weekStartsOn: 1 }))}
         >
-          Hari ini
+          {tl("taskGroupToday")}
         </Button>
         <Button
           variant="outline"
           size="icon"
           className="h-8 w-8"
           onClick={() => setFrom((f) => addDays(f, 14))}
-          aria-label="Maju"
+          aria-label={tl("taskTlForward")}
         >
           <ChevronRight />
         </Button>
         <span className="ml-2 text-sm font-medium capitalize">
-          {format(from, "d MMM", { locale: localeId })} –{" "}
-          {format(addDays(from, DAYS - 1), "d MMM yyyy", { locale: localeId })}
+          {format(from, "d MMM", { locale: dateFns })} –{" "}
+          {format(addDays(from, DAYS - 1), "d MMM yyyy", { locale: dateFns })}
         </span>
       </div>
 
@@ -196,7 +197,7 @@ export function Timeline({
           {/* header */}
           <div className="sticky top-0 z-10 flex border-b bg-card">
             <div className="sticky left-0 z-20 w-[180px] shrink-0 border-r bg-card px-3 py-2 text-xs font-medium text-muted-foreground">
-              Tugas
+              {tl("taskTlTasks")}
             </div>
             {days.map((d) => (
               <div
@@ -209,7 +210,7 @@ export function Timeline({
                 style={{ width: W }}
               >
                 <span className="text-muted-foreground">
-                  {format(d, "EEEEE", { locale: localeId })}
+                  {format(d, "EEEEE", { locale: dateFns })}
                 </span>
                 <span>{format(d, "d")}</span>
               </div>
@@ -218,7 +219,7 @@ export function Timeline({
 
           {/* milestones/launch row */}
           {(msInRange.length > 0 || launches.length > 0) && (
-            <Row label="Milestone & launch">
+            <Row label={tl("taskTlMilestones")}>
               {msInRange.map((m) => {
                 const off = differenceInCalendarDays(new Date(`${m.due_date}T00:00:00`), from);
                 if (off < 0 || off >= DAYS) return null;
@@ -380,7 +381,12 @@ function Row({
   );
 }
 
-const rangeLabel = (start: Date, end: Date) =>
-  start.getTime() === end.getTime()
-    ? format(start, "d MMMM yyyy", { locale: localeId })
-    : `${format(start, "d MMMM", { locale: localeId })} sampai ${format(end, "d MMMM yyyy", { locale: localeId })}`;
+const rangeLabel = (start: Date, end: Date) => {
+  const locale = currentDateLocale();
+  return start.getTime() === end.getTime()
+    ? format(start, "d MMMM yyyy", { locale })
+    : tr("taskTlRange", {
+        start: format(start, "d MMMM", { locale }),
+        end: format(end, "d MMMM yyyy", { locale }),
+      });
+};

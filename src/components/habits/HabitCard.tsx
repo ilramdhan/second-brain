@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { color } from "@/lib/constants";
 import type { Habit, HabitLog } from "@/lib/data";
-import { completion, describeSchedule, isScheduled, streaks, WEEKDAY_LABELS } from "@/lib/habits";
+import { completion, describeSchedule, isScheduled, streaks, weekdayLabels } from "@/lib/habits";
+import { useI18n } from "@/lib/preferences";
 import { addDays } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
-const dayName = (iso: string) =>
-  asDate(iso).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
+const dayName = (iso: string, intl: string) =>
+  asDate(iso).toLocaleDateString(intl, { weekday: "long", day: "numeric", month: "long" });
 
 /**
  * One habit: today's check-in button (a 48px target; with a target above 1 every tap adds one
@@ -45,6 +46,8 @@ export function HabitCard({
   onArchive: () => void;
   onDelete: () => void;
 }) {
+  const { t, intl } = useI18n();
+  const labels = weekdayLabels();
   const tone = color(habit.color);
   const target = Math.max(1, habit.target);
   const countOn = (d: string) =>
@@ -53,7 +56,7 @@ export function HabitCard({
   const doneToday = todayCount >= target;
   const streak = streaks(habit, logs, today, since);
   const rate = completion(habit, logs, { from: addDays(today, -29), to: today }, today, since);
-  const unit = streak.unit === "week" ? "minggu" : "hari";
+  const unit = streak.unit === "week" ? t("admStreakWeek") : t("admStreakDay");
 
   return (
     <li className="min-w-0 rounded-2xl border bg-card p-4">
@@ -62,7 +65,11 @@ export function HabitCard({
           type="button"
           onClick={() => onToggle(today)}
           aria-pressed={doneToday}
-          aria-label={`${habit.name}: ${doneToday ? "selesai hari ini, ketuk untuk batal" : `check-in hari ini (${todayCount}/${target})`}`}
+          aria-label={
+            doneToday
+              ? t("admCheckinDone", { name: habit.name })
+              : t("admCheckin", { name: habit.name, count: todayCount, target })
+          }
           className={cn(
             "relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
             doneToday
@@ -88,14 +95,15 @@ export function HabitCard({
             <span className="flex items-center gap-1">
               <Flame className="h-3.5 w-3.5" aria-hidden />
               <strong className="font-semibold text-foreground">{streak.current}</strong> {unit}{" "}
-              beruntun
+              {t("admStreak")}
             </span>
             <span className="flex items-center gap-1">
               <Trophy className="h-3.5 w-3.5" aria-hidden />
-              terpanjang <strong className="font-semibold text-foreground">{streak.longest}</strong>
+              {t("admLongest")}{" "}
+              <strong className="font-semibold text-foreground">{streak.longest}</strong>
             </span>
             <span>
-              30 hari:{" "}
+              {t("admLast30")}{" "}
               <strong className="font-semibold text-foreground">
                 {rate.rate === null ? "–" : `${Math.round(rate.rate * 100)}%`}
               </strong>
@@ -108,25 +116,25 @@ export function HabitCard({
               variant="ghost"
               size="icon"
               className="h-11 w-11 shrink-0"
-              aria-label={`Aksi untuk ${habit.name}`}
+              aria-label={t("admActionsFor", { name: habit.name })}
             >
               <MoreHorizontal aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={onEdit}>
-              <Pencil aria-hidden /> Ubah
+              <Pencil aria-hidden /> {t("admEdit")}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onArchive}>
-              <Archive aria-hidden /> Arsipkan
+              <Archive aria-hidden /> {t("admArchiveAction")}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onDelete} className="text-destructive">
-              <Trash2 aria-hidden /> Hapus
+              <Trash2 aria-hidden /> {t("admDelete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <ol className="mt-3 grid grid-cols-7 gap-1" aria-label={`${habit.name}: minggu ini`}>
+      <ol className="mt-3 grid grid-cols-7 gap-1" aria-label={t("admWeekOf", { name: habit.name })}>
         {week.map((d, i) => {
           const n = countOn(d);
           const done = n >= target;
@@ -140,7 +148,7 @@ export function HabitCard({
                 disabled={future || before}
                 onClick={() => onToggle(d)}
                 aria-pressed={done}
-                aria-label={`${dayName(d)}: ${done ? "selesai" : n > 0 ? `${n}/${target}` : off ? "tidak dijadwalkan" : "belum"}`}
+                aria-label={`${dayName(d, intl)}: ${done ? t("admDayDone") : n > 0 ? `${n}/${target}` : off ? t("admDayOff") : t("admDayNotYet")}`}
                 className={cn(
                   "flex h-11 w-full flex-col items-center justify-center rounded-lg border text-[10px] leading-tight focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-40",
                   done
@@ -151,7 +159,7 @@ export function HabitCard({
                   d === today && !done && "border-foreground/50",
                 )}
               >
-                <span aria-hidden>{WEEKDAY_LABELS[i]}</span>
+                <span aria-hidden>{labels[i]}</span>
                 <span aria-hidden className="tabular-nums">
                   {done ? <Check className="mx-auto h-3 w-3" /> : asDate(d).getDate()}
                 </span>

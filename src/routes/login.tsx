@@ -112,7 +112,7 @@ function LoginPage() {
       });
       if (error) throw error;
     } catch (err) {
-      toastError(err, "Gagal masuk");
+      toastError(err, t("authSignInFailed"));
       setLoading(false);
     }
   }
@@ -140,7 +140,7 @@ function LoginPage() {
     try {
       await signIn(demoAccount);
     } catch (err) {
-      toastError(err, "Gagal masuk");
+      toastError(err, t("authSignInFailed"));
     } finally {
       setLoading(false);
     }
@@ -155,11 +155,11 @@ function LoginPage() {
       } else if (allowSignup) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        toast.success("Akun dibuat! Cek email Anda untuk konfirmasi, lalu masuk.");
+        toast.success(t("authSignedUp"));
         setMode("login");
       }
     } catch (err) {
-      toastError(err, "Gagal masuk");
+      toastError(err, t("authSignInFailed"));
     } finally {
       setLoading(false);
     }
@@ -191,9 +191,7 @@ function LoginPage() {
             <Brain className="h-6 w-6" aria-hidden />
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight">Second Brain</h1>
-          <p className="text-sm text-muted-foreground">
-            Buang semua pikiran ke sini. Biar AI yang merapikan.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("authLoginTagline")}</p>
         </div>
 
         {demo ? (
@@ -274,7 +272,7 @@ function LoginPage() {
           >
             <div className="space-y-1.5">
               <label className="text-sm font-medium" htmlFor="email">
-                Email
+                {t("authEmailLabel")}
               </label>
               <input
                 id="email"
@@ -283,13 +281,13 @@ function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                placeholder="anda@email.com"
+                placeholder={t("authEmailPlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <label className="text-sm font-medium" htmlFor="password">
-                  Kata sandi
+                  {t("authPasswordLabel")}
                 </label>
                 {mode === "login" && !demo ? (
                   <button
@@ -309,7 +307,7 @@ function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Minimal 6 karakter"
+                placeholder={t("authPasswordPlaceholder")}
               />
             </div>
             <button
@@ -317,7 +315,7 @@ function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? "Memproses…" : mode === "login" ? "Masuk" : "Daftar"}
+              {loading ? t("authProcessing") : mode === "login" ? t("authSignIn") : t("authSignUp")}
             </button>
             {mode === "login" && (google || magic) ? (
               <div className="space-y-2">
@@ -356,13 +354,10 @@ function LoginPage() {
                 onClick={() => setMode(mode === "login" ? "signup" : "login")}
                 className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
+                {mode === "login" ? t("authToSignUp") : t("authToSignIn")}
               </button>
             ) : demo ? null : (
-              <p className="text-center text-xs text-muted-foreground">
-                Pendaftaran ditutup. Akun dibuat oleh pemilik instance; minta undangan untuk
-                bergabung.
-              </p>
+              <p className="text-center text-xs text-muted-foreground">{t("authSignupClosed")}</p>
             )}
           </form>
         )}

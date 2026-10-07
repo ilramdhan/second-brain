@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getUid, type Task } from "@/lib/data";
 import { toastError } from "@/lib/errors";
+import { useI18n, tr } from "@/lib/preferences";
 
 export function FocusTimer({ task }: { task: Task }) {
   const qc = useQueryClient();
+  const { t } = useI18n();
   const total = Math.max(1, task.estimate_minutes) * 60;
   const [seconds, setSeconds] = useState(total);
   const [running, setRunning] = useState(false);
@@ -44,7 +46,7 @@ export function FocusTimer({ task }: { task: Task }) {
     });
     if (error) toastError(error);
     else {
-      toast.success("Sesi fokus tersimpan");
+      toast.success(tr("taskFocusSaved"));
       void qc.invalidateQueries({ queryKey: ["time-entries"] });
     }
     startedAt.current = null;
@@ -70,7 +72,7 @@ export function FocusTimer({ task }: { task: Task }) {
       <div className="flex min-w-0 items-center gap-2">
         <Timer className="h-4 w-4 shrink-0 text-primary" />
         <div>
-          <p className="text-xs text-muted-foreground">Pomodoro</p>
+          <p className="text-xs text-muted-foreground">{t("taskFocusPomodoro")}</p>
           <p className="font-mono text-lg font-semibold tabular-nums">
             {mins}:{secs}
           </p>
@@ -82,7 +84,7 @@ export function FocusTimer({ task }: { task: Task }) {
           variant="outline"
           size="icon"
           onClick={toggle}
-          aria-label={running ? "Jeda" : "Mulai"}
+          aria-label={running ? t("taskFocusPause") : t("taskFocusStart")}
         >
           {running ? <Pause /> : <Play />}
         </Button>
@@ -91,7 +93,7 @@ export function FocusTimer({ task }: { task: Task }) {
           variant="ghost"
           size="icon"
           onClick={reset}
-          aria-label="Simpan dan reset"
+          aria-label={t("taskFocusSaveReset")}
         >
           <RotateCcw />
         </Button>

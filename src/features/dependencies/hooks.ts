@@ -8,6 +8,7 @@ import { getUid } from "@/features/shared/session";
 import { supabase } from "@/integrations/supabase/client";
 import { insertRow, removeRows } from "@/lib/query-cache";
 import { toastError } from "@/lib/errors";
+import { tr } from "@/lib/preferences";
 import { createsDependencyCycle } from "@/lib/task-rules";
 
 export function useDeps() {
@@ -23,7 +24,7 @@ export function useDependencyActions() {
       deps.filter((d) => ids.includes(d.blocker_id)).map((d) => d.blocked_id),
     );
     if (cycle) {
-      toast.error("Tidak bisa: akan membuat ketergantungan melingkar");
+      toast.error(tr("taskDepCycle"));
       return;
     }
     const user_id = await getUid();

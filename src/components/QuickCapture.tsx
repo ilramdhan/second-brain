@@ -58,9 +58,9 @@ export function QuickCapture({
     const { error } = await supabase
       .from("inbox_items")
       .insert({ user_id: user.id, content, source });
-    if (error) toastError(error, "Gagal menyimpan");
+    if (error) toastError(error, t("wsCaptureSaveFailed"));
     else {
-      toast.success("Masuk ke Inbox");
+      toast.success(t("wsCaptureSaved"));
       void qc.invalidateQueries({ queryKey: ["inbox-count"] });
       onCaptured?.();
     }
@@ -83,10 +83,10 @@ export function QuickCapture({
       if (transcript?.trim()) {
         await saveToInbox(transcript.trim(), "voice");
       } else {
-        toast.error("Tidak ada suara yang terdeteksi");
+        toast.error(t("wsCaptureNoSpeech"));
       }
     } catch (err) {
-      toastError(err, "Transkripsi gagal");
+      toastError(err, t("wsCaptureTranscribeFailed"));
     } finally {
       setBusy(false);
     }
@@ -100,10 +100,10 @@ export function QuickCapture({
       if (text?.trim()) {
         await saveToInbox(text.trim(), "ocr");
       } else {
-        toast.error("Tidak ada teks yang terbaca pada gambar");
+        toast.error(t("wsCaptureNoText"));
       }
     } catch (err) {
-      toastError(err, "OCR gagal");
+      toastError(err, t("wsCaptureOcrFailed"));
     } finally {
       setBusy(false);
     }
@@ -133,7 +133,7 @@ export function QuickCapture({
       recorder.start();
       setRecording(true);
     } catch {
-      toast.error("Izin mikrofon ditolak");
+      toast.error(t("wsCaptureMicDenied"));
     }
   }
 
@@ -142,7 +142,7 @@ export function QuickCapture({
     e.target.value = "";
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) {
-      toast.error("Gambar terlalu besar (maks 8MB)");
+      toast.error(t("wsCaptureImageTooLarge"));
       return;
     }
     await readImage(async () => ({ imageBase64: await fileToBase64(file), mimeType: file.type }));
@@ -160,7 +160,7 @@ export function QuickCapture({
           }
         }}
         rows={2}
-        placeholder="Tuangkan pikiran di sini… poin singkat pun tidak apa-apa, AI akan merapikannya."
+        placeholder={t("wsCapturePlaceholder")}
         className="w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
       />
       <div className="flex items-center justify-between border-t pt-2">
@@ -168,7 +168,7 @@ export function QuickCapture({
           <button
             onClick={toggleRecording}
             disabled={busy}
-            title={recording ? "Berhenti merekam" : "Rekam suara"}
+            title={recording ? t("wsCaptureStopRecording") : t("wsCaptureRecord")}
             className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
               recording
                 ? "bg-destructive text-destructive-foreground"
@@ -180,7 +180,7 @@ export function QuickCapture({
           <button
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            title="Foto catatan / papan tulis (OCR)"
+            title={t("wsCapturePhoto")}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent"
           >
             <ImageIcon className="h-4 w-4" />
@@ -204,7 +204,7 @@ export function QuickCapture({
           ) : (
             <SendHorizonal className="h-4 w-4" />
           )}
-          Simpan
+          {t("wsSave")}
         </button>
       </div>
       <DemoExamples

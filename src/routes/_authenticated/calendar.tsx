@@ -16,7 +16,6 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import {
   DndContext,
   DragOverlay,
@@ -62,6 +61,7 @@ import {
 import { PageContainer } from "@/components/common/PageContainer";
 import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { tr, useI18n } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
   head: () => ({
@@ -87,7 +87,11 @@ export const Route = createFileRoute("/_authenticated/calendar")({
 
 type View = "day" | "week" | "month" | "year";
 const WEEK_OPTS = { weekStartsOn: 1 as const };
-const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+/** Short weekday names Monday → Sunday in the given date-fns locale ("Sen" … "Min" in ID). */
+const weekdays = (locale: ReturnType<typeof useI18n>["dateFns"]) =>
+  Array.from({ length: 7 }, (_, i) =>
+    format(addDays(startOfWeek(new Date(2026, 0, 5), WEEK_OPTS), i), "EEE", { locale }),
+  );
 
 function CalendarPage() {
   const [view, setView] = useState<View>("month");
@@ -98,6 +102,7 @@ function CalendarPage() {
   const { update } = useTaskActions();
   const { newTask } = useTaskDialog();
   const [dragging, setDragging] = useState<Task | null>(null);
+  const { t, dateFns } = useI18n();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -117,8 +122,10 @@ function CalendarPage() {
       announcements: dndAnnouncements({
         itemName: (a) => {
           const d = a.data.current as { task: Task; mode: "move" | "resize" } | undefined;
-          if (!d) return "Tugas";
-          return d.mode === "resize" ? `Tenggat "${d.task.title}"` : `Tugas "${d.task.title}"`;
+          if (!d) return tr("taskCalItemTask");
+          return d.mode === "resize"
+            ? tr("taskCalItemDueNamed", { title: d.task.title })
+            : tr("taskCalItemTaskNamed", { title: d.task.title });
         },
         targetName: (id) => dayLabel(String(id)),
       }),
@@ -147,10 +154,14 @@ function CalendarPage() {
     projects.forEach(
       (p) =>
         p.launch_date &&
-        push(p.launch_date, { id: p.id, label: `Launch: ${p.name}`, kind: "launch" }),
+        push(p.launch_date, {
+          id: p.id,
+          label: t("taskCalLaunch", { name: p.name }),
+          kind: "launch",
+        }),
     );
     return m;
-  }, [milestones, projects]);
+  }, [milestones, projects, t]);
 
   const colorFor = useCallback(
     (t: Task) => {
@@ -177,12 +188,16 @@ function CalendarPage() {
         reminded: false,
       });
       toast.success(
-        `Dipindah ke ${format(addDays(new Date(task.due_date ?? task.start_date!), delta), "d MMM", { locale: localeId })}`,
+        t("taskCalMovedTo", {
+          date: format(addDays(new Date(task.due_date ?? task.start_date!), delta), "d MMM", {
+            locale: dateFns,
+          }),
+        }),
       );
     } else {
       const r = taskRange(task)!;
       if (target < r.start) {
-        toast.error("Tenggat tidak boleh sebelum tanggal mulai");
+        toast.error(t("taskDueBeforeStart"));
         return;
       }
       update(task.id, {
@@ -190,7 +205,7 @@ function CalendarPage() {
         due_date: dateToIso(overId),
         reminded: false,
       });
-      toast.success("Rentang tugas diperpanjang");
+      toast.success(t("taskCalExtended"));
     }
   }
 
@@ -207,11 +222,11 @@ function CalendarPage() {
 
   const title =
     view === "day"
-      ? format(cursor, "EEEE, d MMMM yyyy", { locale: localeId })
+      ? format(cursor, "EEEE, d MMMM yyyy", { locale: dateFns })
       : view === "week"
-        ? `${format(startOfWeek(cursor, WEEK_OPTS), "d MMM", { locale: localeId })} – ${format(endOfWeek(cursor, WEEK_OPTS), "d MMM yyyy", { locale: localeId })}`
+        ? `${format(startOfWeek(cursor, WEEK_OPTS), "d MMM", { locale: dateFns })} – ${format(endOfWeek(cursor, WEEK_OPTS), "d MMM yyyy", { locale: dateFns })}`
         : view === "month"
-          ? format(cursor, "MMMM yyyy", { locale: localeId })
+          ? format(cursor, "MMMM yyyy", { locale: dateFns })
           : format(cursor, "yyyy");
 
   const cellProps = {
@@ -228,11 +243,11 @@ function CalendarPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Kalender"
-        subtitle="Geser tugas untuk pindah tanggal, tarik ujung kanan untuk memperpanjang."
+        title={t("taskCalTitle")}
+        subtitle={t("taskCalSubtitle")}
         actions={
           <Button size="sm" onClick={() => newTask({ due_date: dateToIso(dayKey(cursor)) })}>
-            <Plus /> Tugas
+            <Plus /> {t("taskAddButton")}
           </Button>
         }
       />
@@ -244,7 +259,7 @@ function CalendarPage() {
             size="icon"
             className="h-8 w-8"
             onClick={() => step(-1)}
-            aria-label="Sebelumnya"
+            aria-label={t("taskCalPrevious")}
           >
             <ChevronLeft />
           </Button>
@@ -254,14 +269,14 @@ function CalendarPage() {
             className="h-8"
             onClick={() => setCursor(startOfDay(new Date()))}
           >
-            Hari ini
+            {t("taskCalToday")}
           </Button>
           <Button
             variant="outline"
             size="icon"
             className="h-8 w-8"
             onClick={() => step(1)}
-            aria-label="Berikutnya"
+            aria-label={t("taskCalNext")}
           >
             <ChevronRight />
           </Button>
@@ -269,10 +284,10 @@ function CalendarPage() {
         </div>
         <Tabs value={view} onValueChange={(v) => setView(v as View)}>
           <TabsList>
-            <TabsTrigger value="day">Hari</TabsTrigger>
-            <TabsTrigger value="week">Minggu</TabsTrigger>
-            <TabsTrigger value="month">Bulan</TabsTrigger>
-            <TabsTrigger value="year">Tahun</TabsTrigger>
+            <TabsTrigger value="day">{t("taskCalDay")}</TabsTrigger>
+            <TabsTrigger value="week">{t("taskCalWeek")}</TabsTrigger>
+            <TabsTrigger value="month">{t("taskCalMonth")}</TabsTrigger>
+            <TabsTrigger value="year">{t("taskCalYear")}</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -336,10 +351,11 @@ function MonthGrid({ cursor, ...p }: { cursor: Date } & CellProps) {
     start: startOfWeek(startOfMonth(cursor), WEEK_OPTS),
     end: endOfWeek(endOfMonth(cursor), WEEK_OPTS),
   });
+  const { dateFns } = useI18n();
   return (
     <div className="overflow-hidden rounded-2xl border bg-card">
       <div className="grid grid-cols-7 border-b bg-secondary/40">
-        {WEEKDAYS.map((d) => (
+        {weekdays(dateFns).map((d) => (
           <div
             key={d}
             className="px-2 py-2 text-center text-[11px] font-medium text-muted-foreground"
@@ -369,13 +385,15 @@ function WeekGrid({ cursor, ...p }: { cursor: Date } & CellProps) {
     start: startOfWeek(cursor, WEEK_OPTS),
     end: endOfWeek(cursor, WEEK_OPTS),
   });
+  const { dateFns } = useI18n();
+  const names = weekdays(dateFns);
   return (
     <div className="scrollbar-subtle overflow-x-auto rounded-2xl border bg-card">
       <div className="grid min-w-[720px] grid-cols-7">
         {days.map((d, i) => (
           <div key={d.toISOString()} className="flex flex-col">
             <div className="border-b bg-secondary/40 px-2 py-2 text-center text-[11px] font-medium text-muted-foreground">
-              {WEEKDAYS[i]}
+              {names[i]}
             </div>
             <DayCell day={d} max={50} minH="min-h-[420px]" {...p} />
           </div>
@@ -401,6 +419,7 @@ function DayCell({
   const items = byDay.get(k) ?? [];
   const marks = markers.get(k) ?? [];
   const shown = items.slice(0, max);
+  const { t } = useI18n();
   return (
     <div
       ref={setNodeRef}
@@ -429,7 +448,7 @@ function DayCell({
         <button
           onClick={() => onAdd(day)}
           className="tap-target rounded p-0.5 text-muted-foreground opacity-0 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
-          aria-label="Tambah tugas di tanggal ini"
+          aria-label={t("taskCalAddOnDay")}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -458,7 +477,7 @@ function DayCell({
           onClick={() => onMore(day)}
           className="px-1 text-left text-[10px] text-muted-foreground hover:text-foreground"
         >
-          +{items.length - max} lagi
+          {t("taskCalMore", { count: items.length - max })}
         </button>
       )}
     </div>
@@ -467,6 +486,7 @@ function DayCell({
 
 function CalendarChip({ task, day, className }: { task: Task; day: string; className: string }) {
   const { openTask } = useTaskDialog();
+  const { t } = useI18n();
   const {
     setNodeRef: setMoveNode,
     attributes: moveAttributes,
@@ -475,7 +495,7 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
   } = useDraggable({
     id: `move:${task.id}:${day}`,
     data: { task, mode: "move", from: day },
-    attributes: { roleDescription: "tugas yang dapat dipindah" },
+    attributes: { roleDescription: t("taskCalMovable") },
   });
   const {
     setNodeRef: setResizeNode,
@@ -484,7 +504,7 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
   } = useDraggable({
     id: `resize:${task.id}:${day}`,
     data: { task, mode: "resize", from: day },
-    attributes: { roleDescription: "pegangan ubah tenggat" },
+    attributes: { roleDescription: t("taskCalResizeHandle") },
   });
   const r = taskRange(task);
   const isEnd = r && dayKey(r.end) === day;
@@ -519,7 +539,7 @@ function CalendarChip({ task, day, className }: { task: Task; day: string; class
           {...resizeListeners}
           onClick={(e) => e.stopPropagation()}
           className="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize rounded-r-md hover:bg-foreground/15 focus-visible:bg-foreground/25 focus-visible:outline-none"
-          aria-label={`Ubah tenggat ${task.title}`}
+          aria-label={t("taskCalChangeDue", { title: task.title })}
         />
       )}
     </div>
@@ -540,6 +560,7 @@ function DayView({
   const lookups = useTaskRowLookups(all, projects);
   const { newTask } = useTaskDialog();
   const { setNodeRef } = useDroppable({ id: dayKey(day) });
+  const { t } = useI18n();
   return (
     <div ref={setNodeRef} className="space-y-3 rounded-2xl border bg-card p-4">
       {markers.map((m) => (
@@ -554,16 +575,14 @@ function DayView({
       ))}
       <TaskRows tasks={tasks} lookups={lookups} />
       {tasks.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          Tidak ada tugas di hari ini.
-        </p>
+        <p className="py-6 text-center text-sm text-muted-foreground">{t("taskCalNoTasksDay")}</p>
       )}
       <Button
         variant="outline"
         size="sm"
         onClick={() => newTask({ due_date: dateToIso(dayKey(day)) })}
       >
-        <Plus /> Tambah tugas
+        <Plus /> {t("taskAddTask")}
       </Button>
     </div>
   );
@@ -578,6 +597,8 @@ function YearView({
   byDay: Map<string, Task[]>;
   onPick: (d: Date) => void;
 }) {
+  const { t, dateFns } = useI18n();
+  const names = weekdays(dateFns);
   const months = Array.from({ length: 12 }, (_, i) => new Date(cursor.getFullYear(), i, 1));
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -589,10 +610,10 @@ function YearView({
         return (
           <div key={m.toISOString()} className="rounded-2xl border bg-card p-3">
             <h3 className="mb-2 text-sm font-semibold capitalize">
-              {format(m, "MMMM", { locale: localeId })}
+              {format(m, "MMMM", { locale: dateFns })}
             </h3>
             <div className="grid grid-cols-7 gap-0.5 text-center">
-              {WEEKDAYS.map((d) => (
+              {names.map((d) => (
                 <span key={d} className="text-[9px] text-muted-foreground">
                   {d[0]}
                 </span>
@@ -615,7 +636,7 @@ function YearView({
                           ? "bg-primary/20 hover:bg-primary/30"
                           : "bg-primary/45 text-primary-foreground hover:bg-primary/60",
                     )}
-                    title={n ? `${n} tugas` : undefined}
+                    title={n ? t("taskCalTaskCount", { count: n }) : undefined}
                   >
                     {format(d, "d")}
                   </button>

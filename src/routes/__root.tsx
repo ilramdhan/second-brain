@@ -12,7 +12,13 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { isDemo } from "@/lib/app-mode";
 import { AUTHOR, OG_IMAGE, SITE_NAME } from "@/lib/landing";
-import { PreferencesProvider } from "@/lib/preferences";
+import {
+  PreferencesProvider,
+  currentLocale,
+  translate,
+  type Locale,
+  type MessageKey,
+} from "@/lib/preferences";
 import { DEFAULT_PREFERENCES, type InitialPreferences } from "@/lib/preference-cookies";
 import { getInitialPreferences } from "@/lib/preferences-ssr";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
@@ -23,21 +29,31 @@ import { describeError, reportError } from "../lib/error-reporting";
 import { isConfigError } from "../lib/errors";
 import { initMonitoring } from "../lib/monitoring";
 
+/**
+ * The root not-found/error shells can render outside PreferencesProvider (the root component
+ * itself may have failed), so they read the locale from the root loader (the `sb_lang` cookie)
+ * and fall back to `<html lang>`.
+ */
+function useShellT() {
+  const locale: Locale =
+    (Route.useLoaderData() as InitialPreferences | undefined)?.locale ?? currentLocale();
+  return (key: MessageKey) => translate(key, locale);
+}
+
 function NotFoundComponent() {
+  const t = useShellT();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">{t("wsNotFoundTitle")}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{t("wsNotFoundBody")}</p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            {t("wsGoHome")}
           </Link>
         </div>
       </div>
@@ -52,6 +68,7 @@ function NotFoundComponent() {
  */
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
+  const t = useShellT();
   useEffect(() => {
     reportError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
@@ -61,12 +78,10 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          {config ? "Aplikasi belum dikonfigurasi" : "Halaman ini gagal dimuat"}
+          {config ? t("wsConfigErrorTitle") : t("routeErrorTitle")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {config
-            ? "Variabel lingkungan Supabase tidak ditemukan. VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY harus diisi saat build (nilainya ditanam ke bundle), lalu build dan deploy ulang. Lihat .env.example."
-            : "Terjadi kesalahan. Coba muat ulang, atau kembali ke beranda."}
+          {config ? t("wsConfigErrorBody") : t("wsRootErrorBody")}
         </p>
         {import.meta.env.DEV && (
           <pre className="mt-4 max-h-60 overflow-auto rounded bg-muted p-3 text-left text-xs text-muted-foreground">
@@ -81,13 +96,13 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Coba lagi
+            {t("retry")}
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Ke beranda
+            {t("wsGoHome")}
           </a>
         </div>
       </div>

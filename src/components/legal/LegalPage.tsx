@@ -2,7 +2,7 @@ import { Info } from "lucide-react";
 
 import { LEGAL_DOCS, LEGAL_UPDATED, type LegalBlock } from "@/components/legal/content";
 import { PAGE, SiteFooter, SiteHeader, SkipLink, TEXT_LINK } from "@/components/landing/SiteChrome";
-import { usePreferences } from "@/lib/preferences";
+import { intlLocale, usePreferences } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 function Block({ block }: { block: LegalBlock }) {
@@ -21,10 +21,12 @@ export function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
   const { t, locale } = usePreferences();
   const doc = LEGAL_DOCS[kind][locale];
   const title = t(kind === "privacy" ? "legalPrivacyTitle" : "legalTermsTitle");
-  const updated = new Date(`${LEGAL_UPDATED}T00:00:00Z`).toLocaleDateString(
-    locale === "id" ? "id-ID" : "en-US",
-    { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" },
-  );
+  const updated = new Date(`${LEGAL_UPDATED}T00:00:00Z`).toLocaleDateString(intlLocale(locale), {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
   return (
     <div data-public-page className="min-h-screen bg-background text-foreground">
       <SkipLink />

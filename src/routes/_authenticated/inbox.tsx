@@ -11,7 +11,6 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -35,6 +34,7 @@ import { noteEventRelevant } from "@/lib/automation-types";
 import { preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
+import { usePreferences, type MessageKey } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: () => ({
@@ -53,15 +53,16 @@ export const Route = createFileRoute("/_authenticated/inbox")({
 
 type InboxItem = Tables<"inbox_items">;
 
-const SOURCE_LABEL: Record<string, string> = {
-  manual: "Ketikan",
-  telegram: "Telegram",
-  voice: "Suara",
-  ocr: "Foto",
+const SOURCE_LABEL: Record<string, MessageKey> = {
+  manual: "wsInboxSourceManual",
+  telegram: "wsInboxSourceTelegram",
+  voice: "wsInboxSourceVoice",
+  ocr: "wsInboxSourceOcr",
 };
 
 function InboxPage() {
   const qc = useQueryClient();
+  const { t: tr, dateFns } = usePreferences();
   const [items, setItems] = useState<InboxItem[]>([]);
   // Shared cached list (excludes trashed projects) instead of a private `select *`.
   const { data: projects = [] } = useProjects();
@@ -93,7 +94,7 @@ function InboxPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error("Sesi berakhir");
+      if (!user) throw new Error(tr("wsInboxSessionEnded"));
 
       // Buat proyek baru bila AI menyarankan nama yang belum ada
       const projectMap = new Map(projects.map((p) => [p.name.toLowerCase(), p.id]));
@@ -152,10 +153,10 @@ function InboxPage() {
       // Rows were inserted outside the data hooks; refresh the lists they belong to.
       for (const key of [qk.tasks, qk.notes, qk.projects, ["inbox-count"]])
         void qc.invalidateQueries({ queryKey: key });
-      toast.success(`Diproses menjadi ${taskRows.length} tugas & ${noteRows.length} catatan`);
+      toast.success(tr("wsInboxProcessed", { tasks: taskRows.length, notes: noteRows.length }));
       load();
     } catch (err) {
-      toastError(err, "AI gagal memproses");
+      toastError(err, tr("wsInboxAiFailed"));
     } finally {
       setProcessingId(null);
     }
@@ -170,17 +171,17 @@ function InboxPage() {
         void qc.invalidateQueries({ queryKey: key });
       scheduleSemanticSync();
       const fields = r.filled.map((f) => FIELD_LABEL[f] ?? f).join(", ");
-      toast.success(`Tugas dibuat: ${r.title}`, {
+      toast.success(tr("wsInboxTaskCreated", { title: r.title }), {
         description: [
-          `${r.via === "ai" ? "Diisi AI" : "Diisi parser lokal"}${fields ? `: ${fields}` : ""}`,
-          r.dropped.length ? `Diabaikan: ${r.dropped.join("; ")}` : "",
+          `${r.via === "ai" ? tr("wsInboxFilledAi") : tr("wsInboxFilledLocal")}${fields ? `: ${fields}` : ""}`,
+          r.dropped.length ? tr("wsInboxDropped", { items: r.dropped.join("; ") }) : "",
         ]
           .filter(Boolean)
           .join(" · "),
       });
       load();
     } catch (err) {
-      toastError(err, "Gagal membuat tugas");
+      toastError(err, tr("wsInboxTaskFailed"));
     } finally {
       setTaskingId(null);
     }
@@ -195,17 +196,17 @@ function InboxPage() {
         void qc.invalidateQueries({ queryKey: key });
       scheduleSemanticSync();
       const fields = r.filled.map((f) => NOTE_FIELD_LABEL[f] ?? f).join(", ");
-      toast.success(`Catatan dibuat: ${r.title}`, {
+      toast.success(tr("wsInboxNoteCreated", { title: r.title }), {
         description: [
-          `${r.via === "ai" ? "Diisi AI" : "Diisi parser lokal"}${fields ? `: ${fields}` : ""}`,
-          r.dropped.length ? `Diabaikan: ${r.dropped.join("; ")}` : "",
+          `${r.via === "ai" ? tr("wsInboxFilledAi") : tr("wsInboxFilledLocal")}${fields ? `: ${fields}` : ""}`,
+          r.dropped.length ? tr("wsInboxDropped", { items: r.dropped.join("; ") }) : "",
         ]
           .filter(Boolean)
           .join(" · "),
       });
       load();
     } catch (err) {
-      toastError(err, "Gagal membuat catatan");
+      toastError(err, tr("wsInboxNoteFailed"));
     } finally {
       setNotingId(null);
     }
@@ -224,10 +225,10 @@ function InboxPage() {
         .from("inbox_items")
         .update({ content: expanded, ai_summary: item.content })
         .eq("id", item.id);
-      toast.success("Poin diperjelas oleh AI");
+      toast.success(tr("wsInboxParaphrased"));
       load();
     } catch (err) {
-      toastError(err, "Gagal memparafrase");
+      toastError(err, tr("wsInboxParaphraseFailed"));
     } finally {
       setExpandingId(null);
     }
@@ -243,10 +244,8 @@ function InboxPage() {
   return (
     <PageContainer size="narrow">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Semua tangkapan mentah mendarat di sini. Proses dengan AI atau arsipkan.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{tr("inbox")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tr("wsInboxSubtitle")}</p>
         <DemoExamples className="mt-2" />
       </header>
 
@@ -262,18 +261,20 @@ function InboxPage() {
           <div className="rounded-2xl border bg-card p-4">
             <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
               <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">
-                {SOURCE_LABEL[item.source] ?? item.source}
+                {item.source in SOURCE_LABEL ? tr(SOURCE_LABEL[item.source]!) : item.source}
               </span>
               <span>
                 {formatDistanceToNow(new Date(item.created_at), {
                   addSuffix: true,
-                  locale: localeId,
+                  locale: dateFns,
                 })}
               </span>
             </div>
             <p className="whitespace-pre-wrap text-sm">{item.content}</p>
             {item.ai_summary && (
-              <p className="mt-1 text-xs text-muted-foreground">Poin asli: {item.ai_summary}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {tr("wsInboxOriginalPoint", { text: item.ai_summary })}
+              </p>
             )}
             <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
               <button
@@ -286,7 +287,7 @@ function InboxPage() {
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                Proses dengan AI
+                {tr("wsInboxProcessAi")}
               </button>
               <button
                 onClick={() => handleToTask(item)}
@@ -298,7 +299,7 @@ function InboxPage() {
                 ) : (
                   <ListTodo className="h-3.5 w-3.5" />
                 )}
-                Jadikan tugas (AI)
+                {tr("wsInboxToTask")}
               </button>
               <button
                 onClick={() => handleToNote(item)}
@@ -310,7 +311,7 @@ function InboxPage() {
                 ) : (
                   <NotebookPen className="h-3.5 w-3.5" />
                 )}
-                Jadikan catatan (AI)
+                {tr("wsInboxToNote")}
               </button>
               <button
                 onClick={() => handleParaphrase(item)}
@@ -322,14 +323,14 @@ function InboxPage() {
                 ) : (
                   <FileText className="h-3.5 w-3.5" />
                 )}
-                Perjelas poin
+                {tr("wsInboxParaphrase")}
               </button>
               <button
                 onClick={() => handleArchive(item)}
                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
               >
                 <Archive className="h-3.5 w-3.5" />
-                Arsipkan
+                {tr("wsInboxArchive")}
               </button>
             </div>
           </div>
@@ -340,24 +341,20 @@ function InboxPage() {
       {items.length === 0 && (
         <div className="mt-12 flex flex-col items-center gap-2 text-center">
           <Check className="h-8 w-8 text-success" />
-          <p className="text-sm text-muted-foreground">Inbox bersih. Semua sudah dirapikan.</p>
+          <p className="text-sm text-muted-foreground">{tr("wsInboxEmpty")}</p>
         </div>
       )}
 
       <div className="mt-8 rounded-xl border bg-secondary/50 p-4 text-xs text-muted-foreground">
         <p className="mb-1 flex items-center gap-1.5 font-medium text-secondary-foreground">
-          <ListTodo className="h-3.5 w-3.5" /> Cara kerja AI
+          <ListTodo className="h-3.5 w-3.5" /> {tr("wsInboxHowTitle")}
         </p>
         <p>
-          "Proses dengan AI" memecah catatan menjadi tugas (<ListTodo className="inline h-3 w-3" />
-          ), issue (
+          {tr("wsInboxHow1")}
+          <ListTodo className="inline h-3 w-3" />
+          {tr("wsInboxHow2")}
           <Bug className="inline h-3 w-3" />
-          ), dan catatan — lengkap dengan prioritas, deadline, dan proyek. "Perjelas poin"
-          memparafrase poin singkat menjadi deskripsi lengkap sebelum Anda lupa konteksnya. "Jadikan
-          tugas (AI)" membuat satu tugas lengkap: status, prioritas, proyek, penanggung jawab,
-          tanggal mulai/tenggat, estimasi, tag, dependensi dan komentar (tanpa AI: parser lokal).
-          "Jadikan catatan (AI)" menyusun satu catatan rapi: judul, subjudul, poin dan checklist,
-          status, proyek, tag, tautan [[…]] ke catatan yang ada dan properti.
+          {tr("wsInboxHow3")}
         </p>
       </div>
     </PageContainer>

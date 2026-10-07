@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import {
   ChevronRight,
   KanbanSquare,
@@ -23,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
@@ -54,6 +54,7 @@ function ProjectsPage() {
   const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useTasks();
   const { update } = useProjectActions();
+  const { t } = usePreferences();
   const navigate = useNavigate();
   const [view, setView] = useState("grid");
   const [para, setPara] = useState("all");
@@ -68,8 +69,8 @@ function ProjectsPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Proyek"
-        subtitle="Dikelompokkan dengan metode PARA. Klik proyek untuk melihat detail."
+        title={t("projects")}
+        subtitle={t("wsProjectsSubtitle")}
         actions={
           <Button
             size="sm"
@@ -81,14 +82,14 @@ function ProjectsPage() {
               })
             }
           >
-            <Plus /> Proyek
+            <Plus /> {t("projects")}
           </Button>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="scrollbar-subtle -mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
-          {[{ id: "all", label: "Semua" }, ...PARA].map((p) => (
+          {[{ id: "all", label: t("wsAll") }, ...PARA].map((p) => (
             <button
               key={p.id}
               onClick={() => setPara(p.id)}
@@ -112,15 +113,15 @@ function ProjectsPage() {
           <TabsList>
             <TabsTrigger value="grid" className="gap-1.5">
               <LayoutGrid className="h-3.5 w-3.5" />
-              Grid
+              {t("wsViewGrid")}
             </TabsTrigger>
             <TabsTrigger value="board" className="gap-1.5">
               <KanbanSquare className="h-3.5 w-3.5" />
-              Kanban
+              {t("wsViewKanban")}
             </TabsTrigger>
             <TabsTrigger value="tree" className="gap-1.5">
               <ListTree className="h-3.5 w-3.5" />
-              Pohon
+              {t("wsViewTree")}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -138,7 +139,7 @@ function ProjectsPage() {
           ))}
           {list.length === 0 && (
             <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
-              Belum ada proyek di kategori ini.
+              {t("wsProjectsEmptyCategory")}
             </p>
           )}
         </div>
@@ -181,7 +182,9 @@ function ProjectsPage() {
             }
           />
           {list.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">Belum ada proyek.</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {t("wsProjectsEmpty")}
+            </p>
           )}
         </div>
       )}
@@ -208,13 +211,14 @@ function ProjectCard({
   compact?: boolean | undefined;
 }) {
   const pr = progress(p, tasks);
+  const { t, dateFns } = usePreferences();
   return (
     <div className="group relative rounded-2xl border bg-card p-4 transition-colors hover:border-primary/30">
       <Link
         to="/projects/$projectId"
         params={{ projectId: p.id }}
         className="absolute inset-0 rounded-2xl"
-        aria-label={`Buka ${p.name}`}
+        aria-label={t("wsOpenName", { name: p.name })}
       />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -225,7 +229,7 @@ function ProjectCard({
           onClick={onEdit}
           onPointerDown={(e) => e.stopPropagation()}
           className="relative z-10 -m-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-100 hover:bg-accent md:m-0 md:h-7 md:w-7 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
-          aria-label="Ubah proyek"
+          aria-label={t("wsEditProject")}
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -243,15 +247,13 @@ function ProjectCard({
         {p.launch_date && (
           <span className="flex items-center gap-1">
             <Rocket className="h-3 w-3" />
-            {format(new Date(`${p.launch_date}T00:00:00`), "d MMM yy", { locale: localeId })}
+            {format(new Date(`${p.launch_date}T00:00:00`), "d MMM yy", { locale: dateFns })}
           </span>
         )}
       </div>
       <div className="mt-3">
         <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
-          <span>
-            {pr.done}/{pr.total} tugas
-          </span>
+          <span>{t("wsTasksProgress", { done: pr.done, total: pr.total })}</span>
           <span>{pr.pct}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -311,6 +313,7 @@ function TreeNode({
   const [open, setOpen] = useState(true);
   const kids = all.filter((x) => x.parent_id === p.id);
   const pr = progress(p, tasks);
+  const { t } = usePreferences();
   return (
     <li>
       <div
@@ -323,7 +326,7 @@ function TreeNode({
             "tap-target rounded p-0.5 text-muted-foreground",
             !kids.length && "invisible",
           )}
-          aria-label="Buka/tutup"
+          aria-label={t("wsToggleOpen")}
         >
           <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
         </button>
@@ -341,7 +344,7 @@ function TreeNode({
         <button
           onClick={() => onAddChild(p)}
           className="rounded p-1 text-muted-foreground opacity-0 hover:bg-background group-hover:opacity-100"
-          aria-label="Tambah sub-proyek"
+          aria-label={t("wsAddSubproject")}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>

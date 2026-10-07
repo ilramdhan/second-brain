@@ -1,7 +1,7 @@
 import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 
 import type { ChartPoint } from "@/components/charts/types";
+import { currentDateLocale, tr } from "@/lib/preferences";
 import { addDays, type Bucket, type BucketMode, type BurndownPoint } from "@/lib/reports";
 
 /** `YYYY-MM-DD` → a local Date at noon (for formatting only). */
@@ -9,7 +9,8 @@ export const asDate = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y!, m! - 1, d!, 12);
 };
-const fmt = (iso: string, pattern: string) => format(asDate(iso), pattern, { locale: localeId });
+const fmt = (iso: string, pattern: string) =>
+  format(asDate(iso), pattern, { locale: currentDateLocale() });
 
 /** Axis and tooltip labels for one bucket (a day, or an ISO week clipped to the range). */
 export function bucketLabels(b: Bucket, mode: BucketMode, total: number) {
@@ -17,7 +18,7 @@ export function bucketLabels(b: Bucket, mode: BucketMode, total: number) {
     const end = addDays(b.start, 6);
     return {
       label: fmt(b.start, "d/M"),
-      long: `Minggu ${fmt(b.start, "d MMM")} – ${fmt(end, "d MMM yyyy")}`,
+      long: tr("admWeekRange", { from: fmt(b.start, "d MMM"), to: fmt(end, "d MMM yyyy") }),
     };
   }
   return {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/preferences";
 
 /** Client-side incremental pagination: shows `size` items, more on demand; resets when `resetKey` changes. */
 export function usePaged<T>(items: T[], size = 20, resetKey: unknown = null) {
@@ -28,14 +29,15 @@ export function LoadMore({
   total: number;
   onMore: () => void;
 }) {
+  const { t } = useI18n();
   if (total <= shown) return null;
   return (
     <div className="flex flex-col items-center gap-1 py-3">
       <Button variant="outline" size="sm" onClick={onMore}>
-        Muat lebih banyak
+        {t("wsLoadMore")}
       </Button>
       <span className="text-[11px] text-muted-foreground">
-        Menampilkan {shown} dari {total}
+        {t("wsShowingOf", { shown, total })}
       </span>
     </div>
   );

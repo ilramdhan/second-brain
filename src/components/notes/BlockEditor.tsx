@@ -22,11 +22,27 @@ import {
   type BlockType,
 } from "@/lib/blocks";
 import { useNoteBlocks, useNotes, useProjects, useTasks } from "@/lib/data";
+import { useI18n, type MessageKey } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 import { NoteLinksContext, noteTitleKey, useNoteLinks, useNoteLinksValue } from "./note-links";
 
 type Menu = { kind: "slash" | "wiki" | "ref"; query: string; index: number } | null;
 const CONTINUES: BlockType[] = ["bullet", "numbered", "todo"];
+/** Display names of the block types (`BLOCK_TYPES.label` stays Indonesian for slash matching). */
+const BLOCK_LABEL_KEYS: Record<BlockType, MessageKey> = {
+  p: "noteBlockText",
+  h1: "noteBlockH1",
+  h2: "noteBlockH2",
+  h3: "noteBlockH3",
+  todo: "noteBlockTodo",
+  bullet: "noteBlockBullet",
+  numbered: "noteBlockNumbered",
+  quote: "noteBlockQuote",
+  code: "noteBlockCode",
+  divider: "noteDivider",
+  query: "noteBlockQuery",
+  embed: "noteBlockEmbed",
+};
 
 /* ---------- inline rendering ---------- */
 /**
@@ -44,6 +60,7 @@ export const InlineText = memo(function InlineText({
   depth?: number;
 }) {
   const { titles, openTitle } = useNoteLinks();
+  const { t } = useI18n();
   const parts = useMemo(
     () =>
       text.split(
@@ -79,7 +96,7 @@ export const InlineText = memo(function InlineText({
           if (!ref)
             return (
               <span key={i} className="rounded bg-destructive/10 px-1 text-xs text-destructive">
-                blok tidak ditemukan
+                {t("noteBlockNotFound")}
               </span>
             );
           return (
@@ -89,7 +106,7 @@ export const InlineText = memo(function InlineText({
               params={{ noteId: ref.note.id }}
               onClick={(e) => e.stopPropagation()}
               className="rounded bg-accent/70 px-1 text-accent-foreground hover:bg-accent"
-              title={`Dari: ${ref.note.title}`}
+              title={t("noteRefFrom", { title: ref.note.title })}
             >
               {depth > 2 ? (
                 ref.block.text
@@ -136,6 +153,7 @@ function QueryView({ query }: { query: string }) {
   const { data: notes = [] } = useNotes();
   const { data: tasks = [] } = useTasks();
   const { data: projects = [] } = useProjects();
+  const { t, intl } = useI18n();
   const res = useMemo(
     () => runQuery(query, notes, tasks, projects),
     [query, notes, tasks, projects],
@@ -143,7 +161,8 @@ function QueryView({ query }: { query: string }) {
   if (!query.trim())
     return (
       <p className="text-sm text-muted-foreground">
-        Ketik query, mis. <code>TABLE rating FROM #buku WHERE rating &gt; 4 SORT rating DESC</code>
+        {t("noteQueryHint")}{" "}
+        <code>TABLE rating FROM #buku WHERE rating &gt; 4 SORT rating DESC</code>
       </p>
     );
   if (res.error) return <p className="text-sm text-destructive">{res.error}</p>;
@@ -166,7 +185,7 @@ function QueryView({ query }: { query: string }) {
       : v === null || v === undefined
         ? "–"
         : typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v)
-          ? new Date(v).toLocaleDateString("id-ID")
+          ? new Date(v).toLocaleDateString(intl)
           : String(v);
   return (
     <div className="overflow-x-auto rounded-lg border">
@@ -175,7 +194,7 @@ function QueryView({ query }: { query: string }) {
           <thead className="bg-secondary/60 text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2 font-medium">
-                {res.source === "notes" ? "Catatan" : "Tugas"}
+                {t(res.source === "notes" ? "noteQueryNotes" : "noteQueryTasks")}
               </th>
               {res.columns.map((c) => (
                 <th key={c} className="px-3 py-2 font-medium">
@@ -205,10 +224,10 @@ function QueryView({ query }: { query: string }) {
         </ul>
       )}
       {res.rows.length === 0 && (
-        <p className="px-3 py-2 text-xs text-muted-foreground">Tidak ada hasil.</p>
+        <p className="px-3 py-2 text-xs text-muted-foreground">{t("noteQueryNoResults")}</p>
       )}
       <p className="border-t bg-secondary/30 px-3 py-1 text-[10px] text-muted-foreground">
-        {res.rows.length} hasil · diperbarui otomatis
+        {t("noteQueryResults", { count: res.rows.length })}
       </p>
     </div>
   );
@@ -225,6 +244,11 @@ export function BlockEditor({
   onChange: (b: Block[]) => void;
 }) {
   const noteLinks = useNoteLinksValue();
+  const { t } = useI18n();
+  /** Block type names come from `BLOCK_TYPES` (ID, also used for slash matching); shown translated. */
+  const blockLabel = (type: BlockType) => t(BLOCK_LABEL_KEYS[type]);
+  const blockHint = (type: BlockType, hint: string) =>
+    type === "p" ? t("noteBlockHintText") : type === "embed" ? t("noteBlockHintEmbed") : hint;
   const { data: notes = [] } = useNotes();
   // Block refs/embeds need every note's blocks; the list cache (`useNotes`) has no blocks.
   const { data: blockNotes = [] } = useNoteBlocks();
@@ -274,15 +298,23 @@ export function BlockEditor({
     const q = menu.query.toLowerCase();
     if (menu.kind === "slash")
       return BLOCK_TYPES.filter(
-        (t) => !q || t.keys.some((k) => k.startsWith(q)) || t.label.toLowerCase().includes(q),
-      ).map((t) => ({ key: t.id, label: t.label, hint: t.hint }));
+        (bt) =>
+          !q ||
+          bt.keys.some((k) => k.startsWith(q)) ||
+          bt.label.toLowerCase().includes(q) ||
+          blockLabel(bt.id).toLowerCase().includes(q),
+      ).map((bt) => ({ key: bt.id, label: blockLabel(bt.id), hint: blockHint(bt.id, bt.hint) }));
     if (menu.kind === "wiki") {
       const list = notes
         .filter((n) => n.id !== noteId && n.title.toLowerCase().includes(q))
         .slice(0, 8)
-        .map((n) => ({ key: n.title, label: n.title, hint: "catatan" }));
+        .map((n) => ({ key: n.title, label: n.title, hint: t("noteMenuHintNote") }));
       if (q && !notes.some((n) => n.title.toLowerCase() === q))
-        list.push({ key: menu.query, label: `Buat "${menu.query}"`, hint: "baru" });
+        list.push({
+          key: menu.query,
+          label: t("noteMenuCreate", { title: menu.query }),
+          hint: t("noteMenuHintNew"),
+        });
       return list;
     }
     return [...index.values()]
@@ -496,24 +528,24 @@ export function BlockEditor({
                       setDrag({ from: b.id, over: null });
                     }}
                     className="tap-target mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-100 hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100 pointer-coarse:md:opacity-100"
-                    aria-label="Pegangan blok"
+                    aria-label={t("noteBlockHandle")}
                   >
                     <GripVertical className="h-4 w-4" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-52">
-                  <DropdownMenuLabel className="text-xs">Ubah jadi</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs">{t("noteTurnInto")}</DropdownMenuLabel>
                   <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
-                    {BLOCK_TYPES.filter((t) => t.id !== "embed").map((t) => (
+                    {BLOCK_TYPES.filter((bt) => bt.id !== "embed").map((bt) => (
                       <button
-                        key={t.id}
-                        onClick={() => set(b.id, { type: t.id })}
+                        key={bt.id}
+                        onClick={() => set(b.id, { type: bt.id })}
                         className={cn(
                           "rounded px-2 py-1 text-left text-xs hover:bg-accent",
-                          b.type === t.id && "bg-accent",
+                          b.type === bt.id && "bg-accent",
                         )}
                       >
-                        {t.label}
+                        {blockLabel(bt.id)}
                       </button>
                     ))}
                   </div>
@@ -521,28 +553,28 @@ export function BlockEditor({
                   <DropdownMenuItem
                     onClick={() => {
                       navigator.clipboard?.writeText(`((${b.id}))`);
-                      toast.success("Referensi blok disalin — tempel di catatan lain");
+                      toast.success(t("noteRefCopied"));
                     }}
                   >
-                    <Copy /> Salin referensi blok
+                    <Copy /> {t("noteCopyRef")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => insertAfter(b.id, { id: newId(), type: "p", text: "" })}
                   >
-                    <Plus /> Blok baru di bawah
+                    <Plus /> {t("noteBlockBelow")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => move(b.id, -1)}>
-                    <ArrowUp /> Pindah ke atas
+                    <ArrowUp /> {t("noteMoveUp")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => move(b.id, 1)}>
-                    <ArrowDown /> Pindah ke bawah
+                    <ArrowDown /> {t("noteMoveDown")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => remove(b.id)}
                     className="text-destructive focus:text-destructive"
                   >
-                    <Trash2 /> Hapus blok
+                    <Trash2 /> {t("noteDeleteBlock")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -552,7 +584,7 @@ export function BlockEditor({
                   <button
                     className="block w-full py-3"
                     onClick={() => setFocus({ id: b.id, caret: 0 })}
-                    aria-label="Pemisah"
+                    aria-label={t("noteDivider")}
                   >
                     <hr />
                   </button>
@@ -570,7 +602,7 @@ export function BlockEditor({
                         checked={!!b.checked}
                         onChange={() => set(b.id, { checked: !b.checked })}
                         className="mt-1.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
-                        aria-label="Centang"
+                        aria-label={t("noteCheck")}
                       />
                     )}
                     {b.type === "bullet" && (
@@ -612,12 +644,12 @@ export function BlockEditor({
                             b.type === "query"
                               ? "TABLE rating FROM #buku WHERE rating > 4"
                               : b.type === "embed"
-                                ? "Cari blok untuk disematkan…"
+                                ? t("noteEmbedPlaceholder")
                                 : blocks.length === 1
-                                  ? "Mulai menulis, ketik / untuk perintah, [[ untuk tautan…"
+                                  ? t("noteStartWriting")
                                   : b.type === "p"
                                     ? ""
-                                    : BLOCK_TYPES.find((t) => t.id === b.type)?.label
+                                    : blockLabel(b.type)
                           }
                           className={cn(
                             "block w-full resize-none overflow-hidden bg-transparent py-0.5 outline-none placeholder:text-muted-foreground/60",
@@ -661,10 +693,10 @@ export function BlockEditor({
                   <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-72 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
                     <p className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
                       {menu.kind === "slash"
-                        ? "Blok"
+                        ? t("noteMenuBlocks")
                         : menu.kind === "wiki"
-                          ? "Tautkan catatan"
-                          : "Referensi blok"}
+                          ? t("noteMenuLink")
+                          : t("noteMenuRef")}
                     </p>
                     {menuItems.map((it, i) => (
                       <button
@@ -703,7 +735,7 @@ export function BlockEditor({
           }}
           className="ml-6 flex items-center gap-1.5 rounded-md px-1 py-1 text-xs text-muted-foreground hover:text-foreground"
         >
-          <Plus className="h-3.5 w-3.5" /> Tambah blok
+          <Plus className="h-3.5 w-3.5" /> {t("noteAddBlock")}
         </button>
       </div>
     </NoteLinksContext.Provider>
@@ -712,11 +744,9 @@ export function BlockEditor({
 
 function EmbedView({ id, index }: { id: string; index: BlockIndex }) {
   const ref = index.get(id);
-  if (!id)
-    return (
-      <p className="text-sm text-muted-foreground">Klik untuk memilih blok yang disematkan.</p>
-    );
-  if (!ref) return <p className="text-sm text-destructive">Blok sumber tidak ditemukan.</p>;
+  const { t } = useI18n();
+  if (!id) return <p className="text-sm text-muted-foreground">{t("noteEmbedPick")}</p>;
+  if (!ref) return <p className="text-sm text-destructive">{t("noteEmbedMissing")}</p>;
   return (
     <div className="rounded-lg border-l-2 border-primary bg-accent/40 px-3 py-2">
       <div className="whitespace-pre-wrap">

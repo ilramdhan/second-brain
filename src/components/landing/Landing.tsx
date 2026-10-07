@@ -76,10 +76,11 @@ function BentoCard({ icon: Icon, title, body, className, children }: CardProps) 
 }
 
 function InboxMock() {
+  const { t } = usePreferences();
   return (
     <div className="space-y-2 rounded-xl border bg-background p-3 text-xs">
       <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-muted-foreground">
-        <span className="truncate">rapat dengan tim desain jumat 10.00 #proyek-web !tinggi</span>
+        <span className="truncate">{t("authMockCapture")}</span>
         <span className="ml-auto h-4 w-px bg-foreground motion-safe:animate-pulse" />
       </div>
       <div className="flex justify-center text-muted-foreground">
@@ -88,20 +89,22 @@ function InboxMock() {
       <div className="space-y-2 rounded-lg border bg-card p-3">
         <div className="flex items-center gap-2">
           <span className="h-3.5 w-3.5 rounded-full border-2 border-primary" />
-          <span className="font-medium text-foreground">Rapat dengan tim desain</span>
+          <span className="font-medium text-foreground">{t("authMockTaskTitle")}</span>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <span className="rounded-md bg-tone-blue/15 px-1.5 py-0.5 text-tone-blue">Jum 10.00</span>
+          <span className="rounded-md bg-tone-blue/15 px-1.5 py-0.5 text-tone-blue">
+            {t("authMockTaskWhen")}
+          </span>
           <span className="rounded-md bg-tone-teal/15 px-1.5 py-0.5 text-tone-teal">
-            proyek-web
+            {t("authMockProject")}
           </span>
           <span className="rounded-md bg-priority-high/15 px-1.5 py-0.5 text-priority-high">
-            tinggi
+            {t("authMockPriority")}
           </span>
         </div>
       </div>
       <div className="flex gap-2">
-        {["Teks", "Suara", "Foto"].map((label) => (
+        {[t("authMockText"), t("authMockVoice"), t("authMockPhoto")].map((label) => (
           <span key={label} className="rounded-md bg-inbox px-2 py-1 text-inbox-foreground">
             {label}
           </span>
@@ -174,7 +177,8 @@ function CollabMock() {
 }
 
 function AutomationMock() {
-  const steps = ["Status → Selesai", "Pindah ke Arsip", "Kirim webhook"];
+  const { t } = usePreferences();
+  const steps = [t("authMockRuleTrigger"), t("authMockRuleMove"), t("authMockRuleWebhook")];
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs">
       {steps.map((step, i) => (
@@ -195,17 +199,18 @@ function AutomationMock() {
 }
 
 function ChatMock() {
+  const { t } = usePreferences();
   return (
     <div className="space-y-2 rounded-xl border bg-background p-3 text-xs">
       <div className="ml-auto w-fit max-w-[80%] rounded-lg rounded-br-sm bg-primary px-2.5 py-1.5 text-primary-foreground">
-        /task bayar listrik besok 09.00
+        {t("authMockChatIn")}
       </div>
       <div className="w-fit max-w-[85%] rounded-lg rounded-bl-sm bg-muted px-2.5 py-1.5">
-        Tugas dibuat: Bayar listrik · besok 09.00
+        {t("authMockChatOut")}
       </div>
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <CalendarDays className="h-3.5 w-3.5" />
-        <span>Tersinkron ke Google Calendar</span>
+        <span>{t("authMockChatSynced")}</span>
       </div>
     </div>
   );

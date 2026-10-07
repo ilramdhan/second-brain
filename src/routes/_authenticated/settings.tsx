@@ -33,7 +33,7 @@ import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { SharesPanel } from "@/components/settings/SharesPanel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePreferences, type Locale, type Theme } from "@/lib/preferences";
+import { intlLocale, tr, usePreferences, type Locale, type Theme } from "@/lib/preferences";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTelegramLinkCode } from "@/lib/telegram.functions";
 import { syncSemanticIndexFn } from "@/lib/semantic.functions";
@@ -92,7 +92,6 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { theme, setTheme, locale, setLocale, t } = usePreferences();
-  const en = locale === "en";
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null);
   const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -126,31 +125,24 @@ function SettingsPage() {
       .from("profiles")
       .update({ telegram_chat_id: null, telegram_username: null })
       .eq("id", user.id);
-    toast.success("Telegram diputus");
+    toast.success(tr("admTelegramUnlinked"));
     load();
   }
 
   async function enableNotifications() {
     if (window.top !== window.self) {
-      toast.info("Buka aplikasi di tab sendiri (bukan preview) untuk mengaktifkan notifikasi.");
+      toast.info(tr("admNotifOpenTab"));
       return;
     }
     const perm = await Notification.requestPermission();
     setNotifEnabled(perm === "granted");
-    if (perm === "granted") toast.success("Notifikasi aktif");
-    else toast.error("Izin notifikasi ditolak — cek pengaturan situs di browser");
+    if (perm === "granted") toast.success(tr("admNotifOn"));
+    else toast.error(tr("admNotifDenied"));
   }
 
   return (
     <PageContainer size="narrow">
-      <PageHeader
-        title={t("settings")}
-        subtitle={
-          en
-            ? "Your profile, appearance, notifications, connections, and data."
-            : "Profil, tampilan, notifikasi, koneksi, dan data Anda."
-        }
-      />
+      <PageHeader title={t("settings")} subtitle={t("admSettingsSubtitle")} />
 
       <section className="mb-4 rounded-md border bg-card p-5">
         <h2 className="mb-4 font-semibold">{t("appearance")}</h2>
@@ -183,11 +175,7 @@ function SettingsPage() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {en
-                ? "Content you create is not translated."
-                : "Isi buatan Anda tidak diterjemahkan."}
-            </p>
+            <p className="mt-2 text-xs text-muted-foreground">{t("admLanguageNote")}</p>
           </div>
         </div>
       </section>
@@ -198,16 +186,13 @@ function SettingsPage() {
 
       <section className="rounded-2xl border bg-card p-5">
         <h2 className="flex items-center gap-2 font-semibold">
-          <Send className="h-4 w-4 text-primary" /> Bot Telegram
+          <Send className="h-4 w-4 text-primary" /> {t("admTelegramTitle")}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Kirim chat ke bot seperti biasa Anda mencatat di WhatsApp — semua pesan otomatis masuk ke
-          Inbox, dan pengingat deadline dikirim ke Telegram Anda.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("admTelegramBody")}</p>
         {telegramChatId ? (
           <div className="mt-4 flex items-center justify-between rounded-xl bg-secondary px-4 py-3">
             <div className="text-sm">
-              <p className="font-medium text-secondary-foreground">Terhubung</p>
+              <p className="font-medium text-secondary-foreground">{t("admConnected")}</p>
               <p className="text-xs text-muted-foreground">@{telegramUsername ?? telegramChatId}</p>
             </div>
             <Button
@@ -215,7 +200,7 @@ function SettingsPage() {
               onClick={unlinkTelegram}
               className="text-destructive hover:text-destructive"
             >
-              <Unlink className="h-3.5 w-3.5" /> Putuskan
+              <Unlink className="h-3.5 w-3.5" /> {t("admDisconnect")}
             </Button>
           </div>
         ) : (
@@ -225,22 +210,17 @@ function SettingsPage() {
 
       <section className="mt-4 rounded-2xl border bg-card p-5">
         <h2 className="flex items-center gap-2 font-semibold">
-          <Bell className="h-4 w-4 text-primary" /> Notifikasi di perangkat
+          <Bell className="h-4 w-4 text-primary" /> {t("admNotifTitle")}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pengingat deadline juga muncul sebagai notifikasi saat aplikasi terbuka.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("admNotifBody")}</p>
         <Button onClick={enableNotifications} disabled={notifEnabled} className="mt-4">
-          {notifEnabled ? "Notifikasi sudah aktif" : "Aktifkan notifikasi"}
+          {notifEnabled ? t("admNotifAlready") : t("admNotifEnable")}
         </Button>
       </section>
 
       <section className="mt-4 rounded-2xl border bg-card p-5">
-        <h2 className="font-semibold">Pasang di HP (PWA)</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Buka aplikasi ini di browser HP, lalu pilih "Tambahkan ke Layar Utama" / "Add to Home
-          Screen" dari menu browser. Aplikasi akan terasa seperti aplikasi native.
-        </p>
+        <h2 className="font-semibold">{t("admPwaTitle")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("admPwaBody")}</p>
       </section>
 
       <GoogleCalendarPanel />
@@ -257,6 +237,7 @@ function SettingsPage() {
 }
 
 function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void }) {
+  const { t } = usePreferences();
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<{
     code: string;
@@ -286,7 +267,7 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
       setLink(result);
       setNow(Date.now());
     } catch (error) {
-      toastError(error, "Gagal membuat kode tautan Telegram.");
+      toastError(error, t("admTgCodeFailed"));
     } finally {
       setBusy(false);
     }
@@ -295,9 +276,9 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Perintah disalin");
+      toast.success(t("admCommandCopied"));
     } catch {
-      toast.error("Gagal menyalin — salin manual");
+      toast.error(t("admCopyFailed"));
     }
   }
 
@@ -308,50 +289,50 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
   return (
     <div className="mt-4 rounded-xl border border-dashed p-4 text-sm">
       <p className="flex items-center gap-1.5 font-medium">
-        <Link2 className="h-4 w-4" /> Cara menghubungkan
+        <Link2 className="h-4 w-4" /> {t("admTgHowTo")}
       </p>
       <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-        <li>Klik "Hubungkan Telegram" untuk membuat kode sekali pakai (berlaku 10 menit).</li>
-        <li>Buka bot Second Brain di Telegram.</li>
+        <li>{t("admTgStep1")}</li>
+        <li>{t("admTgStep2")}</li>
         <li>
-          Kirim perintah <code className="rounded bg-secondary px-1">/link KODE</code> ke bot.
+          {t("admTgStep3Pre")} <code className="rounded bg-secondary px-1">/link KODE</code>{" "}
+          {t("admTgStep3Post")}
         </li>
       </ol>
 
       {link && !expired ? (
         <div className="mt-4 rounded-xl bg-secondary px-4 py-3">
-          <p className="text-xs text-muted-foreground">Kirim perintah ini ke bot:</p>
+          <p className="text-xs text-muted-foreground">{t("admTgSendThis")}</p>
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             <code
               className="font-mono text-lg font-semibold tracking-wider text-secondary-foreground"
-              aria-label={`Perintah tautan ${command}`}
+              aria-label={t("admTgCommandLabel", { command })}
             >
               {command}
             </code>
             <Button variant="ghost" size="sm" onClick={() => copy(command)}>
-              <Copy className="h-3.5 w-3.5" /> Salin
+              <Copy className="h-3.5 w-3.5" /> {t("admCopy")}
             </Button>
           </div>
           <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
-            Berlaku {minutes}:{String(seconds).padStart(2, "0")} lagi · sekali pakai. Halaman ini
-            otomatis diperbarui setelah akun terhubung.
+            {t("admTgExpiresIn", { time: `${minutes}:${String(seconds).padStart(2, "0")}` })}
           </p>
           {link.deepLink ? (
             <Button asChild variant="outline" size="sm" className="mt-3">
               <a href={link.deepLink} target="_blank" rel="noopener noreferrer">
-                <Send className="h-3.5 w-3.5" /> Buka bot &amp; tautkan otomatis
+                <Send className="h-3.5 w-3.5" /> {t("admTgOpenBot")}
               </a>
             </Button>
           ) : null}
         </div>
       ) : expired ? (
-        <p className="mt-4 text-xs text-destructive">Kode kedaluwarsa. Buat kode baru.</p>
+        <p className="mt-4 text-xs text-destructive">{t("admTgExpired")}</p>
       ) : null}
 
       <DemoDisabled>
         <Button onClick={generate} disabled={busy} className="mt-4">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          {link ? "Buat kode baru" : "Hubungkan Telegram"}
+          {link ? t("admTgNewCode") : t("admTgConnect")}
         </Button>
       </DemoDisabled>
     </div>
@@ -359,6 +340,7 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
 }
 
 function GoogleCalendarPanel() {
+  const { t, intl } = usePreferences();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const { data, isLoading } = useQuery({
@@ -368,7 +350,7 @@ function GoogleCalendarPanel() {
   async function connect() {
     const popup = window.open("", "google-calendar-oauth", "width=600,height=720");
     if (!popup) {
-      toast.error("Izinkan pop-up lalu coba lagi.");
+      toast.error(t("admAllowPopup"));
       return;
     }
     setBusy(true);
@@ -384,13 +366,13 @@ function GoogleCalendarPanel() {
           resolve({ code: event.data.code, state: event.data.state });
         } else if (event.data?.type === "googleCalendarFailed") {
           cleanup();
-          reject(new Error("Izin Google tidak selesai."));
+          reject(new Error(t("admGoogleNotDone")));
         }
       };
       const poll = window.setInterval(() => {
         if (popup.closed) {
           cleanup();
-          reject(new Error("Jendela koneksi ditutup."));
+          reject(new Error(t("admPopupClosed")));
         }
       }, 500);
       const cleanup = () => {
@@ -404,11 +386,11 @@ function GoogleCalendarPanel() {
       popup.location.href = authorizationUrl;
       const result = await wait;
       await completeGoogleCalendarConnect({ data: result });
-      toast.success("Google Calendar terhubung");
+      toast.success(t("admGcalConnected"));
       await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
     } catch (error) {
       popup.close();
-      toastError(error, "Koneksi gagal");
+      toastError(error, t("admConnectFailed"));
     } finally {
       setBusy(false);
     }
@@ -418,13 +400,13 @@ function GoogleCalendarPanel() {
     try {
       const r = await syncGoogleCalendarNow();
       toast.success(
-        `Sinkron selesai: ${r.pulled} dari Google, ${r.pushed} ke Google` +
-          (r.failed ? `, ${r.failed} gagal` : ""),
+        t("admGcalSynced", { pulled: r.pulled, pushed: r.pushed }) +
+          (r.failed ? t("admGcalSyncedFailed", { failed: r.failed }) : ""),
       );
       await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
       await qc.invalidateQueries({ queryKey: ["tasks"] });
     } catch (error) {
-      toastError(error, "Sinkronisasi gagal");
+      toastError(error, t("admSyncFailed"));
     } finally {
       setBusy(false);
     }
@@ -434,17 +416,17 @@ function GoogleCalendarPanel() {
       await setGoogleCalendarImport({ data: { enabled } });
       await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
     } catch (error) {
-      toastError(error, "Gagal menyimpan");
+      toastError(error, t("admSaveFailed"));
     }
   }
   async function disconnect() {
     setBusy(true);
     try {
       await disconnectGoogleCalendar();
-      toast.success("Google Calendar diputus");
+      toast.success(t("admGcalDisconnected"));
       await qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
     } catch (error) {
-      toastError(error, "Gagal memutus koneksi");
+      toastError(error, t("admDisconnectFailed"));
     } finally {
       setBusy(false);
     }
@@ -454,10 +436,7 @@ function GoogleCalendarPanel() {
       <h2 className="flex items-center gap-2 font-semibold">
         <CalendarDays className="h-4 w-4 text-primary" /> Google Calendar
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Setiap pengguna menghubungkan kalendernya sendiri. Tugas terjadwal dapat dikirim sebagai
-        blok waktu; perubahan judul dan jadwal di Google ikut diperbarui di tugas.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{t("admGcalBody")}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <DemoDisabled>
           <Button
@@ -472,12 +451,12 @@ function GoogleCalendarPanel() {
             ) : (
               <Link2 />
             )}
-            {data?.connected ? "Putuskan" : "Hubungkan Google Calendar"}
+            {data?.connected ? t("admDisconnect") : t("admGcalConnect")}
           </Button>
         </DemoDisabled>
         {data?.connected ? (
           <Button variant="outline" onClick={syncNow} disabled={busy}>
-            <RefreshCw className={busy ? "animate-spin" : undefined} /> Sinkronkan sekarang
+            <RefreshCw className={busy ? "animate-spin" : undefined} /> {t("admSyncNow")}
           </Button>
         ) : null}
       </div>
@@ -485,21 +464,19 @@ function GoogleCalendarPanel() {
         <div className="mt-3 space-y-1">
           <label className="flex items-center gap-2 text-sm">
             <Switch checked={data.importEvents} onCheckedChange={toggleImport} />
-            Impor acara Google sebagai tugas
+            {t("admGcalImport")}
           </label>
           <p className="text-xs text-muted-foreground">
-            Acara baru di Google yang belum berupa tugas akan dibuat sebagai tugas.
+            {t("admGcalImportBody")}
             {data.lastPulledAt
-              ? ` Terakhir disinkronkan ${new Date(data.lastPulledAt).toLocaleString()}.`
+              ? ` ${t("admGcalLastSynced", { time: new Date(data.lastPulledAt).toLocaleString(intl) })}`
               : ""}
           </p>
         </div>
       ) : null}
       <div>
         {data?.configured === false && !isDemo() ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Belum dikonfigurasi oleh admin (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{t("admGcalNotConfigured")}</p>
         ) : null}
       </div>
     </section>
@@ -507,6 +484,7 @@ function GoogleCalendarPanel() {
 }
 
 function BackupPanel() {
+  const { t } = usePreferences();
   const qc = useQueryClient();
   async function download() {
     const tables: Record<string, unknown[]> = {};
@@ -528,7 +506,7 @@ function BackupPanel() {
     anchor.download = `second-brain-${new Date().toISOString().slice(0, 10)}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    toast.success("Backup diunduh");
+    toast.success(t("admBackupDownloaded"));
     return;
   }
   async function restore(event: React.ChangeEvent<HTMLInputElement>) {
@@ -537,12 +515,10 @@ function BackupPanel() {
     if (!file) return;
     try {
       if (file.size > MAX_BACKUP_BYTES)
-        throw new BackupError(
-          `File backup terlalu besar (maks ${MAX_BACKUP_BYTES / 1024 / 1024}MB)`,
-        );
+        throw new BackupError(t("admBackupTooLarge", { mb: MAX_BACKUP_BYTES / 1024 / 1024 }));
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user?.id;
-      if (!userId) throw new BackupError("Sesi berakhir, silakan masuk lagi");
+      if (!userId) throw new BackupError(t("admBackupSession"));
       let parsed: unknown;
       try {
         // Automatic backups from n8n are gzipped (.json.gz); decompress in the browser.
@@ -553,7 +529,7 @@ function BackupPanel() {
         if (text.length > MAX_BACKUP_BYTES * 4) throw new Error("too large");
         parsed = JSON.parse(text);
       } catch {
-        throw new BackupError("File bukan JSON (atau .json.gz) yang valid");
+        throw new BackupError(t("admBackupInvalid"));
       }
       const prepared = prepareBackup(parsed, userId);
       let restored = 0;
@@ -591,33 +567,33 @@ function BackupPanel() {
       // Restored rows bypass the data hooks; drop the cached lists so every view refetches.
       void qc.invalidateQueries();
       toast.success(
-        `Backup dipulihkan (${restored} baris${skipped ? `, ${skipped} milik orang lain dilewati` : ""}).`,
+        skipped
+          ? t("admBackupRestoredSkipped", { restored, skipped })
+          : t("admBackupRestored", { restored }),
       );
     } catch (error) {
-      toastError(error, "Backup gagal dipulihkan");
+      toastError(error, t("admBackupFailed"));
     }
   }
   return (
     <section className="mt-4 rounded-md border bg-card p-5">
-      <h2 className="mb-1 font-semibold">Backup & pemulihan</h2>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Ekspor JSON terstruktur atau pulihkan tanpa menghapus data yang sudah ada.
-      </p>
+      <h2 className="mb-1 font-semibold">{t("backup")}</h2>
+      <p className="mb-4 text-sm text-muted-foreground">{t("admBackupBody")}</p>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={download}>
-          <Download /> Unduh JSON
+          <Download /> {t("admBackupDownload")}
         </Button>
         {isDemo() ? (
           // Restoring writes many rows outside the demo seed and its limits.
           <DemoDisabled>
             <Button variant="outline">
-              <Upload /> Pulihkan JSON
+              <Upload /> {t("admBackupRestore")}
             </Button>
           </DemoDisabled>
         ) : (
           <Button asChild variant="outline">
             <label>
-              <Upload /> Pulihkan JSON
+              <Upload /> {t("admBackupRestore")}
               <input
                 type="file"
                 accept="application/json,application/gzip,.json,.gz"
@@ -690,7 +666,7 @@ function SemanticIndexPanel() {
 function formatBuildTime(iso: string, locale: Locale): string | null {
   const date = new Date(iso);
   if (!iso || Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -782,15 +758,16 @@ function AboutPanel() {
 }
 
 const IDLE_OPTIONS = [
-  { value: 0, label: "Tidak pernah" },
-  { value: 15, label: "Setelah 15 menit" },
-  { value: 30, label: "Setelah 30 menit" },
-  { value: 60, label: "Setelah 1 jam" },
-  { value: 240, label: "Setelah 4 jam" },
-];
+  { value: 0, label: "admIdleNever" },
+  { value: 15, label: "admIdle15" },
+  { value: 30, label: "admIdle30" },
+  { value: 60, label: "admIdle60" },
+  { value: 240, label: "admIdle240" },
+] as const;
 
 function IdleSetting() {
   // The demo account is shared: it always signs out after at most an hour of inactivity.
+  const { t } = usePreferences();
   const demo = isDemo();
   const [value, setValue] = useState("0");
   useEffect(() => {
@@ -799,17 +776,17 @@ function IdleSetting() {
   }, []);
   return (
     <section className="mb-4 rounded-md border bg-card p-5">
-      <h2 className="font-semibold">Keamanan sesi</h2>
+      <h2 className="font-semibold">{t("admIdleTitle")}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Keluar otomatis bila aplikasi tidak dipakai. Disarankan untuk perangkat bersama.
-        {demo ? " Di demo, pilihannya 15, 30, atau 60 menit." : null}
+        {t("admIdleBody")}
+        {demo ? ` ${t("admIdleDemo")}` : null}
       </p>
       <Select
         value={value}
         onValueChange={(v) => {
           setValue(v);
           localStorage.setItem(IDLE_KEY, v);
-          toast.success("Tersimpan");
+          toast.success(t("saved"));
         }}
       >
         <SelectTrigger className="mt-3 w-full sm:w-64">
@@ -818,7 +795,7 @@ function IdleSetting() {
         <SelectContent>
           {IDLE_OPTIONS.filter((o) => !demo || DEMO_IDLE_OPTIONS.includes(o.value)).map((o) => (
             <SelectItem key={o.value} value={String(o.value)}>
-              {o.label}
+              {t(o.label)}
             </SelectItem>
           ))}
         </SelectContent>

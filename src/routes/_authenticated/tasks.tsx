@@ -6,6 +6,7 @@ import { useTasks } from "@/lib/data";
 import { PageContainer } from "@/components/common/PageContainer";
 import { depsQuery, meQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
   head: () => ({
@@ -27,10 +28,11 @@ export const Route = createFileRoute("/_authenticated/tasks")({
 
 function TasksPage() {
   const { data: tasks = [] } = useTasks();
+  const { t } = usePreferences();
   const open = tasks.filter((t) => t.status !== "done" && !t.parent_id).length;
   return (
     <PageContainer>
-      <PageHeader title="Tugas" subtitle={`${open} belum selesai`} />
+      <PageHeader title={t("taskPageTitle")} subtitle={t("taskPageOpenCount", { count: open })} />
       <TaskViews />
     </PageContainer>
   );

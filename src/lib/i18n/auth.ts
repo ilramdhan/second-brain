@@ -1,5 +1,70 @@
-// UI strings for the "auth" area (see src/lib/i18n/index.ts).
+// UI strings for the "auth" area (see src/lib/i18n/index.ts): login, OAuth popup, landing
+// mock-ups and leftovers of the public pages.
 
-export const id = {} as const;
+export const id = {
+  authLoginTagline: "Buang semua pikiran ke sini. Biar AI yang merapikan.",
+  authPasswordLabel: "Kata sandi",
+  authEmailPlaceholder: "anda@email.com",
+  authPasswordPlaceholder: "Minimal 6 karakter",
+  authProcessing: "Memproses…",
+  authSignIn: "Masuk",
+  authSignUp: "Daftar",
+  authToSignUp: "Belum punya akun? Daftar",
+  authToSignIn: "Sudah punya akun? Masuk",
+  authSignupClosed:
+    "Pendaftaran ditutup. Akun dibuat oleh pemilik instance; minta undangan untuk bergabung.",
+  authSignInFailed: "Gagal masuk",
+  authSignedUp: "Akun dibuat! Cek email Anda untuk konfirmasi, lalu masuk.",
+  authGcalConnecting: "Menyelesaikan koneksi…",
+  authGcalDenied: "Izin ditolak.",
+  authGcalIncomplete: "Koneksi tidak selesai.",
+  authGcalDone: "Berhasil. Jendela ini dapat ditutup.",
+  authMockCapture: "rapat dengan tim desain jumat 10.00 #proyek-web !tinggi",
+  authMockTaskTitle: "Rapat dengan tim desain",
+  authMockTaskWhen: "Jum 10.00",
+  authMockProject: "proyek-web",
+  authMockPriority: "tinggi",
+  authMockText: "Teks",
+  authMockVoice: "Suara",
+  authMockPhoto: "Foto",
+  authMockRuleTrigger: "Status → Selesai",
+  authMockRuleMove: "Pindah ke Arsip",
+  authMockRuleWebhook: "Kirim webhook",
+  authMockChatIn: "/task bayar listrik besok 09.00",
+  authMockChatOut: "Tugas dibuat: Bayar listrik · besok 09.00",
+  authMockChatSynced: "Tersinkron ke Google Calendar",
+} as const;
 
-export const en = {} satisfies Record<keyof typeof id, string>;
+export const en = {
+  authLoginTagline: "Dump every thought here. Let AI tidy it up.",
+  authPasswordLabel: "Password",
+  authEmailPlaceholder: "you@email.com",
+  authPasswordPlaceholder: "At least 6 characters",
+  authProcessing: "Processing…",
+  authSignIn: "Sign in",
+  authSignUp: "Sign up",
+  authToSignUp: "No account yet? Sign up",
+  authToSignIn: "Already have an account? Sign in",
+  authSignupClosed:
+    "Sign-up is closed. Accounts are created by the instance owner; ask for an invitation to join.",
+  authSignInFailed: "Sign-in failed",
+  authSignedUp: "Account created! Check your email to confirm, then sign in.",
+  authGcalConnecting: "Finishing the connection…",
+  authGcalDenied: "Permission denied.",
+  authGcalIncomplete: "The connection did not complete.",
+  authGcalDone: "Done. You can close this window.",
+  authMockCapture: "meeting with design team friday 10am #web-project !high",
+  authMockTaskTitle: "Meeting with design team",
+  authMockTaskWhen: "Fri 10:00",
+  authMockProject: "web-project",
+  authMockPriority: "high",
+  authMockText: "Text",
+  authMockVoice: "Voice",
+  authMockPhoto: "Photo",
+  authMockRuleTrigger: "Status → Done",
+  authMockRuleMove: "Move to Archive",
+  authMockRuleWebhook: "Send webhook",
+  authMockChatIn: "/task pay electricity tomorrow 9am",
+  authMockChatOut: "Task created: Pay electricity · tomorrow 09:00",
+  authMockChatSynced: "Synced to Google Calendar",
+} satisfies Record<keyof typeof id, string>;

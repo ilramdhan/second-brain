@@ -1,8 +1,8 @@
 import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { Timer } from "lucide-react";
 
 import { color } from "@/lib/constants";
+import { tr, useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 /*
@@ -16,7 +16,8 @@ import { cn } from "@/lib/utils";
 export function formatFocus(sec: number): string {
   const h = Math.floor(sec / 3600);
   const m = Math.round((sec % 3600) / 60);
-  return h ? `${h} j ${m} m` : `${m} m`;
+  const mu = tr("admMinuteUnit");
+  return h ? `${h} ${tr("admHourUnit")} ${m} ${mu}` : `${m} ${mu}`;
 }
 
 export type FocusDay = { d: Date; sec: number };
@@ -41,14 +42,15 @@ export function FocusSummary({
   sessions: number;
   days: FocusDay[];
 }) {
+  const { t } = useI18n();
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <section className={CARD} aria-labelledby="focus-total">
         <h2 id="focus-total" className="text-xs text-muted-foreground">
-          Total fokus
+          {t("admFocusTotal")}
         </h2>
         <p className="mt-1 text-2xl font-semibold tabular-nums">{formatFocus(total)}</p>
-        <p className="text-xs text-muted-foreground">{sessions} sesi</p>
+        <p className="text-xs text-muted-foreground">{t("admSessions", { n: sessions })}</p>
       </section>
       <DailyChart days={days} />
     </div>
@@ -61,19 +63,20 @@ export function FocusSummary({
  * screen readers (the drawing itself is `aria-hidden`).
  */
 export function DailyChart({ days }: { days: FocusDay[] }) {
+  const { t, dateFns } = useI18n();
   const max = Math.max(1, ...days.map((x) => x.sec));
   const peak = Math.max(0, ...days.map((x) => x.sec));
   return (
     <section className={cn(CARD, "lg:col-span-2")} aria-labelledby="focus-daily">
       <h2 id="focus-daily" className="mb-3 text-xs text-muted-foreground">
-        Per hari
+        {t("admPerDayTitle")}
       </h2>
       <div className="flex h-36 items-end gap-1.5 sm:gap-2" aria-hidden data-testid="focus-bars">
         {days.map(({ d, sec }) => (
           <div
             key={d.toISOString()}
             className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1"
-            title={`${format(d, "EEEE", { locale: localeId })}: ${formatFocus(sec)}`}
+            title={`${format(d, "EEEE", { locale: dateFns })}: ${formatFocus(sec)}`}
           >
             {sec > 0 && sec === peak && (
               <span className="text-[10px] font-medium whitespace-nowrap text-foreground tabular-nums">
@@ -85,23 +88,23 @@ export function DailyChart({ days }: { days: FocusDay[] }) {
               style={{ height: `${(sec / max) * 100}px`, minHeight: sec ? 4 : 0 }}
             />
             <span className="text-[11px] text-muted-foreground capitalize">
-              {format(d, "EEEEEE", { locale: localeId })}
+              {format(d, "EEEEEE", { locale: dateFns })}
             </span>
           </div>
         ))}
       </div>
       <table className="sr-only">
-        <caption>Waktu fokus per hari</caption>
+        <caption>{t("admFocusPerDay")}</caption>
         <thead>
           <tr>
-            <th scope="col">Hari</th>
-            <th scope="col">Fokus</th>
+            <th scope="col">{t("admDay")}</th>
+            <th scope="col">{t("admFocus")}</th>
           </tr>
         </thead>
         <tbody>
           {days.map(({ d, sec }) => (
             <tr key={d.toISOString()}>
-              <th scope="row">{format(d, "EEEE d MMM", { locale: localeId })}</th>
+              <th scope="row">{format(d, "EEEE d MMM", { locale: dateFns })}</th>
               <td>{formatFocus(sec)}</td>
             </tr>
           ))}
@@ -112,10 +115,11 @@ export function DailyChart({ days }: { days: FocusDay[] }) {
 }
 
 export function FocusEmpty() {
+  const { t } = useI18n();
   return (
     <div className="mt-4 rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground sm:p-8">
       <Timer className="mx-auto mb-2 h-6 w-6" aria-hidden />
-      Belum ada sesi fokus minggu ini. Mulai timer dari detail tugas.
+      {t("admFocusEmpty")}
     </div>
   );
 }
@@ -129,11 +133,12 @@ export function FocusBreakdown({
   byProject: FocusRow[];
   byTask: FocusRow[];
 }) {
+  const { t } = useI18n();
   return (
     <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
       <section className={CARD} aria-labelledby="focus-projects">
         <h2 id="focus-projects" className="mb-3 font-semibold">
-          Per proyek
+          {t("admPerProject")}
         </h2>
         <ul className="space-y-3">
           {byProject.map((row) => {
@@ -164,7 +169,7 @@ export function FocusBreakdown({
       </section>
       <section className={CARD} aria-labelledby="focus-tasks">
         <h2 id="focus-tasks" className="mb-3 font-semibold">
-          Tugas teratas
+          {t("admTopTasks")}
         </h2>
         <ul className="divide-y">
           {byTask.map((row) => (
