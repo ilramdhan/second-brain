@@ -9,6 +9,11 @@ import {
   hashEmbedding,
 } from "@/lib/semantic";
 import type { DemoTextKind } from "@/server/demo/ai-fixtures.server";
+import type {
+  ExtractedProject,
+  ExtractedTemplate,
+  ProjectCandidates,
+} from "@/server/formPrefill.server";
 import type { ExtractedNote, NoteCandidates } from "@/server/noteExtract.server";
 import type { ExtractedTask, TaskCandidates } from "@/server/taskExtract.server";
 
@@ -313,6 +318,53 @@ export async function aiExtractNote(
     extract.extractedNoteSchema,
     extract.noteExtractSystemPrompt(clock),
     extract.noteExtractUserPrompt(text, candidates),
+  );
+}
+
+/**
+ * "Isi dari teks" for the new-project form: name, description, PARA, status, colour, parent,
+ * dates and member suggestions (names of existing contacts only). Validated by
+ * resolveProjectExtraction (src/server/formPrefill.server.ts); nothing is saved here.
+ */
+export async function aiExtractProject(
+  request: Request,
+  text: string,
+  candidates: ProjectCandidates,
+  clock: { now: Date; tz: string },
+): Promise<ExtractedProject> {
+  const prefill = await import("@/server/formPrefill.server");
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) {
+    const demo = await import("@/server/demo/ai-fixtures.server");
+    await demo.demoDelay(request.signal);
+    return demo.demoExtractProject(text, candidates, clock);
+  }
+  return aiStructured(
+    request,
+    prefill.extractedProjectSchema,
+    prefill.projectSystemPrompt(clock),
+    prefill.projectUserPrompt(text, candidates),
+  );
+}
+
+/** "Isi dari teks" for the new-template form (kind, name, title, body, tags, priority, estimate). */
+export async function aiExtractTemplate(
+  request: Request,
+  text: string,
+  clock: { now: Date; tz: string },
+): Promise<ExtractedTemplate> {
+  const prefill = await import("@/server/formPrefill.server");
+  const { isDemoMode } = await import("@/server/demo/mode.server");
+  if (isDemoMode()) {
+    const demo = await import("@/server/demo/ai-fixtures.server");
+    await demo.demoDelay(request.signal);
+    return demo.demoExtractTemplate(text, clock);
+  }
+  return aiStructured(
+    request,
+    prefill.extractedTemplateSchema,
+    prefill.TEMPLATE_SYSTEM_PROMPT,
+    prefill.templateUserPrompt(text),
   );
 }
 
