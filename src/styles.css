@@ -242,6 +242,27 @@ html:has([data-public-page]) {
   }
 }
 
+/*
+ * Small icon buttons (WCAG 2.5.8 / 2.5.5): on touch screens (coarse pointer) an invisible
+ * ::after extends the hit area to at least 44x44 px around the button, centred, without changing
+ * its look. Mouse users keep the compact desktop layout. Uses ::after so it doesn't collide with
+ * `before:` hit areas (Switch, CheckCircle).
+ */
+@utility tap-target {
+  position: relative;
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 @layer utilities {
   .scrollbar-subtle::-webkit-scrollbar {
     width: 6px;

@@ -133,11 +133,16 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
 10. **Global `Q` shortcut** (2.1.4 Character Key Shortcuts) cannot be turned off or remapped. It is
     already suppressed in editable fields and dialogs, which limits accidental activation by
     speech-input users, but 2.1.4 also expects a way to disable or remap it.
-11. **Target size** (2.5.8). Task check circles and switches now have a 44 px hit area,
-    segmented tabs are 44 px tall on phones, and dialog fields are 44 px tall below `sm`. Some
-    icon buttons are still `h-7 w-7` (28px) or smaller (for example `p-0.5` icon buttons in
-    calendar cells, note block handles), close to or below the 24×24 CSS px minimum when the
-    spacing exception doesn't apply.
+11. **Target size** (2.5.8). Task check circles and switches have a 44 px hit area, segmented
+    tabs are 44 px tall on phones, and dialog fields are 44 px tall below `sm`. The small icon
+    buttons (calendar day "add", note block handle, project tree expander, canvas card and
+    template delete) use the `tap-target` utility (`src/styles.css`): on coarse pointers an
+    invisible `::after` grows the hit area to at least 44×44 px without changing the look, and
+    the calendar "add" button and block handle stay visible there instead of appearing on hover.
+    Mouse users keep the compact `h-7`/`p-0.5` buttons, which meet the 24×24 px minimum through
+    the spacing exception. Use `tap-target` for new icon buttons smaller than 44 px. Remaining
+    gap: neighbouring touch hit areas can overlap in dense rows (e.g. the project tree), where
+    the later element wins.
 
 ## Testing approach
 

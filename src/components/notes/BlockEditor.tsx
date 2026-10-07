@@ -495,7 +495,7 @@ export function BlockEditor({
                       e.dataTransfer.effectAllowed = "move";
                       setDrag({ from: b.id, over: null });
                     }}
-                    className="mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-100 hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+                    className="tap-target mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-100 hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100 pointer-coarse:md:opacity-100"
                     aria-label="Pegangan blok"
                   >
                     <GripVertical className="h-4 w-4" />

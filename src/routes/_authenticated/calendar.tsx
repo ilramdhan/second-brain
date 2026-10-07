@@ -428,7 +428,7 @@ function DayCell({
         </span>
         <button
           onClick={() => onAdd(day)}
-          className="rounded p-0.5 text-muted-foreground opacity-0 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+          className="tap-target rounded p-0.5 text-muted-foreground opacity-0 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
           aria-label="Tambah tugas di tanggal ini"
         >
           <Plus className="h-3.5 w-3.5" />

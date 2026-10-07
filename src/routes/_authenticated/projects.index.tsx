@@ -319,7 +319,10 @@ function TreeNode({
       >
         <button
           onClick={() => setOpen(!open)}
-          className={cn("rounded p-0.5 text-muted-foreground", !kids.length && "invisible")}
+          className={cn(
+            "tap-target rounded p-0.5 text-muted-foreground",
+            !kids.length && "invisible",
+          )}
           aria-label="Buka/tutup"
         >
           <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
