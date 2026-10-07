@@ -7,10 +7,15 @@ import type { PublicShare } from "@/lib/share";
  * `noindex` unless the owner allowed indexing (and always in the demo), no canonical URL (the
  * token is a secret, so the address must not be advertised), and `no-referrer`.
  */
+/** `robots` / `X-Robots-Tag` value of a share page: indexable only when the owner opted in. */
+export function shareRobots(share: Pick<PublicShare, "allowIndexing"> | null): string {
+  return share?.allowIndexing ? robotsFor("index, follow") : "noindex, nofollow";
+}
+
 export function shareHead(share: PublicShare | null) {
   const title = share ? `${share.title} — ${SITE_NAME}` : `${SITE_NAME}`;
   const description = share?.summary || SITE_NAME;
-  const robots = share?.allowIndexing ? robotsFor("index, follow") : "noindex, nofollow";
+  const robots = shareRobots(share);
   return {
     meta: [
       { title },

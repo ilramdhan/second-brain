@@ -171,7 +171,7 @@ function TemplatesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    className="tap-target h-7 w-7 text-muted-foreground hover:text-destructive"
                     onClick={() => remove(t.id)}
                     aria-label="Hapus template"
                   >

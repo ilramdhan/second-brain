@@ -270,7 +270,7 @@ function CanvasPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      className="tap-target h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => removeNode(node.id)}
                       aria-label="Hapus kartu"
                     >

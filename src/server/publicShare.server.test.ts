@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
-import { shareHead } from "@/lib/share-head";
+import { shareHead, shareRobots } from "@/lib/share-head";
 import { expiryToTimestamp, isShareActive, isShareToken, shareUrl } from "@/lib/share";
 import {
   createViewThrottle,
@@ -381,6 +381,12 @@ describe("share page head", () => {
       content: "index, follow",
     });
     expect(meta(shareHead(null), "robots")).toMatchObject({ content: "noindex, nofollow" });
+  });
+
+  it("uses the same robots value for the X-Robots-Tag header", () => {
+    expect(shareRobots(null)).toBe("noindex, nofollow");
+    expect(shareRobots({ allowIndexing: false })).toBe("noindex, nofollow");
+    expect(shareRobots({ allowIndexing: true })).toBe("index, follow");
   });
 
   it("carries the title in Open Graph and no-referrer", () => {

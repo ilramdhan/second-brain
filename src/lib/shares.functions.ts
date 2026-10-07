@@ -36,6 +36,12 @@ export const getPublicShare = createServerFn({ method: "POST" })
     return result;
   });
 
+/** The public demo is never indexed, so turning indexing on is refused there. */
+async function assertIndexingAllowed() {
+  const { assertNotDemo } = await import("@/server/demo/mode.server");
+  assertNotDemo("Indeks mesin pencari");
+}
+
 /**
  * Creates the caller's link for a note or project, or rotates the token of their active one
  * (one active link per creator and resource). Returns the raw token once.
@@ -45,9 +51,12 @@ export const createShareLink = createServerFn({ method: "POST" })
   .inputValidator(
     resourceInput.extend({
       expiry: z.enum(SHARE_EXPIRY_OPTIONS).default("never"),
+      // Search engines may index the page only when the owner opts in (off by default).
+      allowIndexing: z.boolean().default(false),
     }),
   )
   .handler(async ({ data, context }) => {
+    if (data.allowIndexing) await assertIndexingAllowed();
     const { enforceRateLimit, SHARE_LINK_RATE_LIMIT } = await import("@/server/rateLimit.server");
     await enforceRateLimit(context.supabase, SHARE_LINK_RATE_LIMIT);
     const { generateShareToken, hashShareToken } = await import("@/server/publicShare.server");
@@ -68,7 +77,7 @@ export const createShareLink = createServerFn({ method: "POST" })
     const query = existing
       ? context.supabase
           .from("public_shares")
-          .update({ token_hash, expires_at })
+          .update({ token_hash, expires_at, allow_indexing: data.allowIndexing })
           .eq("id", existing.id)
       : context.supabase.from("public_shares").insert({
           user_id: context.userId,
@@ -76,6 +85,7 @@ export const createShareLink = createServerFn({ method: "POST" })
           resource_id: data.resourceId,
           token_hash,
           expires_at,
+          allow_indexing: data.allowIndexing,
         });
     const { data: row, error } = await query.select(SHARE_ROW_COLS).single();
     if (error) throw error;
@@ -100,4 +110,25 @@ export const regenerateShareLink = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
     return { token, share: row as ShareRow };
+  });
+
+/**
+ * Lets search engines index an active link, or stops them. RLS (`public_shares_update`, owner
+ * only) and the column grant scope the write; revoked rows are left untouched.
+ */
+export const setShareIndexing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), allowIndexing: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    if (data.allowIndexing) await assertIndexingAllowed();
+    const { data: row, error } = await context.supabase
+      .from("public_shares")
+      .update({ allow_indexing: data.allowIndexing })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .is("revoked_at", null)
+      .select(SHARE_ROW_COLS)
+      .single();
+    if (error) throw error;
+    return row as ShareRow;
   });

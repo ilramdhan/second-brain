@@ -10,7 +10,7 @@ import {
   type ShareResourceType,
   type ShareRow,
 } from "@/lib/share";
-import { createShareLink, regenerateShareLink } from "@/lib/shares.functions";
+import { createShareLink, regenerateShareLink, setShareIndexing } from "@/lib/shares.functions";
 
 export function useShares() {
   return useQuery(sharesQuery);
@@ -45,14 +45,16 @@ export function useCanShare(resourceType: ShareResourceType, resourceId: string,
 }
 
 /**
- * Create, regenerate, re-time and revoke public links. Create/regenerate go through server
- * functions (the token is generated and hashed on the server and returned once); the rest are
- * RLS writes on the caller's own rows. Each write updates the `qk.shares` cache.
+ * Create, regenerate, re-time, (un)index and revoke public links. Create, regenerate and the
+ * indexing toggle go through server functions (the token is generated and hashed on the server
+ * and returned once; indexing is refused in the demo); the rest are RLS writes on the caller's
+ * own rows. Each write updates the `qk.shares` cache.
  */
 export function useShareActions() {
   const qc = useQueryClient();
   const create = useServerFn(createShareLink);
   const regenerate = useServerFn(regenerateShareLink);
+  const indexing = useServerFn(setShareIndexing);
 
   const upsert = (row: ShareRow) =>
     qc.setQueryData<ShareRow[]>(qk.shares, (old) => [
@@ -63,8 +65,13 @@ export function useShareActions() {
     qc.setQueryData<ShareRow[]>(qk.shares, (old) => (old ?? []).filter((s) => s.id !== id));
 
   return {
-    async create(resourceType: ShareResourceType, resourceId: string, expiry: ShareExpiry) {
-      const result = await create({ data: { resourceType, resourceId, expiry } });
+    async create(
+      resourceType: ShareResourceType,
+      resourceId: string,
+      expiry: ShareExpiry,
+      allowIndexing = false,
+    ) {
+      const result = await create({ data: { resourceType, resourceId, expiry, allowIndexing } });
       upsert(result.share);
       return result;
     },
@@ -72,6 +79,11 @@ export function useShareActions() {
       const result = await regenerate({ data: { id } });
       upsert(result.share);
       return result;
+    },
+    async setIndexing(id: string, allowIndexing: boolean) {
+      const row = await indexing({ data: { id, allowIndexing } });
+      upsert(row);
+      return row;
     },
     async setExpiry(id: string, expiry: ShareExpiry) {
       const { data, error } = await supabase
