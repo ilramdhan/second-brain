@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useMemo, useRef, useLayoutEffec
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
+import { tr } from "@/lib/preferences";
+
 import { useNoteActions, useNotes } from "@/lib/data";
 
 /** Normalised key used to match `[[Title]]` against note titles (trimmed, case-insensitive). */
@@ -50,7 +52,7 @@ export function useNoteLinksValue(): NoteLinks {
     if (hit) return navigate({ to: "/notes/$noteId", params: { noteId: hit } });
     const row = await create({ title: t.slice(0, 200), content: "", blocks: [] });
     if (row) {
-      toast.success(`Catatan "${t}" dibuat`);
+      toast.success(tr("noteCreatedNamed", { title: t }));
       navigate({ to: "/notes/$noteId", params: { noteId: row.id } });
     }
   }, []);

@@ -18,6 +18,7 @@ import {
   useTasks,
   useTimeEntries,
 } from "@/lib/data";
+import { usePreferences } from "@/lib/preferences";
 import { localIsoDate, rangeFor, type BurndownUnit, type RangeDays } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/_authenticated/reports")({
 const browserTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
 function ReportsPage() {
+  const { t: tt } = usePreferences();
   const [range, setRange] = useState<RangeDays>(30);
   const [projectId, setProjectId] = useState(ALL);
   const [milestoneId, setMilestoneId] = useState(ALL);
@@ -91,10 +93,7 @@ function ReportsPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Laporan"
-        subtitle={`Fokus, burndown dan throughput · ${range} hari terakhir`}
-      />
+      <PageHeader title={tt("reports")} subtitle={tt("admReportsSubtitle", { days: range })} />
       <ReportFilters
         range={range}
         onRange={setRange}
@@ -111,9 +110,9 @@ function ReportsPage() {
         milestones={milestones}
       />
       {report.isLoading ? (
-        <p className="mt-6 text-sm text-muted-foreground">Memuat…</p>
+        <p className="mt-6 text-sm text-muted-foreground">{tt("admLoading")}</p>
       ) : report.isError ? (
-        <p className="mt-6 text-sm text-destructive">Laporan gagal dimuat. Coba lagi.</p>
+        <p className="mt-6 text-sm text-destructive">{tt("admReportsFailed")}</p>
       ) : (
         <div
           className={cn("space-y-4 transition-opacity", refetching && "opacity-60")}
@@ -127,7 +126,7 @@ function ReportsPage() {
               total={focusTotal}
               byProject={sum((e) => projectOf(e) ?? "none").map(([pid, sec]) => {
                 const p = projects.find((x) => x.id === pid);
-                return { id: pid, sec, label: p?.name ?? "Tanpa proyek", color: p?.color };
+                return { id: pid, sec, label: p?.name ?? tt("admNoProject"), color: p?.color };
               })}
               byTask={sum((e) => e.task_id)
                 .slice(0, 10)
@@ -136,8 +135,10 @@ function ReportsPage() {
                   return {
                     id: tid,
                     sec,
-                    label: t?.title ?? "Tugas terhapus",
-                    suffix: t?.estimate_minutes ? ` / est. ${t.estimate_minutes} m` : undefined,
+                    label: t?.title ?? tt("admDeletedTask"),
+                    suffix: t?.estimate_minutes
+                      ? ` / ${tt("admEstimateSuffix", { min: t.estimate_minutes })}`
+                      : undefined,
                   };
                 })}
             />

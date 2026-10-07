@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { CalendarDays, Flag, FolderKanban, Hash, Repeat, User, Zap } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,6 +9,8 @@ import { priorityOf, RECURRENCE, labelOf } from "@/lib/constants";
 import { useProjects, useTaskActions } from "@/lib/data";
 import { parseTaskText } from "@/lib/nlp";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/preferences";
+import { enumLabel } from "@/components/tasks/labels";
 
 export function QuickTask({
   onDone,
@@ -21,6 +22,7 @@ export function QuickTask({
   const [text, setText] = useState("");
   const { data: projects = [] } = useProjects();
   const { create } = useTaskActions();
+  const { t, dateFns } = useI18n();
   const parsed = useMemo(() => parseTaskText(text), [text]);
   const project = parsed.project
     ? projects.find(
@@ -44,7 +46,7 @@ export function QuickTask({
       recurrence: parsed.recurrence,
     });
     if (row) {
-      toast.success(`Tugas dibuat: ${row.title}`);
+      toast.success(t("taskQuickCreated", { title: row.title }));
       setText("");
       onDone?.();
     }
@@ -57,12 +59,12 @@ export function QuickTask({
           autoFocus
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder='mis. "Meeting evaluasi tim marketing besok jam 10 pagi #urgent @budi"'
+          placeholder={t("taskQuickPlaceholder")}
           className="h-11"
-          aria-label="Tugas cepat"
+          aria-label={t("taskQuickLabel")}
         />
         <Button type="submit" className="h-11" disabled={!text.trim()}>
-          <Zap /> Buat
+          <Zap /> {t("taskQuickCreate")}
         </Button>
       </div>
       {text.trim() && (
@@ -72,18 +74,18 @@ export function QuickTask({
             {parsed.due && (
               <Chip icon={CalendarDays}>
                 {format(parsed.due, parsed.hasTime ? "EEE d MMM, HH:mm" : "EEE d MMM", {
-                  locale: localeId,
+                  locale: dateFns,
                 })}
               </Chip>
             )}
             {parsed.priority && (
               <Chip icon={Flag} className={priorityOf(parsed.priority).className}>
-                {priorityOf(parsed.priority).label}
+                {enumLabel(t, "priority", parsed.priority, priorityOf(parsed.priority).label)}
               </Chip>
             )}
-            {parsed.tags.map((t) => (
-              <Chip key={t} icon={Hash}>
-                {t}
+            {parsed.tags.map((tag) => (
+              <Chip key={tag} icon={Hash}>
+                {tag}
               </Chip>
             ))}
             {parsed.assignee && <Chip icon={User}>{parsed.assignee}</Chip>}
@@ -93,15 +95,23 @@ export function QuickTask({
               </Chip>
             )}
             {parsed.recurrence && (
-              <Chip icon={Repeat}>{labelOf(RECURRENCE, parsed.recurrence)}</Chip>
+              <Chip icon={Repeat}>
+                {enumLabel(
+                  t,
+                  "recurrence",
+                  parsed.recurrence,
+                  labelOf(RECURRENCE, parsed.recurrence),
+                )}
+              </Chip>
             )}
           </div>
         </div>
       )}
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Kenali otomatis: <b>besok, lusa, senin, 12 okt, 12/10, jam 10 pagi, 14:30</b> · <b>#tag</b>{" "}
-        · <b>@orang</b> · <b>+proyek</b> · <b>!tinggi / !1</b> · <b>setiap minggu</b>. Tekan{" "}
-        <kbd className="rounded border px-1">Q</kbd> di mana saja untuk membuka.
+        {t("taskQuickHintPrefix")} <b>besok, lusa, senin, 12 okt, 12/10, jam 10 pagi, 14:30</b> ·{" "}
+        <b>#tag</b> · <b>@orang</b> · <b>+proyek</b> · <b>!tinggi / !1</b> · <b>setiap minggu</b>.{" "}
+        {t("taskQuickHintPressPrefix")} <kbd className="rounded border px-1">Q</kbd>{" "}
+        {t("taskQuickHintPressSuffix")}
       </p>
     </form>
   );

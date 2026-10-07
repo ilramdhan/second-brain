@@ -182,9 +182,9 @@ function Shell() {
     await logActivity("idle_timeout", "auth", undefined, {}, "auth");
     await supabase.auth.signOut();
     queryClient.clear();
-    toast.message("Anda otomatis keluar karena tidak aktif");
+    toast.message(t("wsIdleSignedOut"));
     navigate({ to: LOGIN_PATH });
-  }, [navigate, queryClient]);
+  }, [navigate, queryClient, t]);
   useIdleLogout(onIdle);
 
   const navLinks = (
@@ -262,14 +262,19 @@ function Shell() {
             <span className="text-sm font-semibold">Second Brain</span>
           </div>
           <div className="flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => setCmd(true)} aria-label="Cari">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCmd(true)}
+              aria-label={t("wsSearchLabel")}
+            >
               <Search />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMore(true)}
-              aria-label="Menu lainnya"
+              aria-label={t("wsMoreMenu")}
             >
               <Menu />
             </Button>
@@ -302,7 +307,7 @@ function Shell() {
         <button
           onClick={() => setCapture(true)}
           className="flex items-center justify-center"
-          aria-label="Tangkap cepat"
+          aria-label={t("quickCapture")}
         >
           <span className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
             <Plus className="h-6 w-6" />
@@ -339,10 +344,8 @@ function Shell() {
       <Dialog open={capture} onOpenChange={setCapture}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Tangkap cepat</DialogTitle>
-            <DialogDescription>
-              Ketik, rekam suara, atau foto catatan. Semuanya masuk Inbox untuk dirapikan AI.
-            </DialogDescription>
+            <DialogTitle>{t("quickCapture")}</DialogTitle>
+            <DialogDescription>{t("wsCaptureDescription")}</DialogDescription>
           </DialogHeader>
           <Suspense fallback={<DialogFallback />}>
             {capture && <QuickCapture onCaptured={() => setCapture(false)} />}
@@ -354,7 +357,7 @@ function Shell() {
             }}
             className="text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
-            Langsung jadi tugas dengan bahasa sehari-hari →
+            {t("wsCaptureToQuickTask")}
           </button>
           <button
             onClick={() => {
@@ -363,7 +366,7 @@ function Shell() {
             }}
             className="text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
-            Atau buat tugas lengkap langsung →
+            {t("wsCaptureToFullTask")}
           </button>
         </DialogContent>
       </Dialog>
@@ -371,10 +374,8 @@ function Shell() {
       <Dialog open={quick} onOpenChange={setQuick}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Tugas cepat</DialogTitle>
-            <DialogDescription>
-              Ketik seperti biasa — tanggal, jam, tag, orang, dan prioritas dikenali otomatis.
-            </DialogDescription>
+            <DialogTitle>{t("quickTask")}</DialogTitle>
+            <DialogDescription>{t("wsQuickTaskDescription")}</DialogDescription>
           </DialogHeader>
           <Suspense fallback={<DialogFallback />}>
             {quick && <QuickTask onDone={() => setQuick(false)} />}

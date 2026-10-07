@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Milestone, Project } from "@/lib/data";
+import { useI18n } from "@/lib/preferences";
 import { RANGES, type BurndownUnit, type RangeDays } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
@@ -38,25 +39,26 @@ export function ReportFilters({
   projects: Pick<Project, "id" | "name">[];
   milestones: Pick<Milestone, "id" | "title" | "project_id">[];
 }) {
+  const { t } = useI18n();
   const projectMilestones = milestones.filter((m) => m.project_id === projectId);
   return (
     <div
       className="mb-4 flex flex-wrap items-center gap-2"
       role="group"
-      aria-label="Filter laporan"
+      aria-label={t("admReportFilters")}
     >
       <Segmented
-        label="Rentang"
+        label={t("admRange")}
         value={String(range)}
         onChange={(v) => onRange(Number(v) as RangeDays)}
-        options={RANGES.map((d) => ({ value: String(d), label: `${d} hari` }))}
+        options={RANGES.map((d) => ({ value: String(d), label: t("admRangeDays", { n: d }) }))}
       />
       <Select value={projectId} onValueChange={onProject}>
-        <SelectTrigger className="h-11 w-full min-w-0 sm:h-9 sm:w-52" aria-label="Proyek">
+        <SelectTrigger className="h-11 w-full min-w-0 sm:h-9 sm:w-52" aria-label={t("projects")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>Semua proyek</SelectItem>
+          <SelectItem value={ALL}>{t("admAllProjects")}</SelectItem>
           {projects.map((p) => (
             <SelectItem key={p.id} value={p.id}>
               {p.name}
@@ -70,7 +72,7 @@ export function ReportFilters({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>Semua milestone</SelectItem>
+            <SelectItem value={ALL}>{t("admAllMilestones")}</SelectItem>
             {projectMilestones.map((m) => (
               <SelectItem key={m.id} value={m.id}>
                 {m.title}
@@ -80,12 +82,12 @@ export function ReportFilters({
         </Select>
       )}
       <Segmented
-        label="Satuan burndown"
+        label={t("admBurndownUnit")}
         value={unit}
         onChange={(v) => onUnit(v as BurndownUnit)}
         options={[
-          { value: "tasks", label: "Tugas" },
-          { value: "minutes", label: "Estimasi" },
+          { value: "tasks", label: t("tasks") },
+          { value: "minutes", label: t("admUnitEstimate") },
         ]}
       />
     </div>

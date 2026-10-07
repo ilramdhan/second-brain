@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
+import { isDemo } from "@/lib/app-mode";
+import { useI18n, type MessageKey } from "@/lib/preferences";
 
 export const Route = createFileRoute("/oauth/google-calendar/return")({
   head: () => ({
@@ -19,7 +20,8 @@ export const Route = createFileRoute("/oauth/google-calendar/return")({
 
 function GoogleCalendarReturn() {
   const demo = isDemo();
-  const [message, setMessage] = useState(demo ? DEMO_DISABLED_MESSAGE : "Menyelesaikan koneksi…");
+  const { t } = useI18n();
+  const [message, setMessage] = useState<MessageKey>(demo ? "demoDisabled" : "authGcalConnecting");
   useEffect(() => {
     // The demo never connects Google Calendar: do not forward anything to the opener.
     if (demo) return;
@@ -41,13 +43,13 @@ function GoogleCalendarReturn() {
     // The message mirrors the one-shot postMessage above, which can only run on the client.
     if (!success)
       // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
-      setMessage(error === "access_denied" ? "Izin ditolak." : "Koneksi tidak selesai.");
-    else setMessage("Berhasil. Jendela ini dapat ditutup.");
+      setMessage(error === "access_denied" ? "authGcalDenied" : "authGcalIncomplete");
+    else setMessage("authGcalDone");
     window.setTimeout(() => window.close(), 500);
   }, [demo]);
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6 text-sm text-foreground">
-      {message}
+      {t(message)}
     </main>
   );
 }

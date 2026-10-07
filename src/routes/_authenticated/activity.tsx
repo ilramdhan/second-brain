@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { id } from "date-fns/locale";
 import { Activity, Filter } from "lucide-react";
 import { useState } from "react";
 
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { RouteError } from "@/components/common/RouteError";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/activity")({
   head: () => ({
@@ -36,6 +36,7 @@ export const Route = createFileRoute("/_authenticated/activity")({
 
 function ActivityPage() {
   const [type, setType] = useState("all");
+  const { t, dateFns } = usePreferences();
   const { data = [], isLoading } = useQuery({
     queryKey: ["activity-logs"],
     // Audit rows are written by DB triggers, never through the cache: always reload on visit.
@@ -56,16 +57,16 @@ function ActivityPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Aktivitas"
-        subtitle="Log hanya menyimpan metadata perubahan, bukan isi catatan pribadi."
+        title={t("activity")}
+        subtitle={t("wsActivitySubtitle")}
         actions={
           <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-44" aria-label={t("wsActivityFilter")}>
               <Filter />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua objek</SelectItem>
+              <SelectItem value="all">{t("wsActivityAll")}</SelectItem>
               {types.map((value) => (
                 <SelectItem key={value} value={value}>
                   {value}
@@ -76,9 +77,9 @@ function ActivityPage() {
         }
       />
       <div className="overflow-hidden rounded-md border bg-card">
-        {isLoading && <p className="p-6 text-sm text-muted-foreground">Memuat aktivitas…</p>}
+        {isLoading && <p className="p-6 text-sm text-muted-foreground">{t("wsActivityLoading")}</p>}
         {!isLoading && shown.length === 0 && (
-          <p className="p-8 text-center text-sm text-muted-foreground">Belum ada aktivitas.</p>
+          <p className="p-8 text-center text-sm text-muted-foreground">{t("wsActivityEmpty")}</p>
         )}
         <VirtualList
           className="divide-y"
@@ -92,10 +93,15 @@ function ActivityPage() {
                 <p className="truncate text-sm font-medium capitalize">
                   {row.action.replaceAll("_", " ")} · {row.entity_type.replaceAll("_", " ")}
                 </p>
-                <p className="text-xs text-muted-foreground">Sumber: {row.source}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("wsActivitySource", { source: row.source })}
+                </p>
               </div>
               <time className="col-start-2 text-xs text-muted-foreground sm:col-start-auto">
-                {formatDistanceToNow(new Date(row.created_at), { addSuffix: true, locale: id })}
+                {formatDistanceToNow(new Date(row.created_at), {
+                  addSuffix: true,
+                  locale: dateFns,
+                })}
               </time>
             </div>
           )}

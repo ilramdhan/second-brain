@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 
+import { useI18n } from "@/lib/preferences";
+
 export function TagInput({
   value,
   onChange,
-  placeholder = "Tambah tag, tekan Enter",
+  placeholder,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
   placeholder?: string | undefined;
 }) {
+  const { t: tr } = useI18n();
   const [draft, setDraft] = useState("");
   function commit() {
     const t = draft.trim().replace(/,$/, "").toLowerCase();
@@ -27,7 +30,7 @@ export function TagInput({
           <button
             type="button"
             onClick={() => onChange(value.filter((x) => x !== t))}
-            aria-label={`Hapus tag ${t}`}
+            aria-label={tr("noteTagRemove", { tag: t })}
           >
             <X className="h-3 w-3" />
           </button>
@@ -43,7 +46,7 @@ export function TagInput({
           } else if (e.key === "Backspace" && !draft && value.length) onChange(value.slice(0, -1));
         }}
         onBlur={commit}
-        placeholder={value.length ? "" : placeholder}
+        placeholder={value.length ? "" : (placeholder ?? tr("noteTagPlaceholder"))}
         className="min-w-[8rem] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
       />
     </div>

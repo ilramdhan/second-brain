@@ -10,6 +10,8 @@
 // Times are wall-clock times in an IANA time zone. A local time that does not exist (skipped by a
 // DST jump) is skipped; a repeated local time (DST fall-back) runs once, at its first occurrence.
 
+import { format, messages, type Locale, type MessageKey, type MessageVars } from "@/lib/i18n";
+
 export type CronField = { values: number[]; any: boolean };
 export type CronSchedule = {
   expr: string;
@@ -295,44 +297,88 @@ const MONTHS_ID = [
   "Desember",
 ];
 
+const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS_EN = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** Weekday names (0 = Sunday) in a UI locale, for the schedule picker. */
+export function weekdayNames(locale: Locale = "id"): readonly string[] {
+  return locale === "en" ? WEEKDAYS_EN : WEEKDAYS_ID;
+}
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 function listOf(f: CronField, label: (v: number) => string) {
   return f.values.map(label).join(", ");
 }
 
-/** Human-readable (Indonesian) description, e.g. "Setiap Senin pukul 09:00". */
-export function describeCron(input: string): string {
+/**
+ * Human-readable description in a UI locale (default Indonesian), e.g. "Setiap Senin pukul
+ * 09:00" / "Every Monday at 09:00". Only the browser shows it; the parser's own error detail
+ * (`CronError.message`) stays Indonesian because the server reports the same text.
+ */
+export function describeCron(input: string, locale: Locale = "id"): string {
+  const t = (key: MessageKey, vars?: MessageVars) => format(messages[locale][key], vars);
+  const weekdays = weekdayNames(locale);
+  const months = locale === "en" ? MONTHS_EN : MONTHS_ID;
   let s: CronSchedule;
   try {
     s = parseCron(input);
   } catch (e) {
-    return e instanceof CronError ? `Tidak valid: ${e.message}` : "Tidak valid";
+    return e instanceof CronError
+      ? t("autoCronInvalidDetail", { detail: e.message })
+      : t("autoCronInvalid");
   }
   const preset = cronToPreset(s.expr);
   if (preset.kind !== "custom") {
-    const time = `pukul ${pad(preset.hour)}:${pad(preset.minute)}`;
-    if (preset.kind === "daily") return `Setiap hari ${time}`;
-    if (preset.kind === "weekly") return `Setiap ${WEEKDAYS_ID[preset.day]} ${time}`;
-    return `Setiap tanggal ${preset.date} ${time}`;
+    const time = t("autoCronAt", { time: `${pad(preset.hour)}:${pad(preset.minute)}` });
+    if (preset.kind === "daily") return t("autoCronDaily", { time });
+    if (preset.kind === "weekly") return t("autoCronWeekly", { day: weekdays[preset.day]!, time });
+    return t("autoCronMonthly", { date: preset.date, time });
   }
   const parts: string[] = [];
   const [mRaw = "", hRaw = ""] = s.expr.split(" ");
   const step = (raw: string) => /^\*\/(\d+)$/.exec(raw)?.[1];
-  if (s.minute.any && s.hour.any) parts.push("Setiap menit");
-  else if (step(mRaw) && s.hour.any) parts.push(`Setiap ${step(mRaw)} menit`);
-  else if (s.hour.any) parts.push(`Setiap jam pada menit ${listOf(s.minute, String)}`);
-  else if (step(hRaw) && s.minute.values.length === 1)
-    parts.push(`Setiap ${step(hRaw)} jam pada menit ${s.minute.values[0]}`);
+  const mStep = step(mRaw);
+  const hStep = step(hRaw);
+  if (s.minute.any && s.hour.any) parts.push(t("autoCronEveryMinute"));
+  else if (mStep && s.hour.any) parts.push(t("autoCronEveryNMinutes", { n: mStep }));
+  else if (s.hour.any)
+    parts.push(t("autoCronHourlyAtMinutes", { minutes: listOf(s.minute, String) }));
+  else if (hStep && s.minute.values.length === 1)
+    parts.push(t("autoCronEveryNHours", { n: hStep, minute: s.minute.values[0]! }));
   else if (s.minute.values.length * s.hour.values.length <= 6)
     parts.push(
-      `Pukul ${s.hour.values.flatMap((h) => s.minute.values.map((m) => `${pad(h)}:${pad(m)}`)).join(", ")}`,
+      t("autoCronAtTimes", {
+        times: s.hour.values
+          .flatMap((h) => s.minute.values.map((m) => `${pad(h)}:${pad(m)}`))
+          .join(", "),
+      }),
     );
-  else parts.push(`Jam ${listOf(s.hour, (h) => pad(h))}, menit ${listOf(s.minute, (m) => pad(m))}`);
+  else
+    parts.push(
+      t("autoCronHoursMinutes", {
+        hours: listOf(s.hour, (h) => pad(h)),
+        minutes: listOf(s.minute, (m) => pad(m)),
+      }),
+    );
   const days: string[] = [];
-  if (!s.dom.any) days.push(`tanggal ${listOf(s.dom, String)}`);
-  if (!s.dow.any) days.push(`hari ${listOf(s.dow, (d) => WEEKDAYS_ID[d]!)}`);
-  if (days.length) parts.push(days.join(" atau "));
-  if (!s.month.any) parts.push(`bulan ${listOf(s.month, (m) => MONTHS_ID[m - 1]!)}`);
+  if (!s.dom.any) days.push(t("autoCronOnDates", { dates: listOf(s.dom, String) }));
+  if (!s.dow.any) days.push(t("autoCronOnWeekdays", { days: listOf(s.dow, (d) => weekdays[d]!) }));
+  if (days.length) parts.push(days.join(` ${t("autoCronOr")} `));
+  if (!s.month.any)
+    parts.push(t("autoCronInMonths", { months: listOf(s.month, (m) => months[m - 1]!) }));
   return parts.join(", ");
 }

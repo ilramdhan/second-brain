@@ -21,6 +21,7 @@ import {
   screenReaderInstructions,
 } from "@/lib/dnd-a11y";
 import { NAV_ITEM_CLASS, navAttrs, type NavState } from "@/hooks/use-keyboard-nav";
+import { useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 type Column = { id: string; label: string };
@@ -62,15 +63,19 @@ export function Kanban<T extends { id: string }>({
     }),
   );
   const [active, setActive] = useState<T | null>(null);
+  const { t } = useI18n();
   const nameOf = (id: unknown) => {
     const item = items.find((i) => i.id === id);
-    return item ? itemLabel(item) : "Kartu";
+    return item ? itemLabel(item) : t("taskKanbanCard");
   };
   const accessibility = {
     screenReaderInstructions,
     announcements: dndAnnouncements({
       itemName: (a) => nameOf(a.id),
-      targetName: (id) => `kolom ${columns.find((c) => c.id === id)?.label ?? String(id)}`,
+      targetName: (id) =>
+        t("taskKanbanColumnTarget", {
+          name: columns.find((c) => c.id === id)?.label ?? String(id),
+        }),
     }),
   };
 
@@ -133,10 +138,11 @@ function KanbanColumn({
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const { t } = useI18n();
   return (
     <section
       ref={setNodeRef}
-      aria-label={`Kolom ${column.label}`}
+      aria-label={t("taskKanbanColumn", { name: column.label })}
       className={cn(
         "flex w-[78vw] max-w-[300px] shrink-0 snap-start flex-col rounded-2xl border bg-secondary/40 p-2 motion-safe:transition-colors sm:w-72",
         isOver && "border-primary/40 bg-accent/60",
@@ -150,7 +156,7 @@ function KanbanColumn({
           <button
             onClick={onAdd}
             className="rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-            aria-label={`Tambah di ${column.label}`}
+            aria-label={t("taskKanbanAddIn", { name: column.label })}
           >
             <Plus className="h-4 w-4" />
           </button>

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { ArrowRight, CheckCircle2, Plus, Trash2, Workflow, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -54,7 +53,8 @@ import type { Json } from "@/integrations/supabase/types";
 import { PageContainer } from "@/components/common/PageContainer";
 import { automationsQuery, preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
-import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
+import { isDemo } from "@/lib/app-mode";
+import { usePreferences, type Locale, type MessageKey } from "@/lib/preferences";
 
 /** Action types that reach outside the app; switched off on the public demo. */
 const DEMO_OFF_ACTIONS = new Set<string>(["telegram", "webhook"]);
@@ -78,6 +78,7 @@ export const Route = createFileRoute("/_authenticated/automations")({
 });
 
 const ANY = "any";
+type Translate = (key: MessageKey, vars?: Record<string, string | number>) => string;
 type Template = {
   name: string;
   trigger: Trigger;
@@ -85,55 +86,72 @@ type Template = {
   actions: Action[];
   schedule_cron?: string;
 };
-const TEMPLATES: Template[] = [
+/** Example rules in the UI language (their texts are stored as typed when the rule is saved). */
+const templates = (t: Translate): Template[] => [
   {
-    name: "Review prioritas tinggi → Manager",
+    name: t("autoTplReviewName"),
     trigger: { type: "status_changed", to: "review" },
     conditions: [{ field: "priority", op: "eq", value: "high" }],
     actions: [
       { type: "set_field", field: "assignee_name", value: "Manager" },
-      { type: "telegram", text: "🔍 Siap direview: {{title}} ({{project}})" },
+      { type: "telegram", text: t("autoTplReviewTelegram") },
     ],
   },
   {
-    name: "Tugas #urgent → prioritas tinggi",
+    name: t("autoTplUrgentName"),
     trigger: { type: "task_created" },
     conditions: [{ field: "tag", op: "eq", value: "urgent" }],
     actions: [
       { type: "set_field", field: "priority", value: "high" },
-      { type: "comment", text: "Ditandai mendesak otomatis." },
+      { type: "comment", text: t("autoTplUrgentComment") },
     ],
   },
   {
-    name: "Selesai → catat di log",
+    name: t("autoTplDoneName"),
     trigger: { type: "status_changed", to: "done" },
     conditions: [],
-    actions: [{ type: "comment", text: "✅ Selesai: {{title}}" }],
+    actions: [{ type: "comment", text: t("autoTplDoneComment") }],
   },
   {
-    name: "Senin pagi → tugas weekly review",
+    name: t("autoTplWeeklyName"),
     trigger: { type: "schedule" },
     schedule_cron: "0 8 * * 1",
     conditions: [],
-    actions: [{ type: "create_task", title: "Weekly review {{date}}", due_in_days: 0 }],
+    actions: [{ type: "create_task", title: t("autoTplWeeklyTitle"), due_in_days: 0 }],
   },
   {
-    name: "Catatan #rapat → buat tugas tindak lanjut",
+    name: t("autoTplMeetingName"),
     trigger: { type: "note_tagged", to: "rapat" },
     conditions: [],
-    actions: [{ type: "create_task", title: "Tindak lanjut: {{title}}", due_in_days: 2 }],
+    actions: [{ type: "create_task", title: t("autoTplMeetingTitle"), due_in_days: 2 }],
   },
 ];
 
-function describeTrigger(t: Trigger, rule: Pick<Automation, "schedule_cron" | "schedule_tz">) {
-  if (t.type === "schedule") return scheduleTriggerLabel(rule);
-  const base = TRIGGERS.find((x) => x.id === t.type)?.label ?? t.type;
-  if (!t.to) return base;
-  if (t.type === "note_tagged") return `${base} #${t.to}`;
-  return `${base} → ${t.type === "status_changed" ? labelOf(TASK_STATUS, t.to) : labelOf(PRIORITY, t.to)}`;
+/** Label of an i18n-keyed option list (`TRIGGERS`, `ACTION_TYPES`, …); the raw id if unknown. */
+function keyedLabel(
+  t: Translate,
+  list: readonly { id: string; labelKey: MessageKey }[],
+  id: string,
+): string {
+  const key = list.find((x) => x.id === id)?.labelKey;
+  return key ? t(key) : id;
+}
+
+function describeTrigger(
+  tr: Trigger,
+  rule: Pick<Automation, "schedule_cron" | "schedule_tz">,
+  t: Translate,
+  locale: Locale,
+) {
+  if (tr.type === "schedule") return scheduleTriggerLabel(rule, locale);
+  const base = keyedLabel(t, TRIGGERS, tr.type);
+  if (!tr.to) return base;
+  if (tr.type === "note_tagged") return `${base} #${tr.to}`;
+  return `${base} → ${tr.type === "status_changed" ? labelOf(TASK_STATUS, tr.to) : labelOf(PRIORITY, tr.to)}`;
 }
 
 function AutomationsPage() {
+  const { t, locale, dateFns } = usePreferences();
   const { data: rules = [] } = useAutomations();
   const { data: projects = [] } = useProjects();
   const actions = useAutomationActions();
@@ -156,36 +174,33 @@ function AutomationsPage() {
 
   return (
     <PageContainer size="narrow">
-      <PageHeader
-        title="Otomasi"
-        subtitle="Jika sesuatu terjadi pada tugas atau catatan, atau pada jadwal tertentu, aplikasi menjalankan aksinya untuk Anda."
-      />
+      <PageHeader title={t("automations")} subtitle={t("autoSubtitle")} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
-          {TEMPLATES.map((t) => (
+          {templates(t).map((tpl) => (
             <Button
-              key={t.name}
+              key={tpl.name}
               variant="outline"
               size="sm"
               onClick={() =>
                 setEdit({
                   open: true,
                   rule: {
-                    name: t.name,
-                    schedule_cron: t.schedule_cron ?? null,
-                    trigger: t.trigger as unknown as Json,
-                    conditions: t.conditions as unknown as Json,
-                    actions: t.actions as unknown as Json,
+                    name: tpl.name,
+                    schedule_cron: tpl.schedule_cron ?? null,
+                    trigger: tpl.trigger as unknown as Json,
+                    conditions: tpl.conditions as unknown as Json,
+                    actions: tpl.actions as unknown as Json,
                   },
                 })
               }
             >
-              {t.name}
+              {tpl.name}
             </Button>
           ))}
         </div>
         <Button size="sm" onClick={() => setEdit({ open: true, rule: null })}>
-          <Plus /> Aturan
+          <Plus /> {t("autoAddRule")}
         </Button>
       </div>
 
@@ -203,45 +218,51 @@ function AutomationsPage() {
                 <p className="text-sm font-medium">{r.name}</p>
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="rounded-full bg-accent px-2 py-0.5 text-accent-foreground">
-                    {describeTrigger(r.trigger as unknown as Trigger, r)}
+                    {describeTrigger(r.trigger as unknown as Trigger, r, t, locale)}
                   </span>
                   {conds.map((c, i) => (
                     <span key={i} className="rounded-full bg-secondary px-2 py-0.5">
-                      {labelOf(CONDITION_FIELDS, c.field)}{" "}
+                      {keyedLabel(t, CONDITION_FIELDS, c.field)}{" "}
                       {c.op === "eq" ? "=" : c.op === "neq" ? "≠" : "∋"}{" "}
-                      {conditionValueLabel(c, projects)}
+                      {conditionValueLabel(c, projects, locale)}
                     </span>
                   ))}
                   <ArrowRight className="h-3 w-3" />
                   {acts.map((a, i) => (
                     <span key={i} className="rounded-full bg-secondary px-2 py-0.5">
-                      {labelOf(ACTION_TYPES, a.type)}
+                      {keyedLabel(t, ACTION_TYPES, a.type)}
                     </span>
                   ))}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Dijalankan {r.run_count}×{" "}
+                  {t("autoRunCount", { count: r.run_count })}{" "}
                   {r.last_run_at &&
-                    `· terakhir ${formatDistanceToNow(new Date(r.last_run_at), { addSuffix: true, locale: localeId })}`}
-                  {(r.trigger as unknown as Trigger)?.type === "schedule" && scheduleStatus(r)}
+                    t("autoLastRun", {
+                      when: formatDistanceToNow(new Date(r.last_run_at), {
+                        addSuffix: true,
+                        locale: dateFns,
+                      }),
+                    })}
+                  {(r.trigger as unknown as Trigger)?.type === "schedule" &&
+                    scheduleStatus(r, locale)}
                 </p>
               </button>
               <Switch
                 checked={r.enabled}
                 onCheckedChange={(v) => actions.update(r.id, { enabled: v })}
-                aria-label="Aktifkan aturan"
+                aria-label={t("autoEnableRule")}
               />
             </li>
           );
         })}
         {rules.length === 0 && (
           <li className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Belum ada aturan. Mulai dari contoh di atas atau buat sendiri.
+            {t("autoEmpty")}
           </li>
         )}
       </ul>
 
-      <h2 className="mb-2 mt-8 text-sm font-semibold">Riwayat terbaru</h2>
+      <h2 className="mb-2 mt-8 text-sm font-semibold">{t("autoHistory")}</h2>
       <ul className="space-y-1">
         {runs.map((r) => (
           <li
@@ -255,12 +276,12 @@ function AutomationsPage() {
             )}
             <span className="min-w-0 flex-1 break-words">{r.detail}</span>
             <span className="shrink-0 text-muted-foreground">
-              {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: localeId })}
+              {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: dateFns })}
             </span>
           </li>
         ))}
         {runs.length === 0 && (
-          <li className="text-xs text-muted-foreground">Belum ada yang dijalankan.</li>
+          <li className="text-xs text-muted-foreground">{t("autoHistoryEmpty")}</li>
         )}
       </ul>
 
@@ -297,7 +318,7 @@ const FIRST_TRIGGER: Record<RuleScope, Trigger> = {
   note: { type: "note_created" },
   schedule: { type: "schedule" },
 };
-const PLACEHOLDERS: Record<RuleScope, string> = {
+const TEMPLATE_VARS: Record<RuleScope, string> = {
   task: "{{title}} {{status}} {{priority}} {{project}} {{assignee}} {{due}}",
   note: "{{title}} {{tags}} {{project}} {{rule}}",
   schedule: "{{date}} {{weekday}} {{rule}}",
@@ -310,6 +331,7 @@ function webhookUrlOf(a: Action): string | null {
 }
 
 function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose: () => void }) {
+  const { t, locale } = usePreferences();
   const actions = useAutomationActions();
   const { data: projects = [] } = useProjects();
   const demo = isDemo();
@@ -339,20 +361,20 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
 
   async function save() {
     if (!name.trim()) {
-      toast.error("Nama aturan wajib diisi");
+      toast.error(t("autoErrNameRequired"));
       return;
     }
     if (!acts.length) {
-      toast.error("Tambahkan minimal satu aksi");
+      toast.error(t("autoErrNoAction"));
       return;
     }
     if (scope === "schedule" && !isValidCron(cron)) {
-      toast.error(`Jadwal tidak valid: ${describeCron(cron)}`);
+      toast.error(t("autoErrInvalidSchedule", { detail: describeCron(cron, locale) }));
       return;
     }
     for (const a of acts) {
       if (!allowedActions.includes(a.type)) {
-        toast.error(`Aksi "${labelOf(ACTION_TYPES, a.type)}" tidak berlaku di sini`);
+        toast.error(t("autoErrActionNotAllowed", { action: keyedLabel(t, ACTION_TYPES, a.type) }));
         return;
       }
       const url = webhookUrlOf(a);
@@ -360,16 +382,16 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
         try {
           if (new URL(url).protocol !== "https:") throw 0;
         } catch {
-          toast.error("Alamat webhook harus diawali https://");
+          toast.error(t("autoErrWebhookHttps"));
           return;
         }
       }
       if (a.type === "create_task" && !a.title.trim()) {
-        toast.error("Judul tugas wajib diisi");
+        toast.error(t("autoErrTaskTitle"));
         return;
       }
       if (a.type === "link_project" && !a.project_id) {
-        toast.error("Pilih proyek yang ditautkan");
+        toast.error(t("autoErrPickProject"));
         return;
       }
     }
@@ -385,11 +407,11 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
     };
     if (rule?.id) await actions.update(rule.id, payload);
     else await actions.create(payload);
-    toast.success("Aturan disimpan");
+    toast.success(t("autoSaved"));
     onClose();
   }
   async function remove() {
-    if (!rule?.id || !confirm("Hapus aturan ini?")) return;
+    if (!rule?.id || !confirm(t("autoConfirmDelete"))) return;
     await actions.remove(rule.id);
     onClose();
   }
@@ -404,7 +426,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
   ) => (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger aria-label={label} className="h-9">
-        <SelectValue placeholder="Pilih…" />
+        <SelectValue placeholder={t("autoSelectPlaceholder")} />
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
@@ -434,14 +456,14 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
           : field === "project_id"
             ? projectOpts
             : null;
-    if (opts) return optionSelect("Nilai", value, opts, onChange);
+    if (opts) return optionSelect(t("autoValue"), value, opts, onChange);
     return (
       <Input
         className="h-9"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Nilai"
-        aria-label="Nilai"
+        placeholder={t("autoValue")}
+        aria-label={t("autoValue")}
       />
     );
   };
@@ -449,35 +471,33 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{rule?.id ? "Ubah aturan" : "Aturan baru"}</DialogTitle>
+        <DialogTitle>{rule?.id ? t("autoEditRule") : t("autoNewRule")}</DialogTitle>
         <DialogDescription>
-          {scope === "schedule"
-            ? "Pada jadwal yang ditentukan, aksi dijalankan berurutan."
-            : "Jika pemicu terjadi dan semua syarat cocok, aksi dijalankan berurutan."}
+          {scope === "schedule" ? t("autoDescSchedule") : t("autoDescEvent")}
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-5">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nama aturan"
-          aria-label="Nama aturan"
+          placeholder={t("autoRuleName")}
+          aria-label={t("autoRuleName")}
           className="h-11 font-medium"
         />
 
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            1. Jika
+            {t("autoStepIf")}
           </h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Select value={scope} onValueChange={(v) => changeScope(v as RuleScope)}>
-              <SelectTrigger aria-label="Jenis aturan">
+              <SelectTrigger aria-label={t("autoRuleType")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {(Object.keys(SCOPE_LABELS) as RuleScope[]).map((s) => (
                   <SelectItem key={s} value={s}>
-                    {SCOPE_LABELS[s]}
+                    {t(SCOPE_LABELS[s])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -487,13 +507,13 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                 value={trigger.type}
                 onValueChange={(v) => setTrigger({ type: v as Trigger["type"] })}
               >
-                <SelectTrigger aria-label="Pemicu">
+                <SelectTrigger aria-label={t("autoTrigger")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TRIGGERS.filter((t) => t.scope === scope).map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.label}
+                  {TRIGGERS.filter((x) => x.scope === scope).map((x) => (
+                    <SelectItem key={x.id} value={x.id}>
+                      {t(x.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -507,8 +527,8 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                 onChange={(e) =>
                   setTrigger({ ...trigger, to: e.target.value.replace(/^#/, "") || undefined })
                 }
-                placeholder="tag (kosong = tag apa saja)"
-                aria-label="Tag pemicu"
+                placeholder={t("autoTriggerTagPlaceholder")}
+                aria-label={t("autoTriggerTag")}
               />
             )}
             {(tdef?.hasTo === "status" || tdef?.hasTo === "priority") && (
@@ -516,14 +536,14 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                 value={trigger.to ?? ANY}
                 onValueChange={(v) => setTrigger({ ...trigger, to: v === ANY ? undefined : v })}
               >
-                <SelectTrigger aria-label="Nilai pemicu">
+                <SelectTrigger aria-label={t("autoTriggerValue")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ANY}>Menjadi apa saja</SelectItem>
+                  <SelectItem value={ANY}>{t("autoBecomesAny")}</SelectItem>
                   {(tdef.hasTo === "status" ? TASK_STATUS : PRIORITY).map((o) => (
                     <SelectItem key={o.id} value={o.id}>
-                      Menjadi {o.label}
+                      {t("autoBecomes", { value: o.label })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -541,22 +561,17 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
             />
           )}
           {scope === "schedule" && demo && (
-            <p className="text-[11px] text-muted-foreground">
-              Mode demo: aturan terjadwal bisa dibuat, tetapi tidak pernah dijalankan.
-            </p>
+            <p className="text-[11px] text-muted-foreground">{t("autoDemoSchedule")}</p>
           )}
           {trigger.type === "note_updated" && (
-            <p className="text-[11px] text-muted-foreground">
-              Catatan tersimpan otomatis saat diketik, jadi aturan ini berjalan paling banyak sekali
-              per 30 menit untuk catatan yang sama.
-            </p>
+            <p className="text-[11px] text-muted-foreground">{t("autoNoteUpdatedHint")}</p>
           )}
         </section>
 
         {scope !== "schedule" && (
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              2. Dan syarat (opsional)
+              {t("autoStepConditions")}
             </h3>
             {conds.map((c, i) => (
               <div
@@ -573,13 +588,13 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                     )
                   }
                 >
-                  <SelectTrigger aria-label="Kolom syarat" className="h-9">
+                  <SelectTrigger aria-label={t("autoConditionField")} className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {CONDITION_FIELDS.filter((f) => allowedFields.includes(f.id)).map((f) => (
                       <SelectItem key={f.id} value={f.id}>
-                        {f.label}
+                        {t(f.labelKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -592,13 +607,13 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                     )
                   }
                 >
-                  <SelectTrigger aria-label="Operator" className="h-9 w-24">
+                  <SelectTrigger aria-label={t("autoOperator")} className="h-9 w-24">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="eq">sama</SelectItem>
-                    <SelectItem value="neq">bukan</SelectItem>
-                    <SelectItem value="contains">memuat</SelectItem>
+                    <SelectItem value="eq">{t("autoOpEq")}</SelectItem>
+                    <SelectItem value="neq">{t("autoOpNeq")}</SelectItem>
+                    <SelectItem value="contains">{t("autoOpContains")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {valueInput(c.field, c.value, (v) =>
@@ -608,7 +623,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   variant="ghost"
                   size="icon"
                   onClick={() => setConds(conds.filter((_, j) => j !== i))}
-                  aria-label="Hapus syarat"
+                  aria-label={t("autoRemoveCondition")}
                 >
                   <Trash2 />
                 </Button>
@@ -626,14 +641,14 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                 ])
               }
             >
-              <Plus /> Syarat
+              <Plus /> {t("autoAddCondition")}
             </Button>
           </section>
         )}
 
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {scope === "schedule" ? "2. Maka" : "3. Maka"}
+            {scope === "schedule" ? t("autoStepThenSchedule") : t("autoStepThen")}
           </h3>
           {acts.map((a, i) => (
             <div key={i} className="space-y-2 rounded-xl border p-3">
@@ -642,17 +657,18 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   value={a.type}
                   onValueChange={(v) => setAct(i, ACTION_DEFAULTS[v as Action["type"]])}
                 >
-                  <SelectTrigger aria-label="Jenis aksi" className="h-9">
+                  <SelectTrigger aria-label={t("autoActionType")} className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ACTION_TYPES.filter((t) => allowedActions.includes(t.id)).map((t) => {
+                    {ACTION_TYPES.filter((x) => allowedActions.includes(x.id)).map((x) => {
                       // Radix SelectItem cannot host DemoDisabled's focusable wrapper, so the
                       // reason is part of the (disabled, still announced) option text.
-                      const off = demo && DEMO_OFF_ACTIONS.has(t.id);
+                      const off = demo && DEMO_OFF_ACTIONS.has(x.id);
+                      const label = t(x.labelKey);
                       return (
-                        <SelectItem key={t.id} value={t.id} disabled={off}>
-                          {off ? `${t.label} (${DEMO_DISABLED_MESSAGE})` : t.label}
+                        <SelectItem key={x.id} value={x.id} disabled={off}>
+                          {off ? `${label} (${t("demoDisabled")})` : label}
                         </SelectItem>
                       );
                     })}
@@ -662,7 +678,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   variant="ghost"
                   size="icon"
                   onClick={() => setActs(acts.filter((_, j) => j !== i))}
-                  aria-label="Hapus aksi"
+                  aria-label={t("autoRemoveAction")}
                 >
                   <Trash2 />
                 </Button>
@@ -675,13 +691,13 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                       setAct(i, { ...a, field: v as typeof a.field, value: "" })
                     }
                   >
-                    <SelectTrigger aria-label="Kolom yang diubah" className="h-9">
+                    <SelectTrigger aria-label={t("autoFieldToChange")} className="h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="assignee_name">Penanggung jawab</SelectItem>
-                      <SelectItem value="priority">Prioritas</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
+                      <SelectItem value="assignee_name">{t("autoFieldAssignee")}</SelectItem>
+                      <SelectItem value="priority">{t("autoFieldPriority")}</SelectItem>
+                      <SelectItem value="status">{t("autoFieldStatus")}</SelectItem>
                     </SelectContent>
                   </Select>
                   {valueInput(a.field, a.value, (v) => setAct(i, { ...a, value: v }))}
@@ -693,12 +709,12 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   value={a.value}
                   maxLength={60}
                   onChange={(e) => setAct(i, { ...a, value: e.target.value })}
-                  placeholder="nama-tag"
-                  aria-label="Nama tag"
+                  placeholder={t("autoTagNamePlaceholder")}
+                  aria-label={t("autoTagName")}
                 />
               )}
               {a.type === "shift_due" && (
-                <Field label="Geser tenggat (hari, boleh negatif)">
+                <Field label={t("autoShiftDays")}>
                   <Input
                     className="h-9"
                     type="number"
@@ -713,8 +729,8 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   value={a.text}
                   maxLength={2000}
                   onChange={(e) => setAct(i, { ...a, text: e.target.value })}
-                  placeholder={`Teks. Bisa pakai ${PLACEHOLDERS[scope]}`}
-                  aria-label="Teks pesan"
+                  placeholder={t("autoTextPlaceholder", { vars: TEMPLATE_VARS[scope] })}
+                  aria-label={t("autoMessageText")}
                 />
               )}
               {a.type === "webhook" && (
@@ -722,12 +738,12 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   className="h-9"
                   value={a.url}
                   onChange={(e) => setAct(i, { ...a, url: e.target.value })}
-                  placeholder="https://hooks.slack.com/… atau URL n8n/Discord"
-                  aria-label="URL webhook"
+                  placeholder={t("autoWebhookPlaceholder")}
+                  aria-label={t("autoWebhookUrl")}
                 />
               )}
               {a.type === "link_project" &&
-                optionSelect("Proyek", a.project_id, projectOpts, (v) =>
+                optionSelect(t("autoFieldProject"), a.project_id, projectOpts, (v) =>
                   setAct(i, { ...a, project_id: v }),
                 )}
               {a.type === "create_task" && (
@@ -737,18 +753,18 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                     value={a.title}
                     maxLength={200}
                     onChange={(e) => setAct(i, { ...a, title: e.target.value })}
-                    placeholder={`Judul tugas. Bisa pakai ${PLACEHOLDERS[scope]}`}
-                    aria-label="Judul tugas"
+                    placeholder={t("autoTaskTitlePlaceholder", { vars: TEMPLATE_VARS[scope] })}
+                    aria-label={t("autoTaskTitle")}
                   />
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    {optionSelect("Prioritas", a.priority ?? "medium", PRIORITY, (v) =>
+                    {optionSelect(t("autoFieldPriority"), a.priority ?? "medium", PRIORITY, (v) =>
                       setAct(i, { ...a, priority: v as "high" | "medium" | "low" }),
                     )}
                     {projectSelect(
-                      "Proyek tugas",
+                      t("autoTaskProject"),
                       a.project_id,
                       (v) => setAct(i, { ...a, project_id: v }),
-                      scope === "note" ? "Proyek catatan" : "Tanpa proyek",
+                      scope === "note" ? t("autoNoteProject") : t("autoNoProject"),
                     )}
                     <Input
                       className="h-9"
@@ -765,8 +781,8 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                               : Math.min(365, Math.max(0, Number(e.target.value) || 0)),
                         })
                       }
-                      placeholder="Tenggat +hari (opsional)"
-                      aria-label="Tenggat, hari setelah dijalankan"
+                      placeholder={t("autoDueDaysPlaceholder")}
+                      aria-label={t("autoDueDaysLabel")}
                     />
                   </div>
                 </div>
@@ -774,13 +790,13 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
               {a.type === "move_overdue" && (
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {projectSelect(
-                    "Proyek",
+                    t("autoFieldProject"),
                     a.project_id,
                     (v) => setAct(i, { ...a, project_id: v }),
-                    "Tugas saya (semua proyek)",
+                    t("autoMyTasksAllProjects"),
                   )}
                   {optionSelect(
-                    "Status tujuan",
+                    t("autoTargetStatus"),
                     a.status,
                     TASK_STATUS.filter((s) => s.id !== "done"),
                     (v) => setAct(i, { ...a, status: v as typeof a.status }),
@@ -789,11 +805,14 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
               )}
               {a.type === "digest" && (
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {optionSelect("Jenis ringkasan", a.kind, DIGEST_KINDS, (v) =>
-                    setAct(i, { ...a, kind: v as typeof a.kind }),
+                  {optionSelect(
+                    t("autoDigestKind"),
+                    a.kind,
+                    DIGEST_KINDS.map((d) => ({ id: d.id, label: t(d.labelKey) })),
+                    (v) => setAct(i, { ...a, kind: v as typeof a.kind }),
                   )}
                   {optionSelect(
-                    "Kirim lewat",
+                    t("autoSendVia"),
                     a.channel,
                     [
                       { id: "telegram", label: "Telegram" },
@@ -807,7 +826,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                       value={a.url ?? ""}
                       onChange={(e) => setAct(i, { ...a, url: e.target.value })}
                       placeholder="https://…"
-                      aria-label="URL webhook ringkasan"
+                      aria-label={t("autoDigestWebhookUrl")}
                     />
                   )}
                 </div>
@@ -819,14 +838,14 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
             size="sm"
             onClick={() => setActs([...acts, ACTION_DEFAULTS[allowedActions[0]!]])}
           >
-            <Plus /> Aksi
+            <Plus /> {t("autoAddAction")}
           </Button>
           <p className="text-[11px] text-muted-foreground">
             {demo
-              ? "Mode demo: aksi Telegram dan webhook dimatikan; aturan yang sudah memakainya tetap jalan tanpa mengirim apa pun."
+              ? t("autoHintDemo")
               : scope === "schedule"
-                ? "Pindahkan tugas terlambat tidak pernah menandai selesai. Ringkasan sama dengan digest Telegram harian."
-                : "Telegram terkirim ke akun yang ditautkan di Pengaturan. Webhook mengirim data ringkas (JSON), cocok untuk Slack/Discord."}
+                ? t("autoHintSchedule")
+                : t("autoHintEvent")}
           </p>
         </section>
       </div>
@@ -837,13 +856,13 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
             onClick={remove}
             className="text-destructive hover:text-destructive sm:mr-auto"
           >
-            <Trash2 /> Hapus
+            <Trash2 /> {t("autoDelete")}
           </Button>
         )}
         <Button variant="outline" onClick={onClose}>
-          Batal
+          {t("autoCancel")}
         </Button>
-        <Button onClick={save}>Simpan</Button>
+        <Button onClick={save}>{t("autoSave")}</Button>
       </DialogFooter>
     </>
   );

@@ -9,7 +9,6 @@ import {
   startOfDay,
   subDays,
 } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { ArrowRight, Diamond, Inbox as InboxIcon, Plus, Rocket } from "lucide-react";
 
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
@@ -22,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { useI18n } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
@@ -50,6 +50,7 @@ function Dashboard() {
   const { data: milestones = [] } = useMilestones();
   const { data: me } = useMe();
   const { newTask } = useTaskDialog();
+  const { t, dateFns } = useI18n();
   const { data: inboxCount = 0 } = useQuery({
     queryKey: ["inbox-count"],
     queryFn: async () =>
@@ -96,7 +97,7 @@ function Dashboard() {
       .filter((p) => p.launch_date)
       .map((p) => ({
         id: p.id,
-        title: `Launch ${p.name}`,
+        title: t("taskTodayLaunch", { name: p.name }),
         date: p.launch_date!,
         kind: "launch" as const,
         project: p,
@@ -113,10 +114,10 @@ function Dashboard() {
       <header className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
         <div className="min-w-0">
           <p className="text-sm capitalize text-muted-foreground">
-            {format(new Date(), "EEEE, d MMMM yyyy", { locale: localeId })}
+            {format(new Date(), "EEEE, d MMMM yyyy", { locale: dateFns })}
           </p>
           <h1 className="truncate text-2xl font-semibold tracking-tight">
-            Halo{name ? `, ${name}` : ""}
+            {name ? t("taskTodayHelloName", { name }) : t("taskTodayHello")}
           </h1>
         </div>
         <Button
@@ -125,19 +126,19 @@ function Dashboard() {
             newTask({ due_date: new Date(`${format(today, "yyyy-MM-dd")}T17:00:00`).toISOString() })
           }
         >
-          <Plus /> Tugas hari ini
+          <Plus /> {t("taskTodayAdd")}
         </Button>
       </header>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Hari ini" value={todayList.length} />
+        <Stat label={t("taskTodayStatToday")} value={todayList.length} />
         <Stat
-          label="Terlambat"
+          label={t("taskTodayStatOverdue")}
           value={overdue.length}
           tone={overdue.length ? "text-priority-high" : undefined}
         />
-        <Stat label="Sedang dikerjakan" value={inProgress.length} />
-        <Stat label="Selesai 7 hari" value={doneWeek} tone="text-success" />
+        <Stat label={t("taskTodayStatInProgress")} value={inProgress.length} />
+        <Stat label={t("taskTodayStatDoneWeek")} value={doneWeek} tone="text-success" />
       </div>
 
       {inboxCount > 0 && (
@@ -147,7 +148,7 @@ function Dashboard() {
         >
           <span className="flex items-center gap-2">
             <InboxIcon className="h-4 w-4" />
-            {inboxCount} catatan menunggu dirapikan di Inbox
+            {t("taskTodayInboxWaiting", { count: inboxCount })}
           </span>
           <ArrowRight className="h-4 w-4" />
         </Link>
@@ -155,18 +156,23 @@ function Dashboard() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Section title="Terlambat" tasks={overdue} tone="text-priority-high" lookups={lookups} />
           <Section
-            title="Hari ini"
+            title={t("taskGroupOverdue")}
+            tasks={overdue}
+            tone="text-priority-high"
+            lookups={lookups}
+          />
+          <Section
+            title={t("taskGroupToday")}
             tasks={todayList}
             lookups={lookups}
-            empty="Tidak ada tugas untuk hari ini. Nikmati harimu, atau tarik sesuatu dari Upcoming."
+            empty={t("taskTodayEmpty")}
           />
-          <Section title="7 hari ke depan" tasks={week} lookups={lookups} />
+          <Section title={t("taskTodayNext7")} tasks={week} lookups={lookups} />
         </div>
         <aside className="space-y-4">
           <section className="rounded-2xl border bg-card p-4">
-            <h2 className="mb-3 text-sm font-semibold">Milestone & launch terdekat</h2>
+            <h2 className="mb-3 text-sm font-semibold">{t("taskTodayMilestones")}</h2>
             <ul className="space-y-2.5">
               {upcomingMarks.map((m) => (
                 <li key={m.id + m.kind} className="flex items-start gap-2 text-sm">
@@ -179,25 +185,25 @@ function Dashboard() {
                     <p className="truncate font-medium">{m.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {isToday(new Date(`${m.date}T00:00:00`))
-                        ? "Hari ini"
-                        : `${differenceInCalendarDays(new Date(`${m.date}T00:00:00`), today)} hari lagi`}
+                        ? t("taskGroupToday")
+                        : t("taskTodayDaysLeft", {
+                            count: differenceInCalendarDays(new Date(`${m.date}T00:00:00`), today),
+                          })}
                       {m.project && m.kind === "ms" && ` · ${m.project.name}`}
                     </p>
                   </div>
                 </li>
               ))}
               {upcomingMarks.length === 0 && (
-                <li className="text-xs text-muted-foreground">
-                  Belum ada. Tambahkan di halaman detail proyek.
-                </li>
+                <li className="text-xs text-muted-foreground">{t("taskTodayNoMilestones")}</li>
               )}
             </ul>
           </section>
           <section className="rounded-2xl border bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Proyek aktif</h2>
+              <h2 className="text-sm font-semibold">{t("taskTodayActiveProjects")}</h2>
               <Link to="/projects" className="text-xs text-muted-foreground hover:text-foreground">
-                Semua
+                {t("taskTodayAll")}
               </Link>
             </div>
             <ul className="space-y-3">

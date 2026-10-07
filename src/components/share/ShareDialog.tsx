@@ -23,7 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useCanShare, useShareActions, useShareFor } from "@/lib/data";
 import { toastError } from "@/lib/errors";
-import { usePreferences, type Locale, type MessageKey } from "@/lib/preferences";
+import { intlLocale, usePreferences, type Locale, type MessageKey } from "@/lib/preferences";
 import {
   SHARE_EXPIRY_OPTIONS,
   shareUrl,
@@ -39,7 +39,7 @@ const EXPIRY_LABEL: Record<ShareExpiry, MessageKey> = {
 };
 
 export function formatShareDate(value: string, locale: Locale) {
-  return new Date(value).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", {
+  return new Date(value).toLocaleDateString(intlLocale(locale), {
     year: "numeric",
     month: "short",
     day: "numeric",

@@ -1,5 +1,6 @@
 import { niceScale } from "@/lib/reports";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/preferences";
 
 import { ChartCard, Readout } from "./ChartCard";
 import { labelIndexes, TONE_BG, TONE_STROKE, type ChartPoint, type ChartSeries } from "./types";
@@ -23,7 +24,7 @@ export function LineChart({
   format,
   tickFormat = format,
   tickUnit = 1,
-  hint = "Arahkan atau ketuk grafik untuk detail.",
+  hint: hintProp,
   className,
 }: {
   id: string;
@@ -38,6 +39,8 @@ export function LineChart({
   hint?: string;
   className?: string | undefined;
 }) {
+  const { t } = useI18n();
+  const hint = hintProp ?? t("admLineHint");
   const { active, setActive, plotProps } = useActiveIndex(points.length);
   const max = Math.max(0, ...points.flatMap((p) => series.map((s) => p.values[s.key] ?? 0)));
   const base = niceScale(max / tickUnit);
@@ -110,7 +113,7 @@ export function LineChart({
           <div
             {...plotProps}
             role="group"
-            aria-label={`${title}: gunakan panah kiri/kanan untuk menelusuri`}
+            aria-label={t("admChartNav", { title })}
             data-testid={`${id}-plot`}
             onPointerMove={pick}
             onPointerDown={pick}

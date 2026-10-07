@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/select";
 import { PRIORITY } from "@/lib/constants";
 import type { Project, Task } from "@/lib/data";
+import { useI18n } from "@/lib/preferences";
+import { enumLabel } from "@/components/tasks/labels";
 
 export type TaskFilter = {
   q: string;
@@ -70,6 +72,7 @@ export function TaskFilters({
   tags: string[];
   hideProject?: boolean | undefined;
 }) {
+  const { t } = useI18n();
   const set = (k: keyof TaskFilter) => (v: string) => onChange({ ...value, [k]: v });
   const dirty = JSON.stringify(value) !== JSON.stringify(EMPTY_FILTER);
   return (
@@ -79,7 +82,7 @@ export function TaskFilters({
         <Input
           value={value.q}
           onChange={(e) => set("q")(e.target.value)}
-          placeholder="Cari tugas…"
+          placeholder={t("taskFilterSearch")}
           className="h-9 pl-8"
         />
       </div>
@@ -88,8 +91,8 @@ export function TaskFilters({
           value={value.project}
           onChange={set("project")}
           items={[
-            ["all", "Semua proyek"],
-            ["none", "Tanpa proyek"],
+            ["all", t("taskFilterAllProjects")],
+            ["none", t("taskNoProject")],
             ...projects.map((p) => [p.id, p.name] as [string, string]),
           ]}
         />
@@ -98,34 +101,39 @@ export function TaskFilters({
         value={value.due}
         onChange={set("due")}
         items={[
-          ["all", "Semua tanggal"],
-          ["today", "Hari ini"],
-          ["week", "7 hari ke depan"],
-          ["overdue", "Terlambat"],
-          ["nodate", "Tanpa tanggal"],
+          ["all", t("taskFilterAllDates")],
+          ["today", t("taskGroupToday")],
+          ["week", t("taskFilterNext7")],
+          ["overdue", t("taskGroupOverdue")],
+          ["nodate", t("taskGroupNoDate")],
         ]}
       />
       <FilterSelect
         value={value.priority}
         onChange={set("priority")}
         items={[
-          ["all", "Semua prioritas"],
-          ...PRIORITY.map((p) => [p.id, p.label] as [string, string]),
+          ["all", t("taskFilterAllPriorities")],
+          ...PRIORITY.map(
+            (p) => [p.id, enumLabel(t, "priority", p.id, p.label)] as [string, string],
+          ),
         ]}
       />
       {tags.length > 0 && (
         <FilterSelect
           value={value.tag}
           onChange={set("tag")}
-          items={[["all", "Semua tag"], ...tags.map((t) => [t, `#${t}`] as [string, string])]}
+          items={[
+            ["all", t("taskFilterAllTags")],
+            ...tags.map((tag) => [tag, `#${tag}`] as [string, string]),
+          ]}
         />
       )}
       <FilterSelect
         value={value.assignee}
         onChange={set("assignee")}
         items={[
-          ["all", "Semua orang"],
-          ["me", "Tugas saya"],
+          ["all", t("taskFilterAllPeople")],
+          ["me", t("taskFilterMine")],
         ]}
       />
       {dirty && (
@@ -133,7 +141,7 @@ export function TaskFilters({
           onClick={() => onChange(EMPTY_FILTER)}
           className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
         >
-          <X className="h-3.5 w-3.5" /> Reset
+          <X className="h-3.5 w-3.5" /> {t("taskFilterReset")}
         </button>
       )}
     </div>

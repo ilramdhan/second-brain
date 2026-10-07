@@ -1,6 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useLayoutEffect } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { CalendarDays, ListChecks, Lock, Repeat, User } from "lucide-react";
 
 import { VirtualList } from "@/components/common/VirtualList";
@@ -11,8 +10,11 @@ import { color, labelOf, priorityOf, TASK_STATUS } from "@/lib/constants";
 import { useDeps, useTaskActions, type Project, type Task } from "@/lib/data";
 import { byId, openBlockersByTask, subtasksByParent } from "@/lib/task-maps";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/preferences";
+import { enumLabel } from "@/components/tasks/labels";
 
 function DueLabel({ task }: { task: Task }) {
+  const { dateFns } = useI18n();
   if (!task.due_date) return null;
   const d = new Date(task.due_date);
   const late = task.status !== "done" && isBefore(d, startOfDay(new Date()));
@@ -24,8 +26,8 @@ function DueLabel({ task }: { task: Task }) {
       )}
     >
       <CalendarDays className="h-3 w-3" />
-      {task.start_date && format(new Date(task.start_date), "d MMM", { locale: localeId }) + " – "}
-      {format(d, "d MMM", { locale: localeId })}
+      {task.start_date && format(new Date(task.start_date), "d MMM", { locale: dateFns }) + " – "}
+      {format(d, "d MMM", { locale: dateFns })}
     </span>
   );
 }
@@ -98,6 +100,7 @@ function Meta({
   blockers?: Task[];
 }) {
   const pr = priorityOf(task.priority);
+  const { t } = useI18n();
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
       {blockers.length > 0 && (
@@ -105,11 +108,11 @@ function Meta({
           className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
           title={blockers.map((b) => b.title).join(", ")}
         >
-          <Lock className="h-3 w-3" /> Menunggu {blockers.length}
+          <Lock className="h-3 w-3" /> {t("taskWaitingCount", { count: blockers.length })}
         </span>
       )}
       <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", pr.className)}>
-        {pr.label}
+        {enumLabel(t, "priority", pr.id, pr.label)}
       </span>
       <DueLabel task={task} />
       {project && (
@@ -127,16 +130,16 @@ function Meta({
       {(task.assignee_name || task.assignee_id) && (
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <User className="h-3 w-3" />
-          {task.assignee_name ?? "Anggota"}
+          {task.assignee_name ?? t("taskMemberFallback")}
         </span>
       )}
       {task.recurrence && <Repeat className="h-3 w-3 text-muted-foreground" />}
-      {task.tags.map((t) => (
+      {task.tags.map((tag) => (
         <span
-          key={t}
+          key={tag}
           className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-secondary-foreground"
         >
-          #{t}
+          #{tag}
         </span>
       ))}
     </div>
@@ -160,6 +163,7 @@ export const TaskRow = memo(function TaskRow({
   tabStop?: boolean | undefined;
 }) {
   const { openTask } = useTaskDialog();
+  const { t } = useI18n();
   const done = task.status === "done";
   return (
     <div
@@ -178,7 +182,7 @@ export const TaskRow = memo(function TaskRow({
           <p className={cn("text-sm font-medium", done && "line-through")}>{task.title}</p>
           {task.status !== "todo" && !done && (
             <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] text-accent-foreground">
-              {labelOf(TASK_STATUS, task.status)}
+              {enumLabel(t, "status", task.status, labelOf(TASK_STATUS, task.status))}
             </span>
           )}
         </div>

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { KanbanSquare, LayoutGrid, Pin, Plus, Search, Sparkles } from "lucide-react";
 
 import { Kanban } from "@/components/Kanban";
@@ -38,10 +37,11 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
   const { data: projects = [] } = useProjects();
   const { update, create } = useNoteActions();
   const navigate = useNavigate();
+  const { t } = usePreferences();
   const open = (n: Note) => navigate({ to: "/notes/$noteId", params: { noteId: n.id } });
   async function newNote(status = "idea") {
     const row = await create({
-      title: "Tanpa judul",
+      title: t("noteUntitled"),
       content: "",
       status,
       project_id: projectId ?? null,
@@ -80,7 +80,6 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
   const paged = usePaged(filtered, 24, `${q}-${tag}`);
 
   // j/k walk the grid in reading order (h/l between kanban columns), Enter/o/e open.
-  const { t } = usePreferences();
   const navColumns = useMemo(
     () =>
       view === "board"
@@ -111,10 +110,10 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
         </Tabs>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setFromText(true)}>
-            <Sparkles /> Dari teks
+            <Sparkles /> {t("noteFromTextShort")}
           </Button>
           <Button size="sm" onClick={() => newNote()}>
-            <Plus /> Catatan
+            <Plus /> {t("noteNewButton")}
           </Button>
         </div>
         <NoteFromTextDialog open={fromText} onOpenChange={setFromText} projectId={projectId} />
@@ -125,7 +124,7 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cari catatan…"
+            placeholder={t("noteSearchPlaceholder")}
             className="h-9 pl-8"
           />
         </div>
@@ -135,10 +134,10 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua tag</SelectItem>
-              {tags.map((t) => (
-                <SelectItem key={t} value={t}>
-                  #{t}
+              <SelectItem value="all">{t("noteAllTags")}</SelectItem>
+              {tags.map((tg) => (
+                <SelectItem key={tg} value={tg}>
+                  #{tg}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -170,7 +169,7 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
               ))}
               {filtered.length === 0 && (
                 <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
-                  Belum ada catatan.
+                  {t("noteEmpty")}
                 </p>
               )}
             </div>
@@ -187,7 +186,7 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
             onMove={(n, status) => update(n.id, { status })}
             onAdd={(status) => newNote(status)}
             onOpen={open}
-            itemLabel={(n) => n.title || "Tanpa judul"}
+            itemLabel={(n) => n.title || t("noteUntitled")}
             renderCard={(n) => (
               <NoteCard note={n} projects={projects} onClick={() => open(n)} compact />
             )}
@@ -266,6 +265,7 @@ function NoteCard({
   /** Grid cards are navigable themselves; kanban cards via their draggable wrapper. */
   nav?: NavState | undefined;
 }) {
+  const { dateFns } = usePreferences();
   const p = projects.find((x) => x.id === note.project_id);
   return (
     <button
@@ -306,7 +306,7 @@ function NoteCard({
           <span key={t}>#{t}</span>
         ))}
         <span className="ml-auto">
-          {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: localeId })}
+          {formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: dateFns })}
         </span>
       </div>
     </button>

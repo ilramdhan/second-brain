@@ -132,7 +132,7 @@ export default function CommandMenu({
       label: t("cmdNewNote"),
       icon: StickyNote,
       run: () =>
-        void createNote({ title: "Tanpa judul", content: "", status: "idea" }).then((row) => {
+        void createNote({ title: t("noteUntitled"), content: "", status: "idea" }).then((row) => {
           if (row) void navigate({ to: "/notes/$noteId", params: { noteId: row.id } });
         }),
     },

@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { Archive, Trash2, Plus, Send, Lock, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,6 +40,8 @@ import { syncTaskToGoogle } from "@/lib/googleCalendar.functions";
 import { CheckCircle } from "@/components/tasks/CheckCircle";
 import type { TaskDefaults } from "@/components/tasks/TaskDialogProvider";
 import { toastError } from "@/lib/errors";
+import { useI18n } from "@/lib/preferences";
+import { enumLabel } from "@/components/tasks/labels";
 
 const NONE = "none";
 
@@ -59,6 +60,7 @@ export default function TaskEditor({
   const { data: projects = [] } = useProjects();
   const { data: milestones = [] } = useMilestones();
   const actions = useTaskActions();
+  const { t, dateFns } = useI18n();
   const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
 
   const [title, setTitle] = useState(task?.title ?? defaults.title ?? "");
@@ -94,18 +96,18 @@ export default function TaskEditor({
   const { data: deps = [] } = useDeps();
   async function save() {
     if (!title.trim()) {
-      toast.error("Judul wajib diisi");
+      toast.error(t("taskTitleRequired"));
       return;
     }
     if (task && status !== "todo" && status !== task.status) {
       const b = openBlockers(task.id, deps, tasks);
       if (b.length) {
-        toast.error(`Terkunci: tunggu "${b[0]!.title}" selesai dulu`);
+        toast.error(t("taskLockedWaitFor", { title: b[0]!.title }));
         return;
       }
     }
     if (start && due && start > due) {
-      toast.error("Tanggal mulai harus sebelum tenggat");
+      toast.error(t("taskStartAfterDue"));
       return;
     }
     setSaving(true);
@@ -129,12 +131,12 @@ export default function TaskEditor({
     if (task) {
       if (task.due_date !== payload.due_date) Object.assign(payload, { reminded: false });
       await actions.update(task.id, payload);
-      toast.success("Tugas disimpan");
+      toast.success(t("taskSaved"));
       onClose();
     } else {
       const created = await actions.create({ ...payload, parent_id: defaults.parent_id ?? null });
       if (created) {
-        toast.success("Tugas dibuat");
+        toast.success(t("taskCreated"));
         onClose();
       }
     }
@@ -142,28 +144,33 @@ export default function TaskEditor({
   }
 
   async function remove() {
-    if (!task || !confirm("Pindahkan tugas ini beserta sub-tugasnya ke Tempat Sampah?")) return;
+    if (!task || !confirm(t("taskConfirmTrash"))) return;
     await actions.remove(task.id);
-    toast.success("Tugas dihapus");
+    toast.success(t("taskDeleted"));
     onClose();
   }
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{task ? "Detail tugas" : "Tugas baru"}</DialogTitle>
+        <DialogTitle>{task ? t("taskDetailTitle") : t("taskNewTitle")}</DialogTitle>
         <DialogDescription>
           {parent ? (
             <button
               className="underline-offset-2 hover:underline"
               onClick={() => onOpen(parent.id)}
             >
-              Sub-tugas dari: {parent.title}
+              {t("taskSubtaskOf", { title: parent.title })}
             </button>
           ) : task ? (
-            `Dibuat ${formatDistanceToNow(new Date(task.created_at), { addSuffix: true, locale: localeId })}`
+            t("taskCreatedAgo", {
+              ago: formatDistanceToNow(new Date(task.created_at), {
+                addSuffix: true,
+                locale: dateFns,
+              }),
+            })
           ) : (
-            "Lengkapi detail sesuai kebutuhan, hanya judul yang wajib."
+            t("taskEditorHint")
           )}
         </DialogDescription>
       </DialogHeader>
@@ -173,19 +180,19 @@ export default function TaskEditor({
           autoFocus={!task}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Judul tugas"
+          placeholder={t("taskTitlePlaceholder")}
           className="h-11 text-base font-medium"
         />
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Deskripsi, konteks, langkah…"
+          placeholder={t("taskDescriptionPlaceholder")}
           rows={3}
           className="min-h-24"
         />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Field label="Status">
+          <Field label={t("taskFieldStatus")}>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
                 <SelectValue />
@@ -193,13 +200,13 @@ export default function TaskEditor({
               <SelectContent>
                 {TASK_STATUS.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.label}
+                    {enumLabel(t, "status", s.id, s.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Prioritas">
+          <Field label={t("taskFieldPriority")}>
             <Select value={priority} onValueChange={setPriority}>
               <SelectTrigger>
                 <SelectValue />
@@ -209,14 +216,14 @@ export default function TaskEditor({
                   <SelectItem key={p.id} value={p.id}>
                     <span className="flex items-center gap-2">
                       <span className={cn("h-2 w-2 rounded-full", p.dot)} />
-                      {p.label}
+                      {enumLabel(t, "priority", p.id, p.label)}
                     </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Proyek" className="col-span-2 sm:col-span-1">
+          <Field label={t("taskFieldProject")} className="col-span-2 sm:col-span-1">
             <Select
               value={projectId}
               onValueChange={(v) => {
@@ -229,7 +236,7 @@ export default function TaskEditor({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Tanpa proyek</SelectItem>
+                <SelectItem value={NONE}>{t("taskNoProject")}</SelectItem>
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -239,16 +246,16 @@ export default function TaskEditor({
             </Select>
           </Field>
           {/* Date + time need the full row on phones, or the date collapses to "dd/". */}
-          <Field label="Mulai" className="col-span-2 sm:col-span-1">
+          <Field label={t("taskFieldStart")} className="col-span-2 sm:col-span-1">
             <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem] sm:gap-1">
               <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
               <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             </div>
           </Field>
-          <Field label="Tenggat">
+          <Field label={t("taskFieldDue")}>
             <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
-          <Field label="Pengulangan">
+          <Field label={t("taskFieldRecurrence")}>
             <Select value={recurrence} onValueChange={setRecurrence}>
               <SelectTrigger>
                 <SelectValue />
@@ -256,13 +263,13 @@ export default function TaskEditor({
               <SelectContent>
                 {RECURRENCE.map((r) => (
                   <SelectItem key={r.id} value={r.id}>
-                    {r.label}
+                    {enumLabel(t, "recurrence", r.id, r.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Estimasi (menit)">
+          <Field label={t("taskFieldEstimate")}>
             <Input
               type="number"
               min={1}
@@ -271,7 +278,7 @@ export default function TaskEditor({
               onChange={(e) => setEstimate(Math.max(1, Number(e.target.value) || 1))}
             />
           </Field>
-          <Field label="Selesai blok waktu">
+          <Field label={t("taskFieldTimeBlockEnd")}>
             <Input
               type="time"
               value={endTime}
@@ -280,13 +287,13 @@ export default function TaskEditor({
             />
           </Field>
           {pid && (
-            <Field label="Milestone">
+            <Field label={t("taskFieldMilestone")}>
               <Select value={milestoneId} onValueChange={setMilestoneId}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Tanpa milestone</SelectItem>
+                  <SelectItem value={NONE}>{t("taskNoMilestone")}</SelectItem>
                   {projectMilestones.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.title}
@@ -296,14 +303,14 @@ export default function TaskEditor({
               </Select>
             </Field>
           )}
-          <Field label="Ditugaskan ke" className={pid ? "" : "col-span-2"}>
+          <Field label={t("taskFieldAssignee")} className={pid ? "" : "col-span-2"}>
             {people.length > 1 ? (
               <Select value={assigneeId} onValueChange={setAssigneeId}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Belum ada</SelectItem>
+                  <SelectItem value={NONE}>{t("taskNoAssignee")}</SelectItem>
                   {people.map((p) => (
                     <SelectItem key={p.user_id} value={p.user_id}>
                       {p.display_name || p.email}
@@ -315,13 +322,13 @@ export default function TaskEditor({
               <Input
                 value={assigneeName}
                 onChange={(e) => setAssigneeName(e.target.value)}
-                placeholder="Nama orang (opsional)"
+                placeholder={t("taskAssigneePlaceholder")}
               />
             )}
           </Field>
         </div>
 
-        <Field label="Tag">
+        <Field label={t("taskFieldTags")}>
           <TagInput value={tags} onChange={setTags} />
         </Field>
 
@@ -335,15 +342,14 @@ export default function TaskEditor({
               onClick={async () => {
                 try {
                   const result = await syncTaskToGoogle({ data: { taskId: task.id } });
-                  if (!result.connected)
-                    toast.error("Hubungkan Google Calendar dari Pengaturan terlebih dahulu");
-                  else toast.success("Tugas disinkronkan ke Google Calendar");
+                  if (!result.connected) toast.error(t("taskGoogleNotConnected"));
+                  else toast.success(t("taskGoogleSynced"));
                 } catch (error) {
-                  toastError(error, "Sinkronisasi gagal");
+                  toastError(error, t("taskGoogleSyncFailed"));
                 }
               }}
             >
-              Kirim ke Google Calendar
+              {t("taskSendToGoogle")}
             </Button>
           </div>
         )}
@@ -361,7 +367,7 @@ export default function TaskEditor({
               onClick={remove}
               className="h-11 text-destructive hover:text-destructive sm:h-9"
             >
-              <Trash2 /> Hapus
+              <Trash2 /> {t("taskDelete")}
             </Button>
             <Button
               variant="ghost"
@@ -371,15 +377,15 @@ export default function TaskEditor({
                 onClose();
               }}
             >
-              <Archive /> Arsip
+              <Archive /> {t("taskArchive")}
             </Button>
           </div>
         )}
         <Button variant="outline" onClick={onClose}>
-          Batal
+          {t("taskCancel")}
         </Button>
         <Button onClick={save} disabled={saving}>
-          {task ? "Simpan" : "Buat tugas"}
+          {task ? t("taskSave") : t("taskCreate")}
         </Button>
       </DialogFooter>
     </>
@@ -390,6 +396,7 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
   const { data: tasks = [] } = useTasks();
   const { data: deps = [] } = useDeps();
   const { add, remove } = useDependencyActions();
+  const { t } = useI18n();
   const blockedBy = deps.filter((d) => d.blocked_id === task.id);
   const blocking = deps.filter((d) => d.blocker_id === task.id);
   const linked = new Set([
@@ -401,8 +408,8 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
   const open = openBlockers(task.id, deps, tasks);
 
   const row = (id: string, depId: string) => {
-    const t = tasks.find((x) => x.id === id);
-    if (!t) return null;
+    const dep = tasks.find((x) => x.id === id);
+    if (!dep) return null;
     return (
       <li
         key={depId}
@@ -411,21 +418,21 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
         <span
           className={cn(
             "h-2 w-2 shrink-0 rounded-full",
-            t.status === "done" ? "bg-success" : "bg-priority-medium",
+            dep.status === "done" ? "bg-success" : "bg-priority-medium",
           )}
         />
         <button
-          onClick={() => onOpen(t.id)}
+          onClick={() => onOpen(dep.id)}
           className={cn(
             "flex-1 truncate text-left",
-            t.status === "done" && "text-muted-foreground line-through",
+            dep.status === "done" && "text-muted-foreground line-through",
           )}
         >
-          {t.title}
+          {dep.title}
         </button>
         <button
           onClick={() => remove(depId)}
-          aria-label="Lepas ketergantungan"
+          aria-label={t("taskDepRemove")}
           className="opacity-60 hover:opacity-100"
         >
           <X className="h-3.5 w-3.5" />
@@ -440,11 +447,13 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
       </SelectTrigger>
       <SelectContent>
         {candidates.length === 0 && (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">Tidak ada tugas lain</div>
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+            {t("taskDepNoOtherTasks")}
+          </div>
         )}
-        {candidates.slice(0, 100).map((t) => (
-          <SelectItem key={t.id} value={t.id}>
-            {t.title}
+        {candidates.slice(0, 100).map((c) => (
+          <SelectItem key={c.id} value={c.id}>
+            {c.title}
           </SelectItem>
         ))}
       </SelectContent>
@@ -454,28 +463,26 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
   return (
     <div className="space-y-2 rounded-xl border p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Ketergantungan</span>
+        <span className="text-xs font-medium text-muted-foreground">{t("taskDepTitle")}</span>
         {open.length > 0 && (
           <span className="flex items-center gap-1 text-xs text-priority-high">
-            <Lock className="h-3 w-3" /> Terkunci
+            <Lock className="h-3 w-3" /> {t("taskDepLocked")}
           </span>
         )}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Diblokir oleh (harus selesai dulu)</p>
+          <p className="text-[11px] text-muted-foreground">{t("taskDepBlockedBy")}</p>
           <ul>{blockedBy.map((d) => row(d.blocker_id, d.id))}</ul>
-          {picker("+ Tambah pemblokir", (id) => add(id, task.id))}
+          {picker(t("taskDepAddBlocker"), (id) => add(id, task.id))}
         </div>
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Memblokir (menunggu tugas ini)</p>
+          <p className="text-[11px] text-muted-foreground">{t("taskDepBlocking")}</p>
           <ul>{blocking.map((d) => row(d.blocked_id, d.id))}</ul>
-          {picker("+ Tambah yang menunggu", (id) => add(task.id, id))}
+          {picker(t("taskDepAddWaiting"), (id) => add(task.id, id))}
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        Jika tenggat tugas ini diundur, tugas yang menunggu ikut bergeser otomatis.
-      </p>
+      <p className="text-[11px] text-muted-foreground">{t("taskDepAutoShiftHint")}</p>
     </div>
   );
 }
@@ -484,6 +491,7 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
   const { data: tasks = [] } = useTasks();
   const actions = useTaskActions();
   const [draft, setDraft] = useState("");
+  const { t } = useI18n();
   const subs = tasks.filter((t) => t.parent_id === parent.id);
   const done = subs.filter((s) => s.status === "done").length;
 
@@ -502,7 +510,7 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Sub-tugas / checklist</span>
+        <span className="text-xs font-medium text-muted-foreground">{t("taskSubtasksTitle")}</span>
         {subs.length > 0 && (
           <span className="text-xs text-muted-foreground">
             {done}/{subs.length}
@@ -539,7 +547,7 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
             <button
               onClick={() => actions.remove(s.id)}
               className="opacity-0 group-hover:opacity-100"
-              aria-label="Hapus sub-tugas"
+              aria-label={t("taskSubtaskDelete")}
             >
               <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
@@ -550,7 +558,7 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Tambah sub-tugas…"
+          placeholder={t("taskSubtaskAddPlaceholder")}
           className="h-8"
         />
         <Button type="submit" size="sm" variant="secondary">
@@ -564,6 +572,7 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
 function Comments({ taskId }: { taskId: string }) {
   const qc = useQueryClient();
   const { data: me } = useMe();
+  const { t, dateFns } = useI18n();
   const [draft, setDraft] = useState("");
   const key = ["comments", taskId];
   const { data: comments = [] } = useQuery({
@@ -596,14 +605,14 @@ function Comments({ taskId }: { taskId: string }) {
 
   return (
     <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">Komentar & log</span>
+      <span className="text-xs font-medium text-muted-foreground">{t("taskCommentsTitle")}</span>
       <ul className="space-y-2">
         {comments.map((c) => (
           <li key={c.id} className="rounded-lg bg-secondary/60 px-3 py-2 text-sm">
             <p className="whitespace-pre-wrap">{c.content}</p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              {c.user_id === me?.id ? "Anda" : "Anggota"} ·{" "}
-              {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: localeId })}
+              {c.user_id === me?.id ? t("taskCommentYou") : t("taskCommentMember")} ·{" "}
+              {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: dateFns })}
             </p>
           </li>
         ))}
@@ -612,7 +621,7 @@ function Comments({ taskId }: { taskId: string }) {
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Tulis komentar atau update progres…"
+          placeholder={t("taskCommentPlaceholder")}
           className="h-8"
         />
         <Button type="submit" size="sm" variant="secondary">

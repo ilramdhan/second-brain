@@ -5,6 +5,10 @@
 //   * note rules      note_created/updated/tagged  → evaluated by `runNoteAutomationRules`
 //   * scheduled rules schedule (cron + time zone)  → run by the n8n tick (`runDueAutomations`)
 // Actions always write directly to the database, so they never trigger rules again.
+// UI labels are i18n keys (`labelKey`, src/lib/i18n/automations.ts), translated by the page.
+
+import type { MessageKey } from "@/lib/i18n";
+
 export type TaskTriggerType =
   "task_created" | "status_changed" | "priority_changed" | "assignee_changed" | "due_changed";
 export type NoteTriggerType = "note_created" | "note_updated" | "note_tagged";
@@ -76,34 +80,34 @@ export const isNoteTrigger = (type: string | undefined) =>
 
 export const TRIGGERS: {
   id: TriggerType;
-  label: string;
+  labelKey: MessageKey;
   scope: RuleScope;
   hasTo?: "status" | "priority" | "tag";
 }[] = [
-  { id: "task_created", label: "Tugas dibuat", scope: "task" },
-  { id: "status_changed", label: "Status berubah", scope: "task", hasTo: "status" },
-  { id: "priority_changed", label: "Prioritas berubah", scope: "task", hasTo: "priority" },
-  { id: "assignee_changed", label: "Penanggung jawab berubah", scope: "task" },
-  { id: "due_changed", label: "Tenggat berubah", scope: "task" },
-  { id: "note_created", label: "Catatan dibuat", scope: "note" },
-  { id: "note_updated", label: "Catatan diubah", scope: "note" },
-  { id: "note_tagged", label: "Tag ditambahkan ke catatan", scope: "note", hasTo: "tag" },
-  { id: "schedule", label: "Terjadwal (cron)", scope: "schedule" },
+  { id: "task_created", labelKey: "autoTrgTaskCreated", scope: "task" },
+  { id: "status_changed", labelKey: "autoTrgStatusChanged", scope: "task", hasTo: "status" },
+  { id: "priority_changed", labelKey: "autoTrgPriorityChanged", scope: "task", hasTo: "priority" },
+  { id: "assignee_changed", labelKey: "autoTrgAssigneeChanged", scope: "task" },
+  { id: "due_changed", labelKey: "autoTrgDueChanged", scope: "task" },
+  { id: "note_created", labelKey: "autoTrgNoteCreated", scope: "note" },
+  { id: "note_updated", labelKey: "autoTrgNoteUpdated", scope: "note" },
+  { id: "note_tagged", labelKey: "autoTrgNoteTagged", scope: "note", hasTo: "tag" },
+  { id: "schedule", labelKey: "autoTrgSchedule", scope: "schedule" },
 ];
 
-export const SCOPE_LABELS: Record<RuleScope, string> = {
-  task: "Tugas",
-  note: "Catatan",
-  schedule: "Jadwal",
+export const SCOPE_LABELS: Record<RuleScope, MessageKey> = {
+  task: "autoScopeTask",
+  note: "autoScopeNote",
+  schedule: "autoScopeSchedule",
 };
 
 export const CONDITION_FIELDS = [
-  { id: "priority", label: "Prioritas" },
-  { id: "status", label: "Status" },
-  { id: "project_id", label: "Proyek" },
-  { id: "tag", label: "Tag" },
-  { id: "assignee_name", label: "Penanggung jawab" },
-  { id: "title", label: "Judul" },
+  { id: "priority", labelKey: "autoFieldPriority" },
+  { id: "status", labelKey: "autoFieldStatus" },
+  { id: "project_id", labelKey: "autoFieldProject" },
+  { id: "tag", labelKey: "autoFieldTag" },
+  { id: "assignee_name", labelKey: "autoFieldAssignee" },
+  { id: "title", labelKey: "autoFieldTitle" },
 ] as const;
 
 /** Condition fields per scope (scheduled rules have no conditions). */
@@ -114,16 +118,16 @@ export const CONDITION_FIELDS_BY_SCOPE: Record<RuleScope, readonly Condition["fi
 };
 
 export const ACTION_TYPES = [
-  { id: "set_field", label: "Ubah isi tugas" },
-  { id: "add_tag", label: "Tambah tag" },
-  { id: "shift_due", label: "Geser tenggat" },
-  { id: "comment", label: "Tambah komentar" },
-  { id: "link_project", label: "Tautkan ke proyek" },
-  { id: "create_task", label: "Buat tugas" },
-  { id: "move_overdue", label: "Pindahkan tugas terlambat" },
-  { id: "digest", label: "Kirim ringkasan" },
-  { id: "telegram", label: "Kirim ke Telegram" },
-  { id: "webhook", label: "Kirim webhook" },
+  { id: "set_field", labelKey: "autoActSetField" },
+  { id: "add_tag", labelKey: "autoActAddTag" },
+  { id: "shift_due", labelKey: "autoActShiftDue" },
+  { id: "comment", labelKey: "autoActComment" },
+  { id: "link_project", labelKey: "autoActLinkProject" },
+  { id: "create_task", labelKey: "autoActCreateTask" },
+  { id: "move_overdue", labelKey: "autoActMoveOverdue" },
+  { id: "digest", labelKey: "autoActDigest" },
+  { id: "telegram", labelKey: "autoActTelegram" },
+  { id: "webhook", labelKey: "autoActWebhook" },
 ] as const;
 
 /** Action types per scope. */
@@ -133,11 +137,11 @@ export const ACTIONS_BY_SCOPE: Record<RuleScope, readonly Action["type"][]> = {
   schedule: ["create_task", "move_overdue", "digest"],
 };
 
-export const DIGEST_KINDS: { id: DigestKind; label: string }[] = [
-  { id: "morning", label: "Rencana hari ini" },
-  { id: "overdue", label: "Tugas terlambat" },
-  { id: "evening", label: "Ringkasan sore" },
-  { id: "weekly", label: "Ringkasan mingguan" },
+export const DIGEST_KINDS: { id: DigestKind; labelKey: MessageKey }[] = [
+  { id: "morning", labelKey: "autoDigestMorning" },
+  { id: "overdue", labelKey: "autoDigestOverdue" },
+  { id: "evening", labelKey: "autoDigestEvening" },
+  { id: "weekly", labelKey: "autoDigestWeekly" },
 ];
 
 export type TaskSnapshot = {

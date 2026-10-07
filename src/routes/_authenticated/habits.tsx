@@ -53,7 +53,7 @@ const WEEKS = 8;
 const pct = (v: number) => `${Math.round(v)}%`;
 
 function HabitsPage() {
-  const { t } = usePreferences();
+  const { t, intl } = usePreferences();
   const { data: habits = [], isLoading } = useHabits();
   const { data: logs = [] } = useHabitLogs();
   const { data: projects = [] } = useProjects();
@@ -87,21 +87,21 @@ function HabitsPage() {
         title={t("habits")}
         subtitle={
           habits.length
-            ? `${doneToday} dari ${habits.length} selesai hari ini`
-            : "Bangun rutinitas kecil yang konsisten."
+            ? t("admHabitsDoneToday", { done: doneToday, total: habits.length })
+            : t("admHabitsSubtitle")
         }
         actions={
           <Button className="h-11 sm:h-9" onClick={() => edit(null)}>
-            <Plus aria-hidden /> Kebiasaan
+            <Plus aria-hidden /> {t("habits")}
           </Button>
         }
       />
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Memuat…</p>
+        <p className="text-sm text-muted-foreground">{t("admLoading")}</p>
       ) : habits.length === 0 ? (
         <div className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground sm:p-8">
           <Repeat className="mx-auto mb-2 h-6 w-6" aria-hidden />
-          Belum ada kebiasaan. Tambahkan satu, lalu check-in setiap hari.
+          {t("admHabitsEmpty")}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
@@ -109,15 +109,15 @@ function HabitsPage() {
             <div className="mb-2 flex items-center justify-between gap-2">
               <h2 id="habits-week" className="text-sm font-medium text-muted-foreground">
                 {offset === 0
-                  ? "Minggu ini"
-                  : `${asDate(week[0]!).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} – ${asDate(week[6]!).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`}
+                  ? t("admThisWeek")
+                  : `${asDate(week[0]!).toLocaleDateString(intl, { day: "numeric", month: "short" })} – ${asDate(week[6]!).toLocaleDateString(intl, { day: "numeric", month: "short" })}`}
               </h2>
-              <div className="flex gap-1" role="group" aria-label="Pilih minggu">
+              <div className="flex gap-1" role="group" aria-label={t("admPickWeek")}>
                 <Button
                   variant="outline"
                   size="icon"
                   className="h-11 w-11 sm:h-9 sm:w-9"
-                  aria-label="Minggu sebelumnya"
+                  aria-label={t("admPrevWeek")}
                   onClick={() => setOffset(offset - 1)}
                 >
                   <ChevronLeft aria-hidden />
@@ -126,7 +126,7 @@ function HabitsPage() {
                   variant="outline"
                   size="icon"
                   className="h-11 w-11 sm:h-9 sm:w-9"
-                  aria-label="Minggu berikutnya"
+                  aria-label={t("admNextWeek")}
                   disabled={offset >= 0}
                   onClick={() => setOffset(offset + 1)}
                 >
@@ -154,16 +154,16 @@ function HabitsPage() {
           </section>
           <BarChart
             id="habit-rate"
-            title="Konsistensi"
-            subtitle={`Check-in terjadwal yang selesai, ${WEEKS} minggu terakhir`}
-            series={[{ key: "rate", label: "Selesai", tone: "chart-1" }]}
+            title={t("admConsistency")}
+            subtitle={t("admConsistencySubtitle", { weeks: WEEKS })}
+            series={[{ key: "rate", label: t("admDone"), tone: "chart-1" }]}
             points={weekly.map((w) => ({
               key: w.week,
-              label: asDate(w.week).toLocaleDateString("id-ID", {
+              label: asDate(w.week).toLocaleDateString(intl, {
                 day: "numeric",
                 month: "numeric",
               }),
-              long: `Minggu ${asDate(w.week).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} – ${asDate(addDays(w.week, 6)).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} (${w.done}/${w.due})`,
+              long: `${t("admWeekRange", { from: asDate(w.week).toLocaleDateString(intl, { day: "numeric", month: "short" }), to: asDate(addDays(w.week, 6)).toLocaleDateString(intl, { day: "numeric", month: "short", year: "numeric" }) })} (${w.done}/${w.due})`,
               values: { rate: w.rate === null ? null : w.rate * 100 },
             }))}
             format={pct}

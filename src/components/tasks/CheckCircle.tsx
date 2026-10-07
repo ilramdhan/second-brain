@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 
+import { useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 export function CheckCircle({
@@ -11,6 +12,7 @@ export function CheckCircle({
   onClick: () => void;
   className?: string | undefined;
 }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -19,7 +21,7 @@ export function CheckCircle({
         onClick();
       }}
       onPointerDown={(e) => e.stopPropagation()}
-      aria-label={done ? "Tandai belum selesai" : "Tandai selesai"}
+      aria-label={done ? t("taskMarkUndone") : t("taskMarkDone")}
       className={cn(
         "relative flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-colors before:absolute before:-inset-[13px] before:content-['']",
         done

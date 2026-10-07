@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { addDays, format, isToday, isTomorrow } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { CalendarClock, KanbanSquare, List, Plus } from "lucide-react";
 
 import { Kanban } from "@/components/Kanban";
@@ -23,9 +22,10 @@ import { Button } from "@/components/ui/button";
 import { useKeyboardNav } from "@/hooks/use-keyboard-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TASK_STATUS } from "@/lib/constants";
-import { usePreferences } from "@/lib/preferences";
+import { useI18n, usePreferences } from "@/lib/preferences";
 import { useMe, useProjects, useTaskActions, useTasks, type Task } from "@/lib/data";
 import { dayKeyOf, upcomingBuckets } from "@/lib/task-maps";
+import { enumLabel } from "@/components/tasks/labels";
 
 export function TaskViews({ projectId }: { projectId?: string | undefined }) {
   const { data: allTasks = [] } = useTasks();
@@ -37,6 +37,10 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
   const [filter, setFilter] = useState<TaskFilter>(EMPTY_FILTER);
   const [showDone, setShowDone] = useState(false);
   const { t } = usePreferences();
+  const statusColumns = useMemo(
+    () => TASK_STATUS.map((c) => ({ id: c.id, label: enumLabel(t, "status", c.id, c.label) })),
+    [t],
+  );
 
   const scoped = useMemo(
     () => allTasks.filter((t) => !t.parent_id && (!projectId || t.project_id === projectId)),
@@ -88,20 +92,20 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
           <TabsList>
             <TabsTrigger value="list" className="gap-1.5">
               <List className="h-3.5 w-3.5" />
-              List
+              {t("taskViewList")}
             </TabsTrigger>
             <TabsTrigger value="board" className="gap-1.5">
               <KanbanSquare className="h-3.5 w-3.5" />
-              Kanban
+              {t("taskViewBoard")}
             </TabsTrigger>
             <TabsTrigger value="upcoming" className="gap-1.5">
               <CalendarClock className="h-3.5 w-3.5" />
-              Upcoming
+              {t("taskViewUpcoming")}
             </TabsTrigger>
           </TabsList>
         </Tabs>
         <Button size="sm" onClick={() => newTask({ project_id: projectId ?? null })}>
-          <Plus /> Tugas
+          <Plus /> {t("taskAddButton")}
         </Button>
       </div>
 
@@ -120,17 +124,15 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
           </div>
           <LoadMore shown={paged.visible.length} total={paged.total} onMore={paged.more} />
           {listItems.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Tidak ada tugas yang cocok.
-            </p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("taskNoMatch")}</p>
           )}
           <button
             onClick={() => setShowDone(!showDone)}
             className="text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
             {showDone
-              ? "Sembunyikan yang selesai"
-              : `Tampilkan yang selesai (${filtered.filter((t) => t.status === "done").length})`}
+              ? t("taskHideDone")
+              : t("taskShowDone", { count: filtered.filter((x) => x.status === "done").length })}
           </button>
         </>
       )}
@@ -139,7 +141,7 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
         <div {...containerProps}>
           <Kanban
             nav={nav}
-            columns={TASK_STATUS}
+            columns={statusColumns}
             items={filtered}
             getColumn={(t) => t.status}
             onMove={(t, col) => setStatus(t, col)}
@@ -157,6 +159,7 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
 }
 
 function Upcoming({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }) {
+  const { t, dateFns } = useI18n();
   const todayKey = dayKeyOf(new Date());
   // One pass instead of 14 `tasks.filter` calls per render.
   const buckets = useMemo(
@@ -168,20 +171,20 @@ function Upcoming({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }
 
   return (
     <div className="space-y-6">
-      <Group title="Terlambat" items={buckets.overdue} lookups={lookups} />
+      <Group title={t("taskGroupOverdue")} items={buckets.overdue} lookups={lookups} />
       {days.map((d) => {
         const items = buckets.days.get(dayKeyOf(d)) ?? [];
         const label = isToday(d)
-          ? "Hari ini"
+          ? t("taskGroupToday")
           : isTomorrow(d)
-            ? "Besok"
-            : format(d, "EEEE, d MMM", { locale: localeId });
+            ? t("taskGroupTomorrow")
+            : format(d, "EEEE, d MMM", { locale: dateFns });
         return items.length || isToday(d) ? (
           <Group key={d.toISOString()} title={label} items={items} date={d} lookups={lookups} />
         ) : null;
       })}
-      <Group title="Nanti" items={buckets.later} lookups={lookups} />
-      <Group title="Tanpa tanggal" items={buckets.noDate} lookups={lookups} />
+      <Group title={t("taskGroupLater")} items={buckets.later} lookups={lookups} />
+      <Group title={t("taskGroupNoDate")} items={buckets.noDate} lookups={lookups} />
     </div>
   );
 }
@@ -199,6 +202,7 @@ function Group({
   lookups: TaskRowLookups;
 }) {
   const { newTask } = useTaskDialog();
+  const { t } = useI18n();
   if (items.length === 0 && !date) return null;
   return (
     <section className="space-y-2">
@@ -210,7 +214,7 @@ function Group({
           <button
             onClick={() => newTask({ due_date: date.toISOString() })}
             className="rounded p-1 text-muted-foreground hover:bg-accent"
-            aria-label="Tambah tugas"
+            aria-label={t("taskAddTask")}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>

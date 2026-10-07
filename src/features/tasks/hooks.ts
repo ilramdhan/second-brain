@@ -21,6 +21,7 @@ import {
   type CompleteTaskOutcome,
 } from "@/lib/task-rules";
 import { toastError } from "@/lib/errors";
+import { tr } from "@/lib/preferences";
 
 export function useTasks() {
   return useQuery(tasksQuery);
@@ -53,7 +54,7 @@ export function useTaskActions() {
     run({ data: { event, taskId: task.id, ...(snap ? { before: snap } : {}) } })
       .then((r) => {
         if (r.ran) {
-          toast.message(`Otomasi dijalankan (${r.ran})`);
+          toast.message(tr("taskAutomationsRan", { count: r.ran }));
           qc.invalidateQueries({ queryKey: qk.tasks });
           qc.invalidateQueries({ queryKey: ["comments", task.id] });
           qc.invalidateQueries({ queryKey: qk.automations });
@@ -93,7 +94,7 @@ export function useTaskActions() {
         void crud.invalidate();
       } else if (data?.length) {
         for (const row of data) patchTaskCache(row.id, row);
-        toast.message(`${data.length} tugas yang bergantung ikut digeser`);
+        toast.message(tr("taskDependentsShifted", { count: data.length }));
       }
     }
     automate("updated", { ...before, ...patch } as Task, before);
@@ -124,14 +125,16 @@ export function useTaskActions() {
     }
     if (result.status === "blocked") {
       restore(qc, snap);
-      toast.error(`Terkunci: tunggu "${result.blocker}" selesai dulu`);
+      toast.error(tr("taskLockedWaitFor", { title: result.blocker }));
       return;
     }
     patchTaskCache(task.id, pickColumns(result.task, TASK_COLS));
     if (result.status === "already_done") return;
     automate("updated", { ...task, status: "done" }, task);
     if (result.unblocked.length) {
-      toast.success(`Tidak terkunci lagi: ${result.unblocked.map((u) => u.title).join(", ")}`);
+      toast.success(
+        tr("taskUnblocked", { titles: result.unblocked.map((u) => u.title).join(", ") }),
+      );
       notify({
         data: { taskIds: result.unblocked.map((u) => u.id), blockerTitle: task.title },
       }).catch(() => {});
@@ -140,7 +143,7 @@ export function useTaskActions() {
       const next = pickColumns(result.recurring, TASK_COLS) as Task;
       qc.setQueryData<Task[]>(qk.tasks, (old) => insertRow(old, next));
       automate("created", next);
-      toast.success("Tugas berulang berikutnya dibuat");
+      toast.success(tr("taskNextRecurring"));
     }
   }
 
@@ -149,7 +152,7 @@ export function useTaskActions() {
     if (status !== "todo") {
       const blockers = openBlockers(task.id, getDeps(), getTasks());
       if (blockers.length) {
-        toast.error(`Terkunci: tunggu "${blockers[0]!.title}" selesai dulu`);
+        toast.error(tr("taskLockedWaitFor", { title: blockers[0]!.title }));
         return;
       }
     }

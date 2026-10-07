@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, subDays } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import {
   Archive,
@@ -24,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { qk } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/archive")({
   head: () => ({
@@ -49,10 +49,11 @@ export const Route = createFileRoute("/_authenticated/archive")({
 type Kind = "tasks" | "notes" | "projects" | "habits";
 type Item = { id: string; kind: Kind; title: string; at: string };
 const ICON = { tasks: CheckSquare, notes: StickyNote, projects: FolderKanban, habits: Repeat };
-const LABEL = { tasks: "Tugas", notes: "Catatan", projects: "Proyek", habits: "Kebiasaan" };
+const LABEL = { tasks: "tasks", notes: "notes", projects: "projects", habits: "habits" } as const;
 const RETENTION_DAYS = 30;
 
 function ArchivePage() {
+  const { t: tt, dateFns } = usePreferences();
   const qc = useQueryClient();
   const [tab, setTab] = useState<"archive" | "trash">("trash");
   const { data = [], isLoading } = useQuery({
@@ -148,31 +149,31 @@ function ArchivePage() {
     if (!error && it.kind === "tasks" && tab === "trash")
       await supabase.from("tasks").update({ deleted_at: null }).eq("parent_id", it.id);
     if (error) toastError(error);
-    else toast.success("Dikembalikan");
+    else toast.success(tt("admRestored"));
     refresh();
   }
   async function purge(it: Item) {
-    if (!confirm(`Hapus permanen "${it.title}"? Ini tidak bisa dibatalkan.`)) return;
+    if (!confirm(tt("admPurgeConfirm", { title: it.title }))) return;
     const { error } = await supabase.from(it.kind).delete().eq("id", it.id);
     if (error) toastError(error);
-    else toast.success("Dihapus permanen");
+    else toast.success(tt("admPurged"));
     refresh();
   }
   async function emptyTrash() {
-    if (!confirm("Kosongkan Tempat Sampah? Semua item dihapus permanen.")) return;
+    if (!confirm(tt("admEmptyConfirm"))) return;
     await Promise.all(data.map((it) => supabase.from(it.kind).delete().eq("id", it.id)));
-    toast.success("Tempat Sampah dikosongkan");
+    toast.success(tt("admEmptied"));
     refresh();
   }
 
   return (
     <PageContainer>
       <PageHeader
-        title="Arsip & Tempat Sampah"
+        title={tt("admArchiveTitle")}
         subtitle={
           tab === "trash"
-            ? `Item terhapus disimpan ${RETENTION_DAYS} hari sebelum dihapus permanen.`
-            : "Item yang diarsipkan disembunyikan dari daftar, tapi tidak hilang."
+            ? tt("admTrashSubtitle", { days: RETENTION_DAYS })
+            : tt("admArchiveSubtitle")
         }
         actions={
           tab === "trash" && data.length > 0 ? (
@@ -182,7 +183,7 @@ function ArchivePage() {
               onClick={emptyTrash}
               className="text-destructive hover:text-destructive"
             >
-              <Trash2 /> Kosongkan
+              <Trash2 /> {tt("admEmptyTrash")}
             </Button>
           ) : undefined
         }
@@ -191,19 +192,19 @@ function ArchivePage() {
         <TabsList>
           <TabsTrigger value="trash" className="gap-1.5">
             <Trash2 className="h-3.5 w-3.5" />
-            Tempat Sampah
+            {tt("admTrash")}
           </TabsTrigger>
           <TabsTrigger value="archive" className="gap-1.5">
             <Archive className="h-3.5 w-3.5" />
-            Arsip
+            {tt("admArchiveTab")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="overflow-hidden rounded-md border bg-card">
-        {isLoading && <p className="p-6 text-sm text-muted-foreground">Memuat…</p>}
+        {isLoading && <p className="p-6 text-sm text-muted-foreground">{tt("admLoading")}</p>}
         {!isLoading && data.length === 0 && (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            {tab === "trash" ? "Tempat Sampah kosong." : "Belum ada yang diarsipkan."}
+            {tab === "trash" ? tt("admTrashEmpty") : tt("admArchiveEmpty")}
           </p>
         )}
         <VirtualList
@@ -219,21 +220,21 @@ function ArchivePage() {
                 <div className="min-w-0 flex-1 basis-40">
                   <p className="truncate text-sm font-medium">{it.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {LABEL[it.kind]} ·{" "}
+                    {tt(LABEL[it.kind])} ·{" "}
                     {it.at &&
-                      formatDistanceToNow(new Date(it.at), { addSuffix: true, locale: localeId })}
+                      formatDistanceToNow(new Date(it.at), { addSuffix: true, locale: dateFns })}
                   </p>
                 </div>
                 <div className="ml-auto flex gap-1">
                   <Button variant="outline" size="sm" onClick={() => restore(it)}>
-                    <RotateCcw /> Kembalikan
+                    <RotateCcw /> {tt("admRestore")}
                   </Button>
                   {tab === "trash" && (
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => purge(it)}
-                      aria-label="Hapus permanen"
+                      aria-label={tt("admPurge")}
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 />

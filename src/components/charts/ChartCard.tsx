@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Table2 } from "lucide-react";
+import { useI18n } from "@/lib/preferences";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ export function ChartCard({
   className?: string | undefined;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const [showTable, setShowTable] = useState(false);
   return (
     <section
@@ -54,7 +56,7 @@ export function ChartCard({
           aria-controls={`${id}-table`}
           onClick={() => setShowTable((v) => !v)}
         >
-          <Table2 aria-hidden /> Tabel
+          <Table2 aria-hidden /> {t("admTable")}
         </Button>
       </div>
       {series.length > 1 && <Legend series={series} kind={kind} />}
@@ -65,7 +67,7 @@ export function ChartCard({
           <thead className="text-muted-foreground">
             <tr>
               <th scope="col" className="py-1 pr-3 font-medium">
-                Periode
+                {t("admPeriod")}
               </th>
               {series.map((s) => (
                 <th key={s.key} scope="col" className="py-1 pr-3 text-right font-medium">

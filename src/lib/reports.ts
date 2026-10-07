@@ -3,6 +3,8 @@
 // here is calendar math on `YYYY-MM-DD` strings in UTC, so it never depends on the machine's
 // zone or on DST.
 
+import { currentLocale, tr } from "@/lib/preferences";
+
 export type DailyRow = {
   day: string;
   created: number;
@@ -161,15 +163,17 @@ export function niceScale(max: number, count = 4): { max: number; ticks: number[
   return { max: top, ticks };
 }
 
-/** "3 j 45 m" / "25 m" (also used by the focus breakdown). */
+/** "3 j 45 m" / "25 m" ("3 h 45 m" in English; also used by the focus breakdown). */
 export function formatMinutes(min: number): string {
   const h = Math.floor(min / 60);
   const m = Math.round(min % 60);
-  return h ? `${h} j ${m} m` : `${m} m`;
+  const mu = tr("admMinuteUnit");
+  return h ? `${h} ${tr("admHourUnit")} ${m} ${mu}` : `${m} ${mu}`;
 }
 
-/** "1,5 j" style compact hours for axis ticks and tiles. */
+/** "1,5 j" style compact hours for axis ticks and tiles ("1.5 h" in English). */
 export function formatHours(min: number): string {
   const h = min / 60;
-  return `${h >= 10 ? Math.round(h) : Math.round(h * 10) / 10}`.replace(".", ",") + " j";
+  const n = `${h >= 10 ? Math.round(h) : Math.round(h * 10) / 10}`;
+  return `${currentLocale() === "en" ? n : n.replace(".", ",")} ${tr("admHourUnit")}`;
 }

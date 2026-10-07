@@ -28,6 +28,7 @@ import { COLORS, PARA, PROJECT_STATUS } from "@/lib/constants";
 import { DEMO_PROJECT_PREFILL_EXAMPLES } from "@/lib/demo-examples";
 import { draftProjectFromText } from "@/lib/prefill.functions";
 import { useProjectActions, useProjects, type Project } from "@/lib/data";
+import { useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
 const NONE = "none";
@@ -85,10 +86,11 @@ function ProjectForm({
   const [due, setDue] = useState(project?.due_date ?? "");
   const [launch, setLaunch] = useState(project?.launch_date ?? "");
   const draftProject = useServerFn(draftProjectFromText);
+  const { t } = useI18n();
 
   async function save() {
     if (!name.trim()) {
-      toast.error("Nama proyek wajib diisi");
+      toast.error(t("wsProjectNameRequired"));
       return;
     }
     const payload = {
@@ -104,18 +106,14 @@ function ProjectForm({
     };
     if (project) await actions.update(project.id, payload);
     else await actions.create(payload);
-    toast.success(project ? "Proyek disimpan" : "Proyek dibuat");
+    toast.success(project ? t("wsProjectSaved") : t("wsProjectCreated"));
     onClose();
   }
 
   async function remove() {
-    if (
-      !project ||
-      !confirm(`Hapus proyek "${project.name}"? Proyek masuk Tempat Sampah dan bisa dikembalikan.`)
-    )
-      return;
+    if (!project || !confirm(t("wsProjectDeleteConfirm", { name: project.name }))) return;
     await actions.remove(project.id);
-    toast.success("Proyek dihapus");
+    toast.success(t("wsProjectDeleted"));
     onClose();
     onDeleted?.();
   }
@@ -123,16 +121,14 @@ function ProjectForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{project ? "Ubah proyek" : "Proyek baru"}</DialogTitle>
-        <DialogDescription>
-          Kelompokkan dengan PARA, beri tanggal mulai, tenggat, dan launch date.
-        </DialogDescription>
+        <DialogTitle>{project ? t("wsEditProject") : t("wsNewProject")}</DialogTitle>
+        <DialogDescription>{t("wsProjectDialogDescription")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         {!project && (
           <FillFromText
             examples={DEMO_PROJECT_PREFILL_EXAMPLES}
-            placeholder="Contoh: proyek program loyalti, sub-proyek Aplikasi Kasir, mulai bulan depan, rilis akhir kuartal, warna ungu…"
+            placeholder={t("wsProjectFillPlaceholder")}
             labels={PROJECT_FIELD_LABEL}
             onFill={(text) => draftProject({ data: { text } })}
             onApply={({ draft: d }) => {
@@ -148,9 +144,7 @@ function ProjectForm({
             }}
             // Members are suggestions only: inviting stays an explicit owner action.
             extraSummary={(r) =>
-              r.members.length
-                ? [`Undang ${r.members.join(", ")} lewat tab Tim setelah proyek dibuat`]
-                : []
+              r.members.length ? [t("wsProjectInviteHint", { names: r.members.join(", ") })] : []
             }
           />
         )}
@@ -158,19 +152,21 @@ function ProjectForm({
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nama proyek / aplikasi"
+          placeholder={t("wsProjectNamePlaceholder")}
+          aria-label={t("wsProjectName")}
           className="h-11 text-base font-medium"
         />
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Tujuan, ruang lingkup, catatan singkat…"
+          placeholder={t("wsProjectDescPlaceholder")}
+          aria-label={t("wsDescription")}
           rows={3}
           className="min-h-24"
         />
         {/* One column on phones so selects and date pickers never collapse. */}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Kategori PARA">
+          <Field label={t("wsProjectPara")}>
             <Select value={para} onValueChange={setPara}>
               <SelectTrigger>
                 <SelectValue />
@@ -184,7 +180,7 @@ function ProjectForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Status">
+          <Field label={t("wsStatus")}>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
                 <SelectValue />
@@ -198,13 +194,13 @@ function ProjectForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Induk (sub-proyek dari)" className="sm:col-span-2">
+          <Field label={t("wsProjectParent")} className="sm:col-span-2">
             <Select value={parent} onValueChange={setParent}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>Tidak ada (proyek utama)</SelectItem>
+                <SelectItem value={NONE}>{t("wsProjectNoParent")}</SelectItem>
                 {projects
                   .filter((p) => p.id !== project?.id)
                   .map((p) => (
@@ -215,18 +211,18 @@ function ProjectForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Mulai">
+          <Field label={t("wsStart")}>
             <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
-          <Field label="Tenggat">
+          <Field label={t("wsDue")}>
             <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
-          <Field label="Launch date">
+          <Field label={t("wsLaunchDate")}>
             <Input type="date" value={launch} onChange={(e) => setLaunch(e.target.value)} />
           </Field>
         </div>
         <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Warna</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("wsColor")}</span>
           <div className="flex flex-wrap gap-2">
             {Object.entries(COLORS).map(([k, c]) => (
               <button
@@ -251,13 +247,13 @@ function ProjectForm({
             onClick={remove}
             className="text-destructive hover:text-destructive sm:mr-auto"
           >
-            <Trash2 /> Hapus
+            <Trash2 /> {t("wsDelete")}
           </Button>
         )}
         <Button variant="outline" onClick={onClose}>
-          Batal
+          {t("wsCancel")}
         </Button>
-        <Button onClick={save}>{project ? "Simpan" : "Buat proyek"}</Button>
+        <Button onClick={save}>{project ? t("wsSave") : t("wsCreateProject")}</Button>
       </DialogFooter>
     </>
   );

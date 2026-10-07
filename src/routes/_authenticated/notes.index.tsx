@@ -5,6 +5,7 @@ import { NotesBoard } from "@/components/notes/NotesBoard";
 import { PageContainer } from "@/components/common/PageContainer";
 import { notesQuery, preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/notes/")({
   head: () => ({
@@ -24,9 +25,10 @@ export const Route = createFileRoute("/_authenticated/notes/")({
 });
 
 function NotesPage() {
+  const { t } = usePreferences();
   return (
     <PageContainer>
-      <PageHeader title="Catatan" subtitle="Ide, referensi, dan notulen meeting." />
+      <PageHeader title={t("notes")} subtitle={t("noteListSubtitle")} />
       <NotesBoard />
     </PageContainer>
   );

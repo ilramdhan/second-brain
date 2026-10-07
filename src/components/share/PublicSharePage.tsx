@@ -2,7 +2,7 @@ import { CalendarDays, CheckCircle2, Circle, Eye, Flag } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 
 import { labelOf, PRIORITY, PROJECT_STATUS, TASK_STATUS } from "@/lib/constants";
-import { usePreferences, type Locale } from "@/lib/preferences";
+import { intlLocale, usePreferences, type Locale } from "@/lib/preferences";
 import type {
   PublicBlock,
   PublicInline,
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 function formatDate(value: string, locale: Locale): string {
   // Date-only values (YYYY-MM-DD) are calendar dates; render them in UTC so they never shift.
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00Z`) : new Date(value);
-  return date.toLocaleDateString(locale === "id" ? "id-ID" : "en-US", {
+  return date.toLocaleDateString(intlLocale(locale), {
     year: "numeric",
     month: "short",
     day: "numeric",

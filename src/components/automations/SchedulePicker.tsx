@@ -14,9 +14,10 @@ import {
   describeCron,
   nextRuns,
   presetToCron,
-  WEEKDAYS_ID,
+  weekdayNames,
   type SchedulePreset,
 } from "@/lib/cron";
+import { useI18n } from "@/lib/preferences";
 
 /** Time zones offered in the picker (the deployment default comes first). */
 const ZONES = [
@@ -46,6 +47,7 @@ type Props = {
  * (src/lib/cron.ts) validates the cron again on the server when the rule is saved.
  */
 export function SchedulePicker({ cron, tz, onChange }: Props) {
+  const { t, locale, intl } = useI18n();
   const preset = cronToPreset(cron);
   const zones = ZONES.includes(tz) ? ZONES : [tz, ...ZONES];
   const preview = useMemo(() => {
@@ -53,10 +55,10 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
       const runs = nextRuns(cron, tz, new Date(), 3);
       return { runs, error: null };
     } catch (e) {
-      return { runs: [], error: e instanceof Error ? e.message : "Tidak valid" };
+      return { runs: [], error: e instanceof Error ? e.message : t("autoCronInvalid") };
     }
-  }, [cron, tz]);
-  const fmt = new Intl.DateTimeFormat("id-ID", {
+  }, [cron, tz, t]);
+  const fmt = new Intl.DateTimeFormat(intl, {
     timeZone: tz,
     weekday: "short",
     day: "numeric",
@@ -78,7 +80,7 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
   return (
     <div className="space-y-2 rounded-xl border p-3">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Field label="Pengulangan">
+        <Field label={t("autoRepeat")}>
           <Select
             value={preset.kind}
             onValueChange={(v) => {
@@ -93,20 +95,20 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
               else onChange(preset.kind === "custom" ? cron : "0 8 * * 1-5", tz);
             }}
           >
-            <SelectTrigger className="h-9" aria-label="Pengulangan">
+            <SelectTrigger className="h-9" aria-label={t("autoRepeat")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Setiap hari</SelectItem>
-              <SelectItem value="weekly">Setiap minggu</SelectItem>
-              <SelectItem value="monthly">Setiap bulan</SelectItem>
-              <SelectItem value="custom">Cron kustom</SelectItem>
+              <SelectItem value="daily">{t("autoEveryDay")}</SelectItem>
+              <SelectItem value="weekly">{t("autoEveryWeek")}</SelectItem>
+              <SelectItem value="monthly">{t("autoEveryMonth")}</SelectItem>
+              <SelectItem value="custom">{t("autoCustomCron")}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Zona waktu">
+        <Field label={t("autoTimeZone")}>
           <Select value={tz} onValueChange={(v) => onChange(cron, v)}>
-            <SelectTrigger className="h-9" aria-label="Zona waktu">
+            <SelectTrigger className="h-9" aria-label={t("autoTimeZone")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -121,7 +123,7 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
       </div>
 
       {preset.kind === "custom" ? (
-        <Field label="Ekspresi cron (menit jam tanggal bulan hari)">
+        <Field label={t("autoCronExpr")}>
           <Input
             className="h-9 font-mono"
             value={cron}
@@ -134,16 +136,16 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {preset.kind === "weekly" && (
-            <Field label="Hari">
+            <Field label={t("autoDay")}>
               <Select
                 value={String(preset.day)}
                 onValueChange={(v) => set({ ...preset, day: Number(v) })}
               >
-                <SelectTrigger className="h-9" aria-label="Hari">
+                <SelectTrigger className="h-9" aria-label={t("autoDay")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {WEEKDAYS_ID.map((d, i) => (
+                  {weekdayNames(locale).map((d, i) => (
                     <SelectItem key={d} value={String(i)}>
                       {d}
                     </SelectItem>
@@ -153,7 +155,7 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
             </Field>
           )}
           {preset.kind === "monthly" && (
-            <Field label="Tanggal (1–31; bulan tanpa tanggal itu dilewati)">
+            <Field label={t("autoMonthDay")}>
               <Input
                 className="h-9"
                 type="number"
@@ -166,7 +168,7 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
               />
             </Field>
           )}
-          <Field label="Jam">
+          <Field label={t("autoHour")}>
             <Input
               className="h-9"
               type="time"
@@ -179,10 +181,10 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
 
       <div className="text-xs" aria-live="polite">
         {preview.error ? (
-          <p className="text-destructive">{describeCron(cron)}</p>
+          <p className="text-destructive">{describeCron(cron, locale)}</p>
         ) : (
           <>
-            <p className="font-medium">{describeCron(cron)}</p>
+            <p className="font-medium">{describeCron(cron, locale)}</p>
             {preview.runs.length ? (
               <ul className="mt-1 space-y-0.5 text-muted-foreground">
                 {preview.runs.map((r) => (
@@ -190,13 +192,11 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
                 ))}
               </ul>
             ) : (
-              <p className="mt-1 text-destructive">Jadwal ini tidak pernah berjalan.</p>
+              <p className="mt-1 text-destructive">{t("autoNeverRuns")}</p>
             )}
           </>
         )}
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          Dijalankan oleh penjadwal n8n tiap 5 menit, jadi bisa terlambat beberapa menit.
-        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{t("autoSchedulerNote")}</p>
       </div>
     </div>
   );

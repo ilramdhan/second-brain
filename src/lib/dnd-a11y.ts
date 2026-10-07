@@ -14,7 +14,8 @@ import {
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { addDays, format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
+
+import { currentDateLocale, tr } from "@/lib/preferences";
 
 const ARROWS: string[] = [
   KeyboardCode.Left,
@@ -90,14 +91,14 @@ export const KEYBOARD_CODES: NonNullable<KeyboardSensorOptions["keyboardCodes"]>
   end: [KeyboardCode.Space, KeyboardCode.Enter],
 };
 
+/** Read lazily (getter) so the text follows the active UI language. */
 export const screenReaderInstructions: ScreenReaderInstructions = {
-  draggable:
-    "Tekan spasi untuk mengambil item. Saat dipindahkan, gunakan tombol panah untuk memilih " +
-    "tujuan, lalu tekan spasi lagi untuk meletakkan atau Escape untuk membatalkan. " +
-    "Tekan Enter untuk membuka item.",
+  get draggable() {
+    return tr("taskDndInstructions");
+  },
 };
 
-/** Indonesian live-region messages for a DndContext. */
+/** Live-region messages for a DndContext, in the active UI language. */
 export function dndAnnouncements({
   itemName,
   targetName,
@@ -106,23 +107,23 @@ export function dndAnnouncements({
   targetName: (overId: UniqueIdentifier) => string;
 }): Announcements {
   return {
-    onDragStart: ({ active }) => `${itemName(active)} diambil.`,
+    onDragStart: ({ active }) => tr("taskDndPicked", { item: itemName(active) }),
     onDragOver: ({ active, over }) =>
       over
-        ? `${itemName(active)} berada di atas ${targetName(over.id)}.`
-        : `${itemName(active)} tidak berada di atas area tujuan.`,
+        ? tr("taskDndOver", { item: itemName(active), target: targetName(over.id) })
+        : tr("taskDndNotOver", { item: itemName(active) }),
     onDragEnd: ({ active, over }) =>
       over
-        ? `${itemName(active)} diletakkan di ${targetName(over.id)}.`
-        : `${itemName(active)} dilepas tanpa perubahan.`,
-    onDragCancel: ({ active }) => `Pemindahan ${itemName(active)} dibatalkan.`,
+        ? tr("taskDndDropped", { item: itemName(active), target: targetName(over.id) })
+        : tr("taskDndDroppedNoChange", { item: itemName(active) }),
+    onDragCancel: ({ active }) => tr("taskDndCancelled", { item: itemName(active) }),
   };
 }
 
-/** Human-readable Indonesian date for a `yyyy-MM-dd` key (e.g. "Senin, 6 Oktober 2026"). */
+/** Human-readable date in the active locale for a `yyyy-MM-dd` key (e.g. "Senin, 6 Oktober 2026"). */
 export const dayLabel = (key: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(key)
-    ? format(new Date(`${key}T00:00:00`), "EEEE, d MMMM yyyy", { locale: localeId })
+    ? format(new Date(`${key}T00:00:00`), "EEEE, d MMMM yyyy", { locale: currentDateLocale() })
     : key;
 
 /**

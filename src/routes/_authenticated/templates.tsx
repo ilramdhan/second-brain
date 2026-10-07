@@ -35,6 +35,7 @@ import { draftTemplateFromText } from "@/lib/prefill.functions";
 import { getUid, useNoteActions } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/templates")({
   head: () => ({
@@ -67,6 +68,7 @@ function TemplatesPage() {
   const navigate = useNavigate();
   const { newTask } = useTaskDialog();
   const notes = useNoteActions();
+  const { t: tr } = usePreferences();
   const [open, setOpen] = useState(false);
   const { data = [] } = useQuery({
     queryKey: ["templates"],
@@ -102,7 +104,7 @@ function TemplatesPage() {
     }
   }
   async function remove(id: string) {
-    if (!confirm("Hapus template ini?")) return;
+    if (!confirm(tr("wsTplDeleteConfirm"))) return;
     await supabase.from("templates").delete().eq("id", id);
     void qc.invalidateQueries({ queryKey: ["templates"] });
   }
@@ -110,45 +112,45 @@ function TemplatesPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Template"
-        subtitle="Simpan pola tugas dan catatan yang sering dipakai, seperti notulen meeting atau daftar belanja."
+        title={tr("templates")}
+        subtitle={tr("wsTplSubtitle")}
         actions={
           <Button size="sm" onClick={() => setOpen(true)}>
-            <Plus /> Template
+            <Plus /> {tr("templates")}
           </Button>
         }
       />
       {data.length === 0 ? (
         <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          Belum ada template.
+          {tr("wsTplEmpty")}
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             <Button
               size="sm"
               variant="outline"
               onClick={() =>
-                void seed("note", "Notulen meeting", {
-                  title: "Notulen: ",
-                  body: "Peserta:\nAgenda:\nKeputusan:\nAction item:\nCatatan lain:",
+                void seed("note", tr("wsTplSeedMeetingName"), {
+                  title: tr("wsTplSeedMeetingTitle"),
+                  body: tr("wsTplSeedMeetingBody"),
                   tags: ["meeting"],
                 })
               }
             >
-              + Notulen meeting
+              + {tr("wsTplSeedMeetingName")}
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() =>
-                void seed("task", "Perbaiki bug", {
+                void seed("task", tr("wsTplSeedBugName"), {
                   title: "Fix: ",
-                  body: "Langkah reproduksi:\nHasil yang diharapkan:\nHasil aktual:",
+                  body: tr("wsTplSeedBugBody"),
                   priority: "high",
                   tags: ["bug"],
                   estimate: 50,
                 })
               }
             >
-              + Laporan bug
+              + {tr("wsTplSeedBugButton")}
             </Button>
           </div>
         </div>
@@ -164,7 +166,7 @@ function TemplatesPage() {
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm font-semibold">{t.name}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {t.kind === "task" ? "Tugas" : "Catatan"}
+                      {t.kind === "task" ? tr("wsKindTask") : tr("wsKindNote")}
                       {p.tags?.length ? ` · ${p.tags.map((x) => `#${x}`).join(" ")}` : ""}
                     </p>
                   </div>
@@ -173,7 +175,7 @@ function TemplatesPage() {
                     size="icon"
                     className="tap-target h-7 w-7 text-muted-foreground hover:text-destructive"
                     onClick={() => remove(t.id)}
-                    aria-label="Hapus template"
+                    aria-label={tr("wsTplDelete")}
                   >
                     <Trash2 />
                   </Button>
@@ -190,7 +192,7 @@ function TemplatesPage() {
                   style={{ marginTop: 12 }}
                   onClick={() => use(t)}
                 >
-                  Gunakan
+                  {tr("wsTplUse")}
                 </Button>
               </article>
             );
@@ -212,7 +214,7 @@ function TemplatesPage() {
     const user_id = await getUid();
     const { error } = await supabase.from("templates").insert({ user_id, kind, name, payload });
     if (error) toastError(error);
-    else toast.success("Template disimpan");
+    else toast.success(tr("wsTplSaved"));
     void qc.invalidateQueries({ queryKey: ["templates"] });
   }
 }
@@ -234,9 +236,10 @@ function TemplateDialog({
   const [tags, setTags] = useState("");
   const [estimate, setEstimate] = useState(25);
   const draftTemplate = useServerFn(draftTemplateFromText);
+  const { t: tr } = usePreferences();
   async function save() {
     if (!name.trim()) {
-      toast.error("Beri nama template");
+      toast.error(tr("wsTplNameRequired"));
       return;
     }
     await onSave(kind, name.trim(), {
@@ -257,15 +260,13 @@ function TemplateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Template baru</DialogTitle>
-          <DialogDescription>
-            Isi yang akan otomatis terisi saat template dipakai.
-          </DialogDescription>
+          <DialogTitle>{tr("wsTplNew")}</DialogTitle>
+          <DialogDescription>{tr("wsTplNewDescription")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
           <FillFromText
             examples={DEMO_TEMPLATE_PREFILL_EXAMPLES}
-            placeholder="Contoh: template catatan retro sprint dengan bagian yang berjalan baik, yang perlu diperbaiki dan action item #retro"
+            placeholder={tr("wsTplFillPlaceholder")}
             labels={TEMPLATE_FIELD_LABEL}
             onFill={(text) => draftTemplate({ data: { text } })}
             onApply={({ draft: d }) => {
@@ -280,45 +281,45 @@ function TemplateDialog({
           />
           <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
             <Select value={kind} onValueChange={(v) => setKind(v as "task" | "note")}>
-              <SelectTrigger aria-label="Jenis template">
+              <SelectTrigger aria-label={tr("wsTplKind")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="task">Tugas</SelectItem>
-                <SelectItem value="note">Catatan</SelectItem>
+                <SelectItem value="task">{tr("wsKindTask")}</SelectItem>
+                <SelectItem value="note">{tr("wsKindNote")}</SelectItem>
               </SelectContent>
             </Select>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nama template"
-              aria-label="Nama template"
+              placeholder={tr("wsTplName")}
+              aria-label={tr("wsTplName")}
             />
           </div>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Judul awal (opsional)"
-            aria-label="Judul awal"
+            placeholder={tr("wsTplTitlePlaceholder")}
+            aria-label={tr("wsTplTitle")}
           />
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder={kind === "task" ? "Deskripsi / checklist" : "Isi catatan"}
+            placeholder={kind === "task" ? tr("wsTplBodyTask") : tr("wsTplBodyNote")}
             rows={6}
             className="min-h-32"
-            aria-label={kind === "task" ? "Deskripsi tugas" : "Isi catatan"}
+            aria-label={kind === "task" ? tr("wsTplBodyTaskLabel") : tr("wsTplBodyNote")}
           />
           <Input
             value={tags}
             onChange={(e) => setTags(e.target.value)}
-            placeholder="Tag, pisahkan dengan koma"
-            aria-label="Tag"
+            placeholder={tr("wsTplTagsPlaceholder")}
+            aria-label={tr("wsTplTags")}
           />
           {kind === "task" && (
             <div className="grid gap-3 sm:grid-cols-2 sm:gap-2">
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger aria-label="Prioritas">
+                <SelectTrigger aria-label={tr("wsPriority")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -335,16 +336,16 @@ function TemplateDialog({
                 step={5}
                 value={estimate}
                 onChange={(e) => setEstimate(Number(e.target.value))}
-                aria-label="Estimasi menit"
+                aria-label={tr("wsTplEstimate")}
               />
             </div>
           )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Batal
+            {tr("wsCancel")}
           </Button>
-          <Button onClick={save}>Simpan</Button>
+          <Button onClick={save}>{tr("wsSave")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

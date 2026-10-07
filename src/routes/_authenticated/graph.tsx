@@ -30,6 +30,7 @@ import { color } from "@/lib/constants";
 import { PageContainer } from "@/components/common/PageContainer";
 import { noteBlocksQuery, preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
+import { usePreferences } from "@/lib/preferences";
 
 export const Route = createFileRoute("/_authenticated/graph")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -66,6 +67,7 @@ const MIN_Z = 0.3,
   MAX_Z = 4;
 
 function GraphPage() {
+  const { t } = usePreferences();
   const { focus } = Route.useSearch();
   const navigate = useNavigate();
   // Edges come from [[links]]/((refs)) inside blocks, so this route loads note bodies.
@@ -293,15 +295,15 @@ function GraphPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Peta Pengetahuan"
-        subtitle="Setiap titik adalah catatan; garis adalah tautan [[…]] atau referensi blok. Semakin besar, semakin sering dirujuk."
+        title={t("graph")}
+        subtitle={t("noteGraphSubtitle")}
         actions={<NoteFromTextButton />}
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Sorot catatan…"
+          placeholder={t("noteGraphHighlight")}
           className="h-9 w-full sm:w-56"
         />
         <Select value={tag} onValueChange={setTag}>
@@ -309,29 +311,39 @@ function GraphPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua tag</SelectItem>
-            {tags.map((t) => (
-              <SelectItem key={t} value={t}>
-                #{t}
+            <SelectItem value="all">{t("noteAllTags")}</SelectItem>
+            {tags.map((tg) => (
+              <SelectItem key={tg} value={tg}>
+                #{tg}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Switch checked={orphans} onCheckedChange={setOrphans} /> Tampilkan yang tanpa tautan
+          <Switch checked={orphans} onCheckedChange={setOrphans} /> {t("noteGraphShowOrphans")}
         </label>
         <div className="ml-auto flex gap-1">
-          <Button variant="outline" size="icon" onClick={() => zoomBy(1.25)} aria-label="Perbesar">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => zoomBy(1.25)}
+            aria-label={t("noteZoomIn")}
+          >
             <Plus />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => zoomBy(0.8)} aria-label="Perkecil">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => zoomBy(0.8)}
+            aria-label={t("noteZoomOut")}
+          >
             <Minus />
           </Button>
           <Button
             variant="outline"
             size="icon"
             onClick={() => setView({ x: 0, y: 0, k: 1 })}
-            aria-label="Reset"
+            aria-label={t("noteZoomReset")}
           >
             <RotateCcw />
           </Button>
@@ -409,8 +421,7 @@ function GraphPage() {
         </svg>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        {graph.nodes.length} catatan · {graph.edges.length} tautan · gulir untuk zoom, tarik latar
-        untuk geser, klik titik untuk membuka.
+        {t("noteGraphStats", { nodes: graph.nodes.length, edges: graph.edges.length })}
       </p>
     </PageContainer>
   );
