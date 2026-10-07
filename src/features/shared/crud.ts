@@ -3,6 +3,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 import { AUTOMATION_COLS } from "@/features/automations/api";
+import { HABIT_COLS } from "@/features/habits/api";
 import { MILESTONE_COLS } from "@/features/milestones/api";
 import { NOTE_LIST_COLS } from "@/features/notes/api";
 import type { NoteBlocks, NoteSummary } from "@/features/notes/types";
@@ -23,7 +24,7 @@ import {
 import { toastError } from "@/lib/errors";
 import { scheduleSemanticSync } from "@/lib/semantic-sync";
 
-type TableName = "tasks" | "projects" | "notes" | "milestones" | "automations";
+type TableName = "tasks" | "projects" | "notes" | "milestones" | "automations" | "habits";
 
 type Result<T = unknown> = PromiseLike<{ data: T; error: PostgrestError | null }>;
 interface CrudFilter extends Result {
@@ -42,6 +43,7 @@ const COLS: Record<TableName, string> = {
   notes: NOTE_LIST_COLS,
   milestones: MILESTONE_COLS,
   automations: AUTOMATION_COLS,
+  habits: HABIT_COLS,
 };
 const NOTE_BLOCK_FIELDS = [
   "id",
@@ -188,7 +190,8 @@ export function useCrud<Row extends { id: string }, Ins, Upd>(
     void qc.invalidateQueries({ queryKey: ["bin"] });
   }
   async function remove(id: string) {
-    const soft = table === "tasks" || table === "notes" || table === "projects";
+    const soft =
+      table === "tasks" || table === "notes" || table === "projects" || table === "habits";
     if (soft)
       return hide(
         id,

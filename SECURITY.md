@@ -165,6 +165,12 @@ code doesn't match.
     are limited to the row's creator or the project owner. Rows can only be moved into projects
     the user belongs to. Canvas nodes and edges are updated only by their author.
   - Only the project owner can update or delete a project.
+- Habits (`habits`, `habit_logs`, migration 0025) are private even when a habit is grouped under a
+  shared project: every policy is owner-only (`user_id = (select auth.uid())`, per operation), a
+  habit's `project_id` must be a project the owner belongs to, logs can only be written for the
+  caller's own habits and never moved to another habit, both tables carry `mfa_aal2` and the demo
+  row limits. `report_daily` (migration 0026), which feeds `/reports`, is `SECURITY INVOKER`: it
+  aggregates only the tasks and focus time the caller's RLS already returns.
 - Other `SECURITY DEFINER` functions (`accept_project_invites`, `list_project_people`,
   `search_semantic_documents`, the sign-up trigger, audit and note-version triggers) all pin
   `SET search_path = public` and constrain results with `auth.uid()`.

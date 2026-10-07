@@ -52,6 +52,8 @@ const USER_TABLES = [
   "note_versions",
   "semantic_documents",
   "time_entries",
+  "habit_logs",
+  "habits",
   "public_shares",
   "task_comments",
   "task_dependencies",

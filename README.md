@@ -238,7 +238,20 @@ Each run is logged to `automation_runs` (with `task_id` or `note_id`), and `run_
 ### Focus timer & reports (`/reports`)
 
 - A Pomodoro timer inside the task dialog counts down from the task's `estimate_minutes` and saves sessions to `time_entries`.
-- Weekly report of focus time per project and per task (Recharts).
+- One filter row scopes every report: **7 / 30 / 90 days**, a project and (for a project with milestones) a milestone. Days are cut in the browser's time zone.
+- **KPI tiles**: tasks completed (and per week), created, focus-timer time, estimates of finished work and time-blocked minutes.
+- **Burndown**: open tasks (or their estimated minutes) at the end of each day, with a dashed ideal line down to the milestone's due date, else the project's.
+- **Throughput**: completed vs created per day (7/30 days) or per ISO week (90 days).
+- **Focus**: focus-timer hours vs estimates of finished work, plus the breakdown per project and the top tasks.
+- Aggregation runs in Postgres (`report_daily`, migration 0026, `SECURITY INVOKER`, so it only counts what RLS lets you see; trashed tasks are excluded, archived ones keep their history). The browser never downloads the task history to draw a chart.
+- Charts are dependency-free (HTML/SVG on theme tokens, light and dark): every chart has a legend for two or more series, a keyboard-reachable crosshair/readout (arrow keys, Home/End, Escape) and a **Tabel** toggle with the exact values (also read by screen readers).
+
+### Habit tracker (`/habits`)
+
+- Habits (`habits`, migration 0025) with a schedule: **every day**, **chosen weekdays**, or **N times per week**, a daily target (e.g. 8 glasses of water), a colour and an optional project.
+- A large check-in button for today (each tap adds one until the target, then clears), a week grid to fix past days, the **current and longest streak** (days, or weeks for N×/week habits) and the 30-day completion. A consistency chart shows the share of scheduled check-ins done over the last 8 weeks.
+- One check-in per habit and day (`habit_logs`, unique `habit_id + date`, the user's local date). Habits are private (owner-only RLS, also for habits grouped under a shared project), archive and trash like tasks and notes (`/archive` restores them; the 30-day purge removes them with their check-ins).
+- Streak and rate math lives in `src/lib/habits.ts` (unit-tested, including partial weeks and time-zone edges).
 
 ### Google Calendar (per user)
 
@@ -265,7 +278,7 @@ The sync is **two-way** (migration `0021_gcal_two_way_sync`):
 ### Templates, archive & trash
 
 - **Templates** (`/templates`): reusable task or note templates (`templates` table).
-- **Archive** (`archived_at`) and **Trash** (`deleted_at`, soft delete) for tasks and notes. Projects support trash only. The `/archive` page restores items, permanently deletes them, and purges trash items older than **30 days**.
+- **Archive** (`archived_at`) and **Trash** (`deleted_at`, soft delete) for tasks, notes and habits. Projects support trash only. The `/archive` page restores items, permanently deletes them, and purges trash items older than **30 days**.
 
 ### Activity log (`/activity`)
 
@@ -321,7 +334,7 @@ Passwordless sign-in and two-factor authentication:
 | Drag & drop        | `@dnd-kit/core` / `sortable`                                                                                  |
 | Collaboration      | Yjs over Supabase Realtime                                                                                    |
 | Graph              | d3-force                                                                                                      |
-| Charts             | Recharts                                                                                                      |
+| Charts             | Dependency-free HTML/SVG charts (`src/components/charts`) on theme tokens                                     |
 | AI                 | Vercel AI SDK (`ai`, `@ai-sdk/openai`): OpenAI or any OpenAI-compatible API (OpenRouter, Groq, Gemini, ...)   |
 | Forms / validation | react-hook-form, zod                                                                                          |
 | Dates              | date-fns 4                                                                                                    |
@@ -494,6 +507,9 @@ erDiagram
     PROJECTS ||--o{ NOTES : contains
     PROJECTS ||--o{ CANVAS_BOARDS : contains
     PROJECTS ||--o{ TIME_ENTRIES : "project_id"
+    AUTH_USERS ||--o{ HABITS : owns
+    PROJECTS ||--o{ HABITS : "project_id (optional)"
+    HABITS ||--o{ HABIT_LOGS : "one per day"
     MILESTONES ||--o{ TASKS : groups
     TASKS ||--o{ TASKS : "parent_id (subtasks)"
     TASKS ||--o{ TASK_COMMENTS : has
@@ -846,6 +862,8 @@ Migrations are plain SQL files in `drizzle/migrations/`, numbered and listed in 
 | 0019 | `demo_limits`                      | Demo mode only (`app_config.demo_mode = 'on'`, off by default): per-user row limits, text-size caps, `demo_write` quota and demo account protection on `auth.users`              |
 | 0020 | `semantic_search`                  | `semantic_documents` per task/note (`model`, `content_hash`, read-only RLS for members), `semantic_pending` / `semantic_upsert` / `match_semantic_documents`, cleanup trigger    |
 | 0024 | `public_shares`                    | Revocable public links (`token_hash` only), `can_share_resource`, owner-only RLS + `mfa_aal2`, `record_public_share_view` (service role), cleanup on purge, demo limit 10        |
+| 0025 | `habits`                           | `habits` + `habit_logs` (one per habit and day), owner-only per-operation RLS + `mfa_aal2`, immutable `user_id`/`habit_id`, habits audited, demo limits 30 / 1000                |
+| 0026 | `report_daily`                     | `report_daily(from, to, tz, project, milestone)`: per-day created/completed/open/focus/time-block aggregates for `/reports` (`SECURITY INVOKER`, max 367 days)                   |
 
 **Apply:** `bunx drizzle-kit migrate` (uses `DATABASE_URL`). You can also run the files in order with `psql` or the Supabase SQL editor.
 
@@ -861,7 +879,7 @@ Migrations 0019 and later set `lock_timeout = '5s'`. They skip any trigger, poli
 
   drizzle-kit records each applied file in `drizzle.__drizzle_migrations` (SHA-256 `hash` of the file plus `created_at` = the journal `when`). It runs every file newer than the latest recorded `created_at`, all in one transaction.
 
-- **Alternative: Supabase SQL editor.** Paste each file in order (0019, then 0020, …, 0024) and run one file at a time. Retrying a file is safe because the files are idempotent.
+- **Alternative: Supabase SQL editor.** Paste each file in order (0019, then 0020, …, 0026) and run one file at a time. Retrying a file is safe because the files are idempotent.
 
 - **`canceling statement due to lock timeout`** means a long-running query held a table lock for more than 5 s. Nothing was applied, because the transaction rolled back, so run the same file (or the same `drizzle-kit migrate`) again.
 

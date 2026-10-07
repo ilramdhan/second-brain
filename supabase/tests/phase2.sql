@@ -32,8 +32,8 @@ BEGIN
     IF r.n <> 1 THEN RAISE EXCEPTION 'FAIL % has % audit triggers', r.tbl, r.n; END IF;
   END LOOP;
   IF (SELECT count(DISTINCT tgrelid) FROM pg_trigger
-      WHERE NOT tgisinternal AND tgfoid = 'public.audit_row_change'::regproc) <> 18 THEN
-    RAISE EXCEPTION 'FAIL expected 18 audited tables (17 + public_shares, 0024)';
+      WHERE NOT tgisinternal AND tgfoid = 'public.audit_row_change'::regproc) <> 19 THEN
+    RAISE EXCEPTION 'FAIL expected 19 audited tables (17 + public_shares 0024 + habits 0025)';
   END IF;
   -- The remaining trigger fires AFTER INSERT, UPDATE and DELETE, FOR EACH ROW
   -- (tgtype bits: 1 row, 4 insert, 8 delete, 16 update; BEFORE bit 2 unset).

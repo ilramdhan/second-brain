@@ -376,6 +376,112 @@ export type Database = {
           },
         ];
       };
+      habit_logs: {
+        Row: {
+          count: number;
+          created_at: string;
+          date: string;
+          habit_id: string;
+          id: string;
+          note: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          count?: number;
+          created_at?: string;
+          date: string;
+          habit_id: string;
+          id?: string;
+          note?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          count?: number;
+          created_at?: string;
+          date?: string;
+          habit_id?: string;
+          id?: string;
+          note?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "habit_logs_habit_id_fkey";
+            columns: ["habit_id"];
+            isOneToOne: false;
+            referencedRelation: "habits";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      habits: {
+        Row: {
+          archived_at: string | null;
+          color: string;
+          created_at: string;
+          deleted_at: string | null;
+          description: string | null;
+          icon: string | null;
+          id: string;
+          name: string;
+          position: number;
+          project_id: string | null;
+          schedule_type: string;
+          target: number;
+          times_per_week: number;
+          updated_at: string;
+          user_id: string;
+          weekdays_mask: number;
+        };
+        Insert: {
+          archived_at?: string | null;
+          color?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          description?: string | null;
+          icon?: string | null;
+          id?: string;
+          name: string;
+          position?: number;
+          project_id?: string | null;
+          schedule_type?: string;
+          target?: number;
+          times_per_week?: number;
+          updated_at?: string;
+          user_id?: string;
+          weekdays_mask?: number;
+        };
+        Update: {
+          archived_at?: string | null;
+          color?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          description?: string | null;
+          icon?: string | null;
+          id?: string;
+          name?: string;
+          position?: number;
+          project_id?: string | null;
+          schedule_type?: string;
+          target?: number;
+          times_per_week?: number;
+          updated_at?: string;
+          user_id?: string;
+          weekdays_mask?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "habits_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       inbox_items: {
         Row: {
           ai_summary: string | null;
@@ -1217,6 +1323,25 @@ export type Database = {
       };
       note_collab_topic_note_id: { Args: { _topic: string }; Returns: string };
       record_public_share_view: { Args: { _share_id: string }; Returns: undefined };
+      report_daily: {
+        Args: {
+          _from: string;
+          _milestone_id?: string;
+          _project_id?: string;
+          _to: string;
+          _tz?: string;
+        };
+        Returns: {
+          completed: number;
+          completed_minutes: number;
+          created: number;
+          day: string;
+          focus_seconds: number;
+          open_minutes: number;
+          open_tasks: number;
+          planned_minutes: number;
+        }[];
+      };
       semantic_note_text: {
         Args: { _content: string; _tags: string[]; _title: string };
         Returns: string;

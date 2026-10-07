@@ -176,6 +176,20 @@
       "when": 1791207297653,
       "tag": "0024_public_shares",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791207298653,
+      "tag": "0025_habits",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791207299653,
+      "tag": "0026_report_daily",
+      "breakpoints": true
     }
   ]
 }

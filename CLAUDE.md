@@ -36,6 +36,7 @@ Before finishing a change, run `bun run lint` and `bun run test`, and run `bun r
 - **Message → note capture** (Telegram `/note` and "catatan:"/`[[link]]` text, n8n capture `target=note|auto`, inbox "Jadikan catatan (AI)", the "Catatan dari teks" form on the notes list/project page/graph): `src/server/noteCapture.server.ts` (same `extractWithFallback` gate, `aiExtractNote`, `resolveNoteExtraction` in `noteExtract.server.ts` matches project/tags/linked notes and builds blocks, writes always through `withNoteIndex` + `runNoteAutomationRules`). The in-app form only drafts (`draftNoteFromText`); the user saves via `useNoteActions`. Project/template dialogs: "Isi dari teks" (`draftProjectFromText`/`draftTemplateFromText`, `src/server/formPrefill.server.ts`) also only drafts; suggested members are never invited automatically.
 - **Semantic search**: `semantic_documents` (migration 0020) holds one 1536-d embedding per task/note, keyed by `model` + `content_hash` of the text built in SQL (`semantic_task_text`/`semantic_note_text`). Never embed inside a save: writes go through `useCrud`, which calls `scheduleSemanticSync()` (`src/lib/semantic-sync.ts`); the server drains `semantic_pending` → `aiEmbed` → `semantic_upsert` (`src/server/semantic.server.ts`). Rows written elsewhere are picked up by the next search, Settings "Indeks ulang" or n8n maintenance `semantic_index`. Demo mode uses `hashEmbedding` (no provider).
 - **Soft delete**: tasks, notes and projects set `deleted_at`. Archive sets `archived_at` (tasks and notes). List hooks exclude both, and `/archive` restores or purges (30-day trash retention). Never hard-delete from normal views.
+- **Reports & habits**: report charts read `report_daily` (migration 0026, security invoker) via `useReportDaily` (`src/features/reports`); draw new charts with `src/components/charts` (`BarChart`/`LineChart`, tokens `chart-1`/`chart-2` validated for CVD and contrast; don't add a chart library). Habits (`habits`/`habit_logs`, migration 0025) are owner-only and go through `useHabitActions` (soft delete/archive) and `useHabitLogActions` (one upserted log per habit and local day); streaks and rates are in `src/lib/habits.ts`.
 - **Pagination**: use `usePaged` / `LoadMore` (`src/components/common/LoadMore.tsx`).
 - **Layout**: every authenticated page wraps its content in `PageContainer` (and usually `PageHeader`).
 - **Drag & drop**: `@dnd-kit/core` for kanban and calendar. Timeline bars use raw pointer events.
@@ -53,7 +54,7 @@ src/routes/__root.tsx            HTML shell, SW registration
 src/routes/_authenticated.tsx    auth guard + app shell (nav, Cmd+K, Q quick task, capture, idle logout)
 src/routes/index.tsx             public landing (/; signed-in users → /today)
 src/routes/_authenticated/*      pages: today inbox tasks calendar timeline projects.* notes.* graph
-                                 canvas automations reports templates archive activity settings
+                                 canvas automations reports habits templates archive activity settings
 src/routes/api/public/*          public HTTP endpoints: telegram/webhook (app mode), hooks/reminders (cron
                                  fallback), n8n/* (x-api-key)
 src/routes/oauth/google-calendar/return.tsx   OAuth popup return
