@@ -46,9 +46,14 @@ been confirmed by a full manual audit with assistive technology.
   controls.
 - **Zoom allowed.** The viewport meta is `width=device-width, initial-scale=1` with no
   `maximum-scale` or `user-scalable=no`.
-- **Keyboard shortcuts** for power users: `Cmd/Ctrl+K` command menu (cmdk, accessible combobox)
-  and `Q` for quick task. `Q` is ignored while a modifier key is held, while focus is in an input,
-  textarea, select or contenteditable element, and while a dialog is open.
+- **Keyboard shortcuts** for power users, defined once in `src/lib/shortcuts.ts` and listed in the
+  `?` cheat-sheet: `Cmd/Ctrl+K` command palette (cmdk, accessible combobox; search plus actions,
+  pages and actions for the selected item), `Q` quick task, and in the task list, kanban boards and
+  notes list `j`/`k` (arrows while focused), `h`/`l` between kanban columns, `Enter`/`o` open, `e`
+  edit, `x` toggle done, `Esc` clear. The selection uses a roving tabindex (one tab stop per list),
+  `aria-current` and a visible ring, and follows focus. Single-key shortcuts are ignored while a
+  modifier key is held, while focus is in an input, textarea, select or contenteditable element,
+  and while a dialog or menu is open.
 - **Keyboard drag and drop** (2.1.1, 2.5.7). Kanban boards (tasks, notes, projects) and calendar
   chips register dnd-kit's `KeyboardSensor` with a custom coordinate getter
   (`src/lib/dnd-a11y.ts`, used instead of `sortableKeyboardCoordinates` because
@@ -130,9 +135,10 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
    not announced.
 9. **Focus outline on note blocks.** The block `<textarea>` uses `outline-none` without a
    replacement focus style, which relies on the caret alone (2.4.7, 2.4.11 Focus Not Obscured).
-10. **Global `Q` shortcut** (2.1.4 Character Key Shortcuts) cannot be turned off or remapped. It is
-    already suppressed in editable fields and dialogs, which limits accidental activation by
-    speech-input users, but 2.1.4 also expects a way to disable or remap it.
+10. **Single-key shortcuts** (`Q`, `?`, `j`/`k`/`h`/`l`/`o`/`e`/`x`; 2.1.4 Character Key
+    Shortcuts) cannot be turned off or remapped. They are suppressed in editable fields and
+    dialogs, which limits accidental activation by speech-input users, but 2.1.4 also expects a
+    way to disable or remap them.
 11. **Target size** (2.5.8). Task check circles and switches have a 44 px hit area, segmented
     tabs are 44 px tall on phones, and dialog fields are 44 px tall below `sm`. The small icon
     buttons (calendar day "add", note block handle, project tree expander, canvas card and

@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { Sun } from "lucide-react";
+
 import { PreferencesProvider } from "@/lib/preferences";
 
 const state = vi.hoisted(() => ({
@@ -10,7 +12,11 @@ const state = vi.hoisted(() => ({
   semanticEnabled: [] as boolean[],
 }));
 
+const setStatus = vi.fn();
 vi.mock("@/lib/data", () => ({
+  useTaskActions: () => ({ setStatus }),
+  useNoteActions: () => ({ create: vi.fn() }),
+  useTasks: () => ({ data: [{ id: "t9", title: "Selected task", status: "todo" }] }),
   useSemanticStatus: () => ({ data: state.status }),
   useSemanticSearch: (_term: string, enabled: boolean) => {
     state.semanticEnabled.push(enabled);
@@ -24,7 +30,10 @@ vi.mock("@/lib/data", () => ({
     };
   },
 }));
-vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
+const navigate = vi.fn();
+vi.mock("@tanstack/react-router", () => ({ useNavigate: () => navigate }));
+const selection = vi.hoisted(() => ({ current: null as { kind: string; id: string } | null }));
+vi.mock("@/hooks/use-keyboard-nav", () => ({ getActiveSelection: () => selection.current }));
 const openTask = vi.fn();
 vi.mock("@/components/tasks/TaskDialogProvider", () => ({
   useTaskDialog: () => ({ openTask, newTask: vi.fn() }),
@@ -40,10 +49,18 @@ globalThis.ResizeObserver ??= class {
 } as unknown as typeof ResizeObserver;
 Element.prototype.scrollIntoView ??= () => {};
 
+const onShortcuts = vi.fn();
 const renderMenu = () =>
   render(
     <PreferencesProvider>
-      <CommandMenu open onOpenChange={() => {}} />
+      <CommandMenu
+        open
+        onOpenChange={() => {}}
+        pages={[{ to: "/reports", key: "reports", icon: Sun }]}
+        onQuickCapture={() => {}}
+        onQuickTask={() => {}}
+        onShortcuts={onShortcuts}
+      />
     </PreferencesProvider>,
   );
 
@@ -52,6 +69,8 @@ afterEach(() => {
   state.semantic = { data: undefined, isError: false, isFetching: false };
   state.keywordEnabled = [];
   state.semanticEnabled = [];
+  selection.current = null;
+  vi.clearAllMocks();
   try {
     localStorage.clear();
   } catch {
@@ -106,5 +125,33 @@ describe("CommandMenu search modes", () => {
     renderMenu();
     expect(screen.getByRole("status")).toHaveTextContent(/gagal/);
     expect(screen.getByText("Keyword task")).toBeInTheDocument();
+  });
+});
+
+describe("CommandMenu commands", () => {
+  it("lists actions and pages, filtered by every typed word", () => {
+    renderMenu();
+    expect(screen.getByText("Catatan baru")).toBeInTheDocument();
+    expect(screen.getByText("Buka Laporan")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "buka lap" } });
+    expect(screen.getByText("Buka Laporan")).toBeInTheDocument();
+    expect(screen.queryByText("Catatan baru")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Buka Laporan"));
+    expect(navigate).toHaveBeenCalledWith({ to: "/reports" });
+  });
+
+  it("opens the shortcut sheet", () => {
+    renderMenu();
+    fireEvent.click(screen.getByText("Pintasan keyboard"));
+    expect(onShortcuts).toHaveBeenCalled();
+  });
+
+  it("offers actions for the task selected on the page", () => {
+    selection.current = { kind: "task", id: "t9" };
+    renderMenu();
+    fireEvent.click(screen.getByText("Tandai selesai: Selected task"));
+    expect(setStatus).toHaveBeenCalledWith(expect.objectContaining({ id: "t9" }), "done");
+    fireEvent.click(screen.getByText("Buka tugas terpilih: Selected task"));
+    expect(openTask).toHaveBeenCalledWith("t9");
   });
 });

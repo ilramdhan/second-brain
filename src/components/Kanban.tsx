@@ -20,6 +20,7 @@ import {
   droppableKeyboardCoordinates,
   screenReaderInstructions,
 } from "@/lib/dnd-a11y";
+import { NAV_ITEM_CLASS, navAttrs, type NavState } from "@/hooks/use-keyboard-nav";
 import { cn } from "@/lib/utils";
 
 type Column = { id: string; label: string };
@@ -33,6 +34,7 @@ export function Kanban<T extends { id: string }>({
   onAdd,
   onOpen,
   itemLabel,
+  nav,
 }: {
   columns: readonly Column[];
   items: T[];
@@ -44,6 +46,8 @@ export function Kanban<T extends { id: string }>({
   onOpen?: ((item: T) => void) | undefined;
   /** Accessible name of a card, used for its label and screen-reader announcements. */
   itemLabel: (item: T) => string;
+  /** Keyboard selection (j/k, h/l, Enter) from `useKeyboardNav`. */
+  nav?: NavState | undefined;
 }) {
   const columnIds = useMemo(() => columns.map((c) => c.id), [columns]);
   const sensors = useSensors(
@@ -100,6 +104,7 @@ export function Kanban<T extends { id: string }>({
                   key={i.id}
                   id={i.id}
                   label={itemLabel(i)}
+                  nav={nav}
                   onOpen={onOpen ? () => onOpen(i) : undefined}
                 >
                   {renderCard(i)}
@@ -159,11 +164,13 @@ function KanbanColumn({
 function DraggableCard({
   id,
   label,
+  nav,
   onOpen,
   children,
 }: {
   id: string;
   label: string;
+  nav?: NavState | undefined;
   onOpen?: (() => void) | undefined;
   children: React.ReactNode;
 }) {
@@ -176,6 +183,7 @@ function DraggableCard({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      {...(nav ? navAttrs(id, nav.selectedId === id, nav.tabStopId === id) : {})}
       aria-label={label}
       onKeyDown={(e) => {
         listeners?.["onKeyDown"]?.(e);
@@ -188,6 +196,7 @@ function DraggableCard({
       }}
       className={cn(
         "touch-manipulation rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        nav && NAV_ITEM_CLASS,
         isDragging && "opacity-30",
       )}
     >
