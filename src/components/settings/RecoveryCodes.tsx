@@ -37,6 +37,7 @@ export function RecoveryCodes({ autoGenerate = false }: { autoGenerate?: boolean
     if (started.current) return;
     started.current = true;
     if (autoGenerate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time server request on mount; the codes are set after it resolves.
       void generate();
       return;
     }

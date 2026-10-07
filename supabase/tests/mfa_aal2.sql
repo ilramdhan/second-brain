@@ -79,6 +79,20 @@ BEGIN
   END IF;
   RAISE NOTICE 'ok   every RLS table has a restrictive mfa_aal2 policy';
 
+  -- Recovery codes (migration 0027): service role only, signed-in users have no privileges.
+  IF to_regclass('public.mfa_recovery_codes') IS NOT NULL THEN
+    IF has_table_privilege('authenticated', 'public.mfa_recovery_codes', 'SELECT')
+       OR has_table_privilege('authenticated', 'public.mfa_recovery_codes', 'INSERT')
+       OR has_table_privilege('anon', 'public.mfa_recovery_codes', 'SELECT')
+       OR NOT has_table_privilege('service_role', 'public.mfa_recovery_codes', 'SELECT') THEN
+      RAISE EXCEPTION 'FAIL mfa_recovery_codes must be service-role only';
+    END IF;
+    IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.mfa_recovery_codes'::regclass) THEN
+      RAISE EXCEPTION 'FAIL mfa_recovery_codes has no RLS';
+    END IF;
+    RAISE NOTICE 'ok   mfa_recovery_codes is service-role only';
+  END IF;
+
   -- 2FA user at aal1: sees nothing, writes nothing.
   PERFORM pg_temp.login(mfa, 'aal1');
   SELECT count(*) INTO n FROM public.tasks;
