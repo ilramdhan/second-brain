@@ -22,6 +22,34 @@
 -- service role through `record_public_share_view()`. Hard-deleting a note or project deletes its
 -- shares. Idempotent.
 
+-- Applying to a live database: fail fast instead of queueing behind (and in front of) app
+-- queries; a lock_timeout error only means "retry" (the file is idempotent). Plain SET, not SET
+-- LOCAL: it lasts for the session, which also covers drizzle-kit running every pending file in
+-- one transaction.
+SET lock_timeout = '5s';
+
+-- Create or replace a trigger only when it is missing or its definition differs. `_def` is the
+-- CREATE TRIGGER statement exactly as pg_get_triggerdef() prints it with an empty search_path
+-- (schema-qualified names, events in the order INSERT, DELETE, UPDATE). An unchanged trigger is
+-- skipped and its table is not locked; otherwise CREATE OR REPLACE TRIGGER takes SHARE ROW
+-- EXCLUSIVE, which readers never wait for (DROP TRIGGER took ACCESS EXCLUSIVE). A definition that
+-- prints differently on another Postgres version only costs an unnecessary replace.
+CREATE OR REPLACE FUNCTION pg_temp.ensure_trigger(_table regclass, _name name, _def text)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $f$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_trigger t
+     WHERE t.tgrelid = _table AND t.tgname = _name AND pg_catalog.pg_get_triggerdef(t.oid) = _def
+  ) THEN
+    RETURN;
+  END IF;
+  EXECUTE pg_catalog.regexp_replace(_def, '^CREATE TRIGGER ', 'CREATE OR REPLACE TRIGGER ');
+END;
+$f$;
+
 -- 1. Table ------------------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.public_shares (
@@ -41,12 +69,22 @@ CREATE TABLE IF NOT EXISTS public.public_shares (
   allow_indexing boolean NOT NULL DEFAULT false
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS public_shares_token_hash_key ON public.public_shares (token_hash);
--- At most one active link per creator and resource; "regenerate" rotates the token of that row.
-CREATE UNIQUE INDEX IF NOT EXISTS public_shares_active_resource_key
-  ON public.public_shares (user_id, resource_type, resource_id) WHERE revoked_at IS NULL;
-CREATE INDEX IF NOT EXISTS public_shares_resource_idx
-  ON public.public_shares (resource_type, resource_id);
+-- CREATE INDEX IF NOT EXISTS locks the table (SHARE) before it checks, so only run it when needed.
+DO $$
+BEGIN
+  IF to_regclass('public.public_shares_token_hash_key') IS NULL THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS public_shares_token_hash_key ON public.public_shares (token_hash);
+  END IF;
+  -- At most one active link per creator and resource; "regenerate" rotates the token of that row.
+  IF to_regclass('public.public_shares_active_resource_key') IS NULL THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS public_shares_active_resource_key
+      ON public.public_shares (user_id, resource_type, resource_id) WHERE revoked_at IS NULL;
+  END IF;
+  IF to_regclass('public.public_shares_resource_idx') IS NULL THEN
+    CREATE INDEX IF NOT EXISTS public_shares_resource_idx
+      ON public.public_shares (resource_type, resource_id);
+  END IF;
+END $$;
 
 -- 2. Who may share a resource -----------------------------------------------------------------
 
@@ -109,32 +147,48 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS a_public_shares_guard ON public.public_shares;
-CREATE TRIGGER a_public_shares_guard BEFORE UPDATE ON public.public_shares
-  FOR EACH ROW EXECUTE FUNCTION public.guard_public_share_update();
+SELECT pg_temp.ensure_trigger('public.public_shares', 'a_public_shares_guard',
+  'CREATE TRIGGER a_public_shares_guard BEFORE UPDATE ON public.public_shares FOR EACH ROW EXECUTE FUNCTION public.guard_public_share_update()');
 
 -- 4. RLS ---------------------------------------------------------------------------------------
 
-ALTER TABLE public.public_shares ENABLE ROW LEVEL SECURITY;
+-- Policies have no CREATE OR REPLACE and DROP/CREATE POLICY lock the table ACCESS EXCLUSIVE, so
+-- each is created only when it is missing (this file is the only one that defines them).
+DO $$
+BEGIN
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.public_shares'::regclass) THEN
+    ALTER TABLE public.public_shares ENABLE ROW LEVEL SECURITY;
+  END IF;
 
-DROP POLICY IF EXISTS public_shares_select ON public.public_shares;
-DROP POLICY IF EXISTS public_shares_insert ON public.public_shares;
-DROP POLICY IF EXISTS public_shares_update ON public.public_shares;
-DROP POLICY IF EXISTS public_shares_delete ON public.public_shares;
-CREATE POLICY public_shares_select ON public.public_shares FOR SELECT TO authenticated
-  USING (user_id = (SELECT auth.uid()));
-CREATE POLICY public_shares_insert ON public.public_shares FOR INSERT TO authenticated
-  WITH CHECK (user_id = (SELECT auth.uid())
-    AND public.can_share_resource(resource_type, resource_id));
-CREATE POLICY public_shares_update ON public.public_shares FOR UPDATE TO authenticated
-  USING (user_id = (SELECT auth.uid())) WITH CHECK (user_id = (SELECT auth.uid()));
-CREATE POLICY public_shares_delete ON public.public_shares FOR DELETE TO authenticated
-  USING (user_id = (SELECT auth.uid()));
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'public_shares'
+                  AND policyname = 'public_shares_select') THEN
+    CREATE POLICY public_shares_select ON public.public_shares FOR SELECT TO authenticated
+      USING (user_id = (SELECT auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'public_shares'
+                  AND policyname = 'public_shares_insert') THEN
+    CREATE POLICY public_shares_insert ON public.public_shares FOR INSERT TO authenticated
+      WITH CHECK (user_id = (SELECT auth.uid())
+        AND public.can_share_resource(resource_type, resource_id));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'public_shares'
+                  AND policyname = 'public_shares_update') THEN
+    CREATE POLICY public_shares_update ON public.public_shares FOR UPDATE TO authenticated
+      USING (user_id = (SELECT auth.uid())) WITH CHECK (user_id = (SELECT auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'public_shares'
+                  AND policyname = 'public_shares_delete') THEN
+    CREATE POLICY public_shares_delete ON public.public_shares FOR DELETE TO authenticated
+      USING (user_id = (SELECT auth.uid()));
+  END IF;
 
--- Two-factor (migration 0022): an aal1 session of a user with a verified factor sees nothing.
-DROP POLICY IF EXISTS mfa_aal2 ON public.public_shares;
-CREATE POLICY mfa_aal2 ON public.public_shares AS RESTRICTIVE FOR ALL TO authenticated
-  USING ((SELECT public.mfa_satisfied())) WITH CHECK ((SELECT public.mfa_satisfied()));
+  -- Two-factor (migration 0022): an aal1 session of a user with a verified factor sees nothing.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'public_shares'
+                  AND policyname = 'mfa_aal2') THEN
+    CREATE POLICY mfa_aal2 ON public.public_shares AS RESTRICTIVE FOR ALL TO authenticated
+      USING ((SELECT public.mfa_satisfied())) WITH CHECK ((SELECT public.mfa_satisfied()));
+  END IF;
+END $$;
 
 -- Column grants: the counters and the identity columns are not writable by end users.
 REVOKE ALL ON public.public_shares FROM anon, authenticated;
@@ -180,29 +234,23 @@ $$;
 
 REVOKE ALL ON FUNCTION public.delete_public_shares_of_row() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS notes_delete_public_shares ON public.notes;
-CREATE TRIGGER notes_delete_public_shares AFTER DELETE ON public.notes
-  FOR EACH ROW EXECUTE FUNCTION public.delete_public_shares_of_row('note');
-DROP TRIGGER IF EXISTS projects_delete_public_shares ON public.projects;
-CREATE TRIGGER projects_delete_public_shares AFTER DELETE ON public.projects
-  FOR EACH ROW EXECUTE FUNCTION public.delete_public_shares_of_row('project');
+-- notes before projects: the same (alphabetical) lock order as 0019.
+SELECT pg_temp.ensure_trigger('public.notes', 'notes_delete_public_shares',
+  'CREATE TRIGGER notes_delete_public_shares AFTER DELETE ON public.notes FOR EACH ROW EXECUTE FUNCTION public.delete_public_shares_of_row(''note'')');
+SELECT pg_temp.ensure_trigger('public.projects', 'projects_delete_public_shares',
+  'CREATE TRIGGER projects_delete_public_shares AFTER DELETE ON public.projects FOR EACH ROW EXECUTE FUNCTION public.delete_public_shares_of_row(''project'')');
 
 -- 7. Activity log -------------------------------------------------------------------------------
 -- Created, revoked, rotated, expiry/indexing changed and deleted. View counter updates are not
 -- logged (UPDATE OF lists only the columns an owner changes).
 
-DROP TRIGGER IF EXISTS audit_public_shares_changes ON public.public_shares;
-CREATE TRIGGER audit_public_shares_changes
-  AFTER INSERT OR DELETE OR UPDATE OF token_hash, expires_at, revoked_at, allow_indexing
-  ON public.public_shares
-  FOR EACH ROW EXECUTE FUNCTION public.audit_row_change();
+SELECT pg_temp.ensure_trigger('public.public_shares', 'audit_public_shares_changes',
+  'CREATE TRIGGER audit_public_shares_changes AFTER INSERT OR DELETE OR UPDATE OF token_hash, expires_at, revoked_at, allow_indexing ON public.public_shares FOR EACH ROW EXECUTE FUNCTION public.audit_row_change()');
 
 -- 8. Demo limits (migration 0019) ----------------------------------------------------------------
 -- Sharing is harmless in the demo, but rows are capped (`demo_limit:public_shares` overrides 10).
 
-DROP TRIGGER IF EXISTS zz_demo_guard ON public.public_shares;
-CREATE TRIGGER zz_demo_guard BEFORE INSERT OR UPDATE ON public.public_shares
-  FOR EACH ROW EXECUTE FUNCTION public.demo_guard('10', 'user_id', 'tautan publik');
-DROP TRIGGER IF EXISTS zz_demo_write ON public.public_shares;
-CREATE TRIGGER zz_demo_write BEFORE INSERT OR UPDATE OR DELETE ON public.public_shares
-  FOR EACH STATEMENT EXECUTE FUNCTION public.demo_write_quota();
+SELECT pg_temp.ensure_trigger('public.public_shares', 'zz_demo_guard',
+  'CREATE TRIGGER zz_demo_guard BEFORE INSERT OR UPDATE ON public.public_shares FOR EACH ROW EXECUTE FUNCTION public.demo_guard(''10'', ''user_id'', ''tautan publik'')');
+SELECT pg_temp.ensure_trigger('public.public_shares', 'zz_demo_write',
+  'CREATE TRIGGER zz_demo_write BEFORE INSERT OR DELETE OR UPDATE ON public.public_shares FOR EACH STATEMENT EXECUTE FUNCTION public.demo_write_quota()');

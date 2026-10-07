@@ -24,18 +24,65 @@
 --
 -- Idempotent: safe to run more than once.
 
-ALTER TABLE public.app_user_connections
-  ADD COLUMN IF NOT EXISTS sync_token text,
-  ADD COLUMN IF NOT EXISTS last_pulled_at timestamptz,
-  ADD COLUMN IF NOT EXISTS import_events boolean NOT NULL DEFAULT false;
+-- Applying to a live database: fail fast instead of queueing behind (and in front of) app
+-- queries; a lock_timeout error only means "retry" (the file is idempotent). Plain SET, not SET
+-- LOCAL: it lasts for the session, which also covers drizzle-kit running every pending file in
+-- one transaction.
+SET lock_timeout = '5s';
 
-ALTER TABLE public.tasks
-  ADD COLUMN IF NOT EXISTS google_etag text,
-  ADD COLUMN IF NOT EXISTS google_synced_at timestamptz;
+-- Create or replace a trigger only when it is missing or its definition differs. `_def` is the
+-- CREATE TRIGGER statement exactly as pg_get_triggerdef() prints it with an empty search_path
+-- (schema-qualified names, events in the order INSERT, DELETE, UPDATE). An unchanged trigger is
+-- skipped and its table is not locked; otherwise CREATE OR REPLACE TRIGGER takes SHARE ROW
+-- EXCLUSIVE, which readers never wait for (DROP TRIGGER took ACCESS EXCLUSIVE). A definition that
+-- prints differently on another Postgres version only costs an unnecessary replace.
+CREATE OR REPLACE FUNCTION pg_temp.ensure_trigger(_table regclass, _name name, _def text)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $f$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_trigger t
+     WHERE t.tgrelid = _table AND t.tgname = _name AND pg_catalog.pg_get_triggerdef(t.oid) = _def
+  ) THEN
+    RETURN;
+  END IF;
+  EXECUTE pg_catalog.regexp_replace(_def, '^CREATE TRIGGER ', 'CREATE OR REPLACE TRIGGER ');
+END;
+$f$;
 
--- The pull looks tasks up by event id (only linked tasks, so a small partial index).
-CREATE INDEX IF NOT EXISTS tasks_google_event_idx ON public.tasks (google_event_id)
-  WHERE google_event_id IS NOT NULL;
+-- ALTER TABLE takes ACCESS EXCLUSIVE even when IF NOT EXISTS makes it a no-op, and CREATE INDEX
+-- IF NOT EXISTS takes SHARE on the table before it checks, so each runs only when needed.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.app_user_connections'::regclass
+                  AND attname = 'import_events' AND NOT attisdropped)
+     OR NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.app_user_connections'::regclass
+                     AND attname = 'sync_token' AND NOT attisdropped)
+     OR NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.app_user_connections'::regclass
+                     AND attname = 'last_pulled_at' AND NOT attisdropped) THEN
+    ALTER TABLE public.app_user_connections
+      ADD COLUMN IF NOT EXISTS sync_token text,
+      ADD COLUMN IF NOT EXISTS last_pulled_at timestamptz,
+      ADD COLUMN IF NOT EXISTS import_events boolean NOT NULL DEFAULT false;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.tasks'::regclass
+                  AND attname = 'google_etag' AND NOT attisdropped)
+     OR NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.tasks'::regclass
+                     AND attname = 'google_synced_at' AND NOT attisdropped) THEN
+    ALTER TABLE public.tasks
+      ADD COLUMN IF NOT EXISTS google_etag text,
+      ADD COLUMN IF NOT EXISTS google_synced_at timestamptz;
+  END IF;
+
+  -- The pull looks tasks up by event id (only linked tasks, so a small partial index).
+  IF to_regclass('public.tasks_google_event_idx') IS NULL THEN
+    CREATE INDEX IF NOT EXISTS tasks_google_event_idx ON public.tasks (google_event_id)
+      WHERE google_event_id IS NOT NULL;
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.audit_row_change() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public

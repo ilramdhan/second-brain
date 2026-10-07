@@ -24,6 +24,34 @@
 -- Errors are raised with ERRCODE P0001 and a message that starts with "Batas demo: ", which the
 -- client shows as-is (src/lib/errors.ts).
 
+-- Applying to a live database: fail fast instead of queueing behind (and in front of) app
+-- queries; a lock_timeout error only means "retry" (the file is idempotent). Plain SET, not SET
+-- LOCAL: it lasts for the session, which also covers drizzle-kit running every pending file in
+-- one transaction.
+SET lock_timeout = '5s';
+
+-- Create or replace a trigger only when it is missing or its definition differs. `_def` is the
+-- CREATE TRIGGER statement exactly as pg_get_triggerdef() prints it with an empty search_path
+-- (schema-qualified names, events in the order INSERT, DELETE, UPDATE). An unchanged trigger is
+-- skipped and its table is not locked; otherwise CREATE OR REPLACE TRIGGER takes SHARE ROW
+-- EXCLUSIVE, which readers never wait for (DROP TRIGGER took ACCESS EXCLUSIVE). A definition that
+-- prints differently on another Postgres version only costs an unnecessary replace.
+CREATE OR REPLACE FUNCTION pg_temp.ensure_trigger(_table regclass, _name name, _def text)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $f$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_trigger t
+     WHERE t.tgrelid = _table AND t.tgname = _name AND pg_catalog.pg_get_triggerdef(t.oid) = _def
+  ) THEN
+    RETURN;
+  END IF;
+  EXECUTE pg_catalog.regexp_replace(_def, '^CREATE TRIGGER ', 'CREATE OR REPLACE TRIGGER ');
+END;
+$f$;
+
 -- 1. Settings ---------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.demo_setting(_key text, _default text DEFAULT NULL)
@@ -219,6 +247,9 @@ $$;
 -- Not limited: note_versions, activity_logs, automation_runs (written by triggers/the server as a
 -- side effect of the writes above), rate_limits, n8n_events and other service-role tables.
 
+-- Tables are visited in a fixed order (by name) and only touched when a trigger is missing or
+-- differs, so a rerun locks nothing (the old DROP + CREATE loop took ACCESS EXCLUSIVE on 15 tables
+-- in one transaction and deadlocked with app queries whose RLS helpers read several of them).
 DO $$
 DECLARE
   _t record;
@@ -241,20 +272,25 @@ BEGIN
       ('project_members', 10, 'project_owner', 'anggota proyek'),
       ('project_invites', 0, 'invited_by', 'undangan proyek')
     ) AS v(tbl, lim, owner_col, label)
+    ORDER BY tbl
   LOOP
-    IF to_regclass('public.' || _t.tbl) IS NULL THEN
+    IF to_regclass('public.' || quote_ident(_t.tbl)) IS NULL THEN
       RAISE NOTICE 'demo limits: table public.% not found, skipped', _t.tbl;
       CONTINUE;
     END IF;
-    EXECUTE format('DROP TRIGGER IF EXISTS zz_demo_guard ON public.%I', _t.tbl);
-    EXECUTE format(
-      'CREATE TRIGGER zz_demo_guard BEFORE INSERT OR UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.demo_guard(%L, %L, %L)',
-      _t.tbl, _t.lim::text, _t.owner_col, _t.label
+    PERFORM pg_temp.ensure_trigger(
+      to_regclass('public.' || quote_ident(_t.tbl)), 'zz_demo_guard',
+      format(
+        'CREATE TRIGGER zz_demo_guard BEFORE INSERT OR UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.demo_guard(%L, %L, %L)',
+        _t.tbl, _t.lim::text, _t.owner_col, _t.label
+      )
     );
-    EXECUTE format('DROP TRIGGER IF EXISTS zz_demo_write ON public.%I', _t.tbl);
-    EXECUTE format(
-      'CREATE TRIGGER zz_demo_write BEFORE INSERT OR UPDATE OR DELETE ON public.%I FOR EACH STATEMENT EXECUTE FUNCTION public.demo_write_quota()',
-      _t.tbl
+    PERFORM pg_temp.ensure_trigger(
+      to_regclass('public.' || quote_ident(_t.tbl)), 'zz_demo_write',
+      format(
+        'CREATE TRIGGER zz_demo_write BEFORE INSERT OR DELETE OR UPDATE ON public.%I FOR EACH STATEMENT EXECUTE FUNCTION public.demo_write_quota()',
+        _t.tbl
+      )
     );
   END LOOP;
 END;
@@ -298,9 +334,8 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS zz_demo_protect_user ON auth.users;
-CREATE TRIGGER zz_demo_protect_user BEFORE UPDATE OR DELETE ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.demo_protect_user();
+SELECT pg_temp.ensure_trigger('auth.users', 'zz_demo_protect_user',
+  'CREATE TRIGGER zz_demo_protect_user BEFORE DELETE OR UPDATE ON auth.users FOR EACH ROW EXECUTE FUNCTION public.demo_protect_user()');
 
 -- 6. Privileges --------------------------------------------------------------------------------
 -- Only the triggers call these (trigger functions are not checked for EXECUTE when they fire).

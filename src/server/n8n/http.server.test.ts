@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { handleN8n, N8nHttpError, readJson, readQuery, zodMessage } from "./http.server";
+import {
+  handleN8n,
+  isSchemaOutdatedError,
+  N8nHttpError,
+  readJson,
+  readQuery,
+  SCHEMA_OUTDATED_BODY,
+  zodMessage,
+} from "./http.server";
 import { captureSchema, digestQuerySchema, maintenanceSchema } from "./schemas.server";
 
 const KEY = "test-n8n-key";
@@ -87,6 +95,39 @@ describe("n8n error mapping (zod 4)", () => {
         throw new Error("db password leaked");
       }),
     ).toEqual({ status: 500, body: { error: "internal error" } });
+    spy.mockRestore();
+  });
+
+  it("maps a missing column/table (migrations not applied) to 503 schema_outdated", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errors: unknown[] = [
+      // Rethrown PostgREST message (what runDueAutomations does before 0023 is applied).
+      new Error("due rules failed: column automations.next_run_at does not exist"),
+      new Error(
+        "claim failed: Could not find the 'next_run_at' column of 'automations' in the schema cache",
+      ),
+      new Error("Could not find the table 'public.public_shares' in the schema cache"),
+      Object.assign(new Error("x"), { code: "42P01" }),
+      Object.assign(new Error("x"), { code: "PGRST204" }),
+      new Error("wrapped", { cause: { code: "42703", message: "column x does not exist" } }),
+    ];
+    for (const error of errors) {
+      expect(isSchemaOutdatedError(error)).toBe(true);
+      expect(
+        await call(post("{}"), async () => {
+          throw error;
+        }),
+      ).toEqual({ status: 503, body: SCHEMA_OUTDATED_BODY });
+    }
+    expect(SCHEMA_OUTDATED_BODY).toEqual({
+      error: "schema_outdated",
+      hint: "Apply database migrations (drizzle/migrations) up to the latest version.",
+    });
+    for (const other of [new Error("connection refused"), { code: "23505" }, "boom", null]) {
+      expect(isSchemaOutdatedError(other)).toBe(false);
+    }
+    // Still reported: the error is logged before it is mapped.
+    expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
 

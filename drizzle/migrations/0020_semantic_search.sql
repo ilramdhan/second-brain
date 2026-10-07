@@ -28,10 +28,49 @@
 --
 -- Idempotent: safe to run more than once.
 
+-- Applying to a live database: fail fast instead of queueing behind (and in front of) app
+-- queries; a lock_timeout error only means "retry" (the file is idempotent). Plain SET, not SET
+-- LOCAL: it lasts for the session, which also covers drizzle-kit running every pending file in
+-- one transaction.
+SET lock_timeout = '5s';
+
+-- Create or replace a trigger only when it is missing or its definition differs. `_def` is the
+-- CREATE TRIGGER statement exactly as pg_get_triggerdef() prints it with an empty search_path
+-- (schema-qualified names, events in the order INSERT, DELETE, UPDATE). An unchanged trigger is
+-- skipped and its table is not locked; otherwise CREATE OR REPLACE TRIGGER takes SHARE ROW
+-- EXCLUSIVE, which readers never wait for (DROP TRIGGER took ACCESS EXCLUSIVE). A definition that
+-- prints differently on another Postgres version only costs an unnecessary replace.
+CREATE OR REPLACE FUNCTION pg_temp.ensure_trigger(_table regclass, _name name, _def text)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $f$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_trigger t
+     WHERE t.tgrelid = _table AND t.tgname = _name AND pg_catalog.pg_get_triggerdef(t.oid) = _def
+  ) THEN
+    RETURN;
+  END IF;
+  EXECUTE pg_catalog.regexp_replace(_def, '^CREATE TRIGGER ', 'CREATE OR REPLACE TRIGGER ');
+END;
+$f$;
+
 -- 1. Table shape --------------------------------------------------------------------------------
 
-ALTER TABLE public.semantic_documents ADD COLUMN IF NOT EXISTS model text;
-ALTER TABLE public.semantic_documents ADD COLUMN IF NOT EXISTS content_hash text;
+-- Every ALTER TABLE below takes ACCESS EXCLUSIVE even when IF [NOT] EXISTS makes it a no-op, so
+-- each one only runs when there is something to change.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.semantic_documents'::regclass
+                  AND attname = 'model' AND NOT attisdropped) THEN
+    ALTER TABLE public.semantic_documents ADD COLUMN IF NOT EXISTS model text;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.semantic_documents'::regclass
+                  AND attname = 'content_hash' AND NOT attisdropped) THEN
+    ALTER TABLE public.semantic_documents ADD COLUMN IF NOT EXISTS content_hash text;
+  END IF;
+END $$;
 
 -- Nothing wrote this table before; drop anything that cannot be a valid entity document.
 DELETE FROM public.semantic_documents WHERE entity_type NOT IN ('task', 'note');
@@ -41,12 +80,22 @@ WHERE d.entity_type = newer.entity_type
   AND d.entity_id = newer.entity_id
   AND (d.updated_at, d.id) < (newer.updated_at, newer.id);
 
-ALTER TABLE public.semantic_documents
-  DROP CONSTRAINT IF EXISTS semantic_documents_user_id_entity_type_entity_id_key;
-CREATE UNIQUE INDEX IF NOT EXISTS semantic_documents_entity_key
-  ON public.semantic_documents (entity_type, entity_id);
--- The dropped unique constraint was also the index behind the user_id foreign key (0016).
-CREATE INDEX IF NOT EXISTS semantic_documents_user_idx ON public.semantic_documents (user_id);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.semantic_documents'::regclass
+              AND conname = 'semantic_documents_user_id_entity_type_entity_id_key') THEN
+    ALTER TABLE public.semantic_documents
+      DROP CONSTRAINT IF EXISTS semantic_documents_user_id_entity_type_entity_id_key;
+  END IF;
+  IF to_regclass('public.semantic_documents_entity_key') IS NULL THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS semantic_documents_entity_key
+      ON public.semantic_documents (entity_type, entity_id);
+  END IF;
+  -- The dropped unique constraint was also the index behind the user_id foreign key (0016).
+  IF to_regclass('public.semantic_documents_user_idx') IS NULL THEN
+    CREATE INDEX IF NOT EXISTS semantic_documents_user_idx ON public.semantic_documents (user_id);
+  END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -62,14 +111,24 @@ END $$;
 
 -- 2. Access: read-only for members, writes through semantic_upsert ------------------------------
 
-DROP POLICY IF EXISTS semantic_documents_owner ON public.semantic_documents;
-DROP POLICY IF EXISTS semantic_documents_select ON public.semantic_documents;
-CREATE POLICY semantic_documents_select ON public.semantic_documents FOR SELECT TO authenticated
-  USING (
-    user_id = (SELECT auth.uid())
-    OR (entity_type = 'task' AND public.can_access_task(entity_id, (SELECT auth.uid())))
-    OR (entity_type = 'note' AND public.can_access_note(entity_id))
-  );
+-- Policies have no CREATE OR REPLACE and DROP/CREATE POLICY lock the table ACCESS EXCLUSIVE, so
+-- they only run when needed (semantic_documents_select is created by this file only).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public'
+              AND tablename = 'semantic_documents' AND policyname = 'semantic_documents_owner') THEN
+    DROP POLICY IF EXISTS semantic_documents_owner ON public.semantic_documents;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public'
+                  AND tablename = 'semantic_documents' AND policyname = 'semantic_documents_select') THEN
+    CREATE POLICY semantic_documents_select ON public.semantic_documents FOR SELECT TO authenticated
+      USING (
+        user_id = (SELECT auth.uid())
+        OR (entity_type = 'task' AND public.can_access_task(entity_id, (SELECT auth.uid())))
+        OR (entity_type = 'note' AND public.can_access_note(entity_id))
+      );
+  END IF;
+END $$;
 REVOKE INSERT, UPDATE, DELETE ON public.semantic_documents FROM authenticated;
 GRANT SELECT ON public.semantic_documents TO authenticated;
 GRANT ALL ON public.semantic_documents TO service_role;
@@ -285,12 +344,11 @@ BEGIN
   RETURN OLD;
 END $$;
 
-DROP TRIGGER IF EXISTS semantic_documents_cleanup ON public.tasks;
-CREATE TRIGGER semantic_documents_cleanup AFTER DELETE ON public.tasks
-  FOR EACH ROW EXECUTE FUNCTION public.semantic_documents_cleanup('task');
-DROP TRIGGER IF EXISTS semantic_documents_cleanup ON public.notes;
-CREATE TRIGGER semantic_documents_cleanup AFTER DELETE ON public.notes
-  FOR EACH ROW EXECUTE FUNCTION public.semantic_documents_cleanup('note');
+-- notes before tasks: the same (alphabetical) lock order as 0019.
+SELECT pg_temp.ensure_trigger('public.notes', 'semantic_documents_cleanup',
+  'CREATE TRIGGER semantic_documents_cleanup AFTER DELETE ON public.notes FOR EACH ROW EXECUTE FUNCTION public.semantic_documents_cleanup(''note'')');
+SELECT pg_temp.ensure_trigger('public.tasks', 'semantic_documents_cleanup',
+  'CREATE TRIGGER semantic_documents_cleanup AFTER DELETE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.semantic_documents_cleanup(''task'')');
 
 -- 8. Grants ---------------------------------------------------------------------------------------
 
