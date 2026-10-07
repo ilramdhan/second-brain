@@ -29,7 +29,7 @@ describe("tokenCrypto", () => {
   it("rejects a wrong key or tampered ciphertext", async () => {
     const value = await encryptToken("hello", key);
     await expect(decryptToken(value, otherKey)).rejects.toThrow(/tidak valid/);
-    const tampered = (value.at(-2) === "A" ? "B" : "A") + value.slice(1);
+    const tampered = (value[0] === "A" ? "B" : "A") + value.slice(1);
     await expect(decryptToken(tampered, key)).rejects.toThrow();
   });
 
