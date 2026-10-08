@@ -22,7 +22,7 @@ import { BlockEditor, InlineText } from "@/components/notes/BlockEditor";
 import { NoteLinksContext, useNoteLinksValue } from "@/components/notes/note-links";
 import { TagInput } from "@/components/common/TagInput";
 import { ShareButton } from "@/components/share/ShareDialog";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -94,7 +94,7 @@ function NotePage() {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
         <p className="text-sm text-muted-foreground">{t("noteNotFound")}</p>
-        <Button asChild variant="outline" size="sm" className="mt-4">
+        <Button asChild variant="secondary" size="sm" className="mt-4">
           <Link to="/notes">{t("noteBackToList")}</Link>
         </Button>
       </div>
@@ -274,7 +274,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
     <PageContainer className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_17rem]">
       <article className="min-w-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-          <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Button asChild variant="tertiary" size="sm" className="-ml-2">
             <Link to="/notes">
               <ArrowLeft /> {t("notes")}
             </Link>
@@ -294,7 +294,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
               </span>
             )}
             <Button
-              variant="ghost"
+              variant="tertiary"
               size="icon"
               onClick={() => setHistoryOpen(true)}
               aria-label={t("noteVersionHistory")}
@@ -302,7 +302,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
               <History />
             </Button>
             <Button
-              variant="ghost"
+              variant="tertiary"
               size="icon"
               onClick={() => actions.update(note.id, { pinned: !note.pinned })}
               aria-label={t("notePin")}
@@ -310,12 +310,12 @@ function NoteEditor({ note }: { note: NoteDetail }) {
               <Pin className={cn(note.pinned && "fill-current text-primary")} />
             </Button>
             <ShareButton resourceType="note" resourceId={note.id} />
-            <Button variant="ghost" size="sm" onClick={summarize} disabled={busy}>
+            <Button variant="tertiary" size="sm" onClick={summarize} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
               <span className="hidden sm:inline">{t("noteMakeMinutes")}</span>
             </Button>
             <Button
-              variant="ghost"
+              variant="tertiary"
               size="icon"
               onClick={async () => {
                 if (timer.current) clearTimeout(timer.current);
@@ -328,7 +328,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
               <Archive />
             </Button>
             <Button
-              variant="ghost"
+              variant="tertiary"
               size="icon"
               onClick={remove}
               aria-label={t("noteDelete")}
@@ -512,7 +512,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             </ul>
           </div>
         )}
-        <Button asChild variant="outline" size="sm" className="w-full">
+        <Button asChild variant="secondary" size="sm" className="w-full">
           <Link to="/graph" search={{ focus: note.id }}>
             <Network /> {t("noteShowInGraph")}
           </Link>
@@ -602,7 +602,7 @@ function VersionHistory({
               </p>
               <Button
                 className="mt-3"
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   onRestore({
@@ -649,22 +649,26 @@ function Properties({
             placeholder={t("noteValuePlaceholder")}
             className="h-8 border-transparent bg-transparent px-2 text-sm hover:border-input focus:border-input"
           />
-          <button
+          <IconButton
+            label={t("noteRemoveProperty")}
+            variant="danger-ghost"
+            size="icon-sm"
+            className="shrink-0 opacity-60 hover:opacity-100"
             onClick={() => onChange(props.filter((_, j) => j !== i))}
-            className="rounded p-1 text-muted-foreground opacity-60 hover:opacity-100"
-            aria-label={t("noteRemoveProperty")}
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
+            <X />
+          </IconButton>
         </div>
       ))}
-      <button
+      <Button
+        variant="tertiary"
+        size="sm"
+        className="self-start px-2 font-normal text-muted-foreground"
         onClick={() => onChange([...props, ["", ""]])}
-        className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
       >
-        <Plus className="h-3 w-3" /> {t("noteAddProperty")}{" "}
+        <Plus /> {t("noteAddProperty")}{" "}
         <span className="text-muted-foreground/70">{t("notePropertyExample")}</span>
-      </button>
+      </Button>
     </div>
   );
 }

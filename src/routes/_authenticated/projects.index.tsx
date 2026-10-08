@@ -14,7 +14,7 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { Kanban } from "@/components/Kanban";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton, ResponsiveButton, pressableFocus } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, PARA, PROJECT_STATUS } from "@/lib/constants";
 import { useProjectActions, useProjects, useTasks, type Project, type Task } from "@/lib/data";
@@ -66,8 +66,7 @@ function ProjectsPage() {
         title={t("projects")}
         subtitle={t("wsProjectsSubtitle")}
         actions={
-          <Button
-            size="sm"
+          <ResponsiveButton
             onClick={() =>
               setDialog({
                 open: true,
@@ -75,20 +74,24 @@ function ProjectsPage() {
                 defaults: { para_type: para === "all" ? "project" : para },
               })
             }
-          >
-            <Plus /> {t("projects")}
-          </Button>
+            icon={<Plus />}
+            label={t("projects")}
+          />
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="scrollbar-subtle -mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
           {[{ id: "all", label: t("wsAll") }, ...translatedOptions(t, "para", PARA)].map((p) => (
+            // eslint-disable-next-line no-restricted-syntax -- exception: segmented filter chip (aria-pressed toggle)
             <button
+              type="button"
               key={p.id}
               onClick={() => setPara(p.id)}
+              aria-pressed={para === p.id}
               className={cn(
-                "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                "tap-area relative shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                pressableFocus,
                 para === p.id
                   ? "border-primary bg-primary text-primary-foreground"
                   : "bg-card text-muted-foreground hover:bg-accent",
@@ -219,14 +222,15 @@ function ProjectCard({
           <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", color(p.color).dot)} />
           <h3 className="truncate text-sm font-semibold">{p.name}</h3>
         </div>
-        <button
+        <IconButton
+          label={t("wsEditProject")}
+          size="icon-sm"
+          className="z-10 shrink-0 text-muted-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
           onClick={onEdit}
           onPointerDown={(e) => e.stopPropagation()}
-          className="relative z-10 -m-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-100 hover:bg-accent md:m-0 md:h-7 md:w-7 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
-          aria-label={t("wsEditProject")}
         >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
+          <Pencil />
+        </IconButton>
       </div>
       {p.description && !compact && (
         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>
@@ -316,16 +320,14 @@ function TreeNode({
         className="group flex items-center gap-1 rounded-lg py-1.5 pr-2 hover:bg-accent/60"
         style={{ paddingLeft: depth * 20 + 4 }}
       >
-        <button
+        <IconButton
+          label={t("wsToggleOpen")}
+          size="icon-sm"
+          className={cn("text-muted-foreground", !kids.length && "invisible")}
           onClick={() => setOpen(!open)}
-          className={cn(
-            "tap-target rounded p-0.5 text-muted-foreground",
-            !kids.length && "invisible",
-          )}
-          aria-label={t("wsToggleOpen")}
         >
           <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
-        </button>
+        </IconButton>
         <span className={cn("h-2 w-2 shrink-0 rounded-full", color(p.color).dot)} />
         <Link
           to="/projects/$projectId"
@@ -337,13 +339,14 @@ function TreeNode({
         <span className="text-xs text-muted-foreground">
           {pr.done}/{pr.total}
         </span>
-        <button
+        <IconButton
+          label={t("wsAddSubproject")}
+          size="icon-sm"
+          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
           onClick={() => onAddChild(p)}
-          className="rounded p-1 text-muted-foreground opacity-0 hover:bg-background group-hover:opacity-100"
-          aria-label={t("wsAddSubproject")}
         >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
+          <Plus />
+        </IconButton>
       </div>
       {open && kids.length > 0 && (
         <Tree

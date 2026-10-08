@@ -175,7 +175,7 @@ function LoginPage() {
           (outside the card), 44px tap target. */}
       <Button
         asChild
-        variant="ghost"
+        variant="tertiary"
         size="sm"
         className="absolute top-4 left-4 h-11 px-3 text-muted-foreground hover:text-foreground sm:top-6 sm:left-6"
       >
@@ -210,22 +210,23 @@ function LoginPage() {
               </span>
             </p>
             <div className="flex flex-wrap gap-2">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 type="button"
                 onClick={fillDemo}
                 disabled={loading}
-                className="rounded-lg border border-current/30 bg-background/60 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
               >
                 {t("demoAutofill")}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
                 type="button"
                 onClick={() => void signInAsDemo()}
                 disabled={loading}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
               >
                 {t("demoSignIn")}
-              </button>
+              </Button>
             </div>
           </section>
         ) : null}
@@ -242,13 +243,14 @@ function LoginPage() {
             </h2>
             <p className="text-sm text-muted-foreground">{t("authMagicIntro")}</p>
             <MagicLinkForm initialEmail={email} redirect={redirect} />
-            <button
+            <Button
+              variant="tertiary"
+              className="w-full font-normal text-muted-foreground"
               type="button"
               onClick={() => setMode("login")}
-              className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               {t("authUsePassword")}
-            </button>
+            </Button>
           </section>
         ) : /* Password reset: emails a link to /auth/set-password. Off in the demo (shared account). */
         mode === "forgot" && !demo ? (
@@ -261,13 +263,14 @@ function LoginPage() {
             </h2>
             <p className="text-sm text-muted-foreground">{t("authForgotIntro")}</p>
             <ForgotPasswordForm initialEmail={email} />
-            <button
+            <Button
+              variant="tertiary"
+              className="w-full font-normal text-muted-foreground"
               type="button"
               onClick={() => setMode("login")}
-              className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               {t("authForgotBack")}
-            </button>
+            </Button>
           </section>
         ) : (
           <form
@@ -294,13 +297,15 @@ function LoginPage() {
                   {t("authPasswordLabel")}
                 </label>
                 {mode === "login" && !demo ? (
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="px-0 font-normal text-muted-foreground hover:text-foreground"
                     type="button"
                     onClick={() => setMode("forgot")}
-                    className="rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     {t("authForgotLink")}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
               <input
@@ -314,13 +319,9 @@ function LoginPage() {
                 placeholder={t("authPasswordPlaceholder")}
               />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
+            <Button className="w-full" type="submit" disabled={loading}>
               {loading ? t("authProcessing") : mode === "login" ? t("authSignIn") : t("authSignUp")}
-            </button>
+            </Button>
             {mode === "login" && (google || magic) ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-hidden>
@@ -329,37 +330,40 @@ function LoginPage() {
                   <span className="h-px flex-1 bg-border" />
                 </div>
                 {google ? (
-                  <button
+                  <Button
+                    variant="secondary"
+                    className="w-full"
                     type="button"
                     onClick={() => void signInWithGoogle()}
                     disabled={loading}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
                   >
                     <GoogleIcon />
                     {t("authGoogle")}
-                  </button>
+                  </Button>
                 ) : null}
                 {magic ? (
-                  <button
+                  <Button
+                    variant="secondary"
+                    className="w-full"
                     type="button"
                     onClick={() => setMode("magic")}
                     disabled={loading}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
                   >
-                    <Mail className="h-4 w-4" aria-hidden />
+                    <Mail aria-hidden />
                     {t("authMagicLink")}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             ) : null}
             {allowSignup ? (
-              <button
+              <Button
+                variant="tertiary"
+                className="w-full font-normal text-muted-foreground"
                 type="button"
                 onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 {mode === "login" ? t("authToSignUp") : t("authToSignIn")}
-              </button>
+              </Button>
             ) : demo ? null : (
               <p className="text-center text-xs text-muted-foreground">{t("authSignupClosed")}</p>
             )}

@@ -201,7 +201,7 @@ function SettingsPage() {
               <p className="text-xs text-muted-foreground">@{telegramUsername ?? telegramChatId}</p>
             </div>
             <Button
-              variant="ghost"
+              variant="tertiary"
               onClick={unlinkTelegram}
               className="text-destructive hover:text-destructive"
             >
@@ -315,7 +315,7 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
             >
               {command}
             </code>
-            <Button variant="ghost" size="sm" onClick={() => copy(command)}>
+            <Button variant="tertiary" size="sm" onClick={() => copy(command)}>
               <Copy className="h-3.5 w-3.5" /> {t("admCopy")}
             </Button>
           </div>
@@ -323,7 +323,7 @@ function TelegramLinkPanel({ onLinked }: { onLinked: () => Promise<void> | void 
             {t("admTgExpiresIn", { time: `${minutes}:${String(seconds).padStart(2, "0")}` })}
           </p>
           {link.deepLink ? (
-            <Button asChild variant="outline" size="sm" className="mt-3">
+            <Button asChild variant="secondary" size="sm" className="mt-3">
               <a href={link.deepLink} target="_blank" rel="noopener noreferrer">
                 <Send className="h-3.5 w-3.5" /> {t("admTgOpenBot")}
               </a>
@@ -445,7 +445,7 @@ function GoogleCalendarPanel() {
       <div className="mt-4 flex flex-wrap gap-2">
         <DemoDisabled>
           <Button
-            variant={data?.connected ? "outline" : "default"}
+            variant={data?.connected ? "secondary" : "primary"}
             onClick={data?.connected ? disconnect : connect}
             disabled={busy || isLoading || (!data?.connected && data?.configured === false)}
           >
@@ -460,7 +460,7 @@ function GoogleCalendarPanel() {
           </Button>
         </DemoDisabled>
         {data?.connected ? (
-          <Button variant="outline" onClick={syncNow} disabled={busy}>
+          <Button variant="secondary" onClick={syncNow} disabled={busy}>
             <RefreshCw className={busy ? "animate-spin" : undefined} /> {t("admSyncNow")}
           </Button>
         ) : null}
@@ -651,18 +651,18 @@ function BackupPanel() {
       <h2 className="mb-1 font-semibold">{t("backup")}</h2>
       <p className="mb-4 text-sm text-muted-foreground">{t("admBackupBody")}</p>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={download}>
+        <Button variant="secondary" onClick={download}>
           <Download /> {t("admBackupDownload")}
         </Button>
         {isDemo() ? (
           // Restoring writes many rows outside the demo seed and its limits.
           <DemoDisabled>
-            <Button variant="outline">
+            <Button variant="secondary">
               <Upload /> {t("admBackupRestore")}
             </Button>
           </DemoDisabled>
         ) : (
-          <Button asChild variant="outline">
+          <Button asChild variant="secondary">
             <label>
               <Upload /> {t("admBackupRestore")}
               <input
@@ -720,7 +720,7 @@ function SemanticIndexPanel() {
         <p className="text-sm text-muted-foreground">{t("semanticIndexUnavailable")}</p>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" onClick={reindex} disabled={running || isLoading}>
+          <Button variant="secondary" onClick={reindex} disabled={running || isLoading}>
             {running ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles aria-hidden />}
             {running ? t("semanticIndexRunning") : t("semanticIndexButton")}
           </Button>

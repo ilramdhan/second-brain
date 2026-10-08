@@ -25,6 +25,7 @@ import { getInitialPreferences } from "@/lib/preferences-ssr";
 import { headT } from "@/lib/page-head";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 import { PwaUpdatePrompt } from "@/components/common/PwaUpdatePrompt";
+import { Button } from "@/components/ui/button";
 
 import appCss from "../styles.css?url";
 import { describeError, reportError } from "../lib/error-reporting";
@@ -91,21 +92,17 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           </pre>
         )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+          <Button
             onClick={() => {
               void router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             {t("retry")}
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            {t("wsGoHome")}
-          </a>
+          </Button>
+          <Button asChild variant="secondary">
+            <a href="/">{t("wsGoHome")}</a>
+          </Button>
         </div>
       </div>
     </div>

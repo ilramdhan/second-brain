@@ -7,7 +7,8 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { Field } from "@/components/common/TagInput";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonGroup, ResponsiveButton, pressableFocus } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -173,11 +174,11 @@ function AutomationsPage() {
     <PageContainer>
       <PageHeader title={t("automations")} subtitle={t("autoSubtitle")} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
+        <ButtonGroup>
           {templates(t).map((tpl) => (
             <Button
               key={tpl.name}
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() =>
                 setEdit({
@@ -195,10 +196,12 @@ function AutomationsPage() {
               {tpl.name}
             </Button>
           ))}
-        </div>
-        <Button size="sm" onClick={() => setEdit({ open: true, rule: null })}>
-          <Plus /> {t("autoAddRule")}
-        </Button>
+        </ButtonGroup>
+        <ResponsiveButton
+          onClick={() => setEdit({ open: true, rule: null })}
+          icon={<Plus />}
+          label={t("autoAddRule")}
+        />
       </div>
 
       <ul className="space-y-2">
@@ -208,8 +211,10 @@ function AutomationsPage() {
           return (
             <li key={r.id} className="flex items-start gap-3 rounded-xl border bg-card p-4">
               <Workflow className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              {/* eslint-disable-next-line no-restricted-syntax -- exception: clickable rule row (opens the editor) */}
               <button
-                className="min-w-0 flex-1 text-left"
+                type="button"
+                className={cn("min-w-0 flex-1 rounded-md text-left", pressableFocus)}
                 onClick={() => setEdit({ open: true, rule: r })}
               >
                 <p className="text-sm font-medium">{r.name}</p>
@@ -620,7 +625,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   setConds(conds.map((x, j) => (j === i ? { ...x, value: v } : x))),
                 )}
                 <Button
-                  variant="ghost"
+                  variant="tertiary"
                   size="icon"
                   onClick={() => setConds(conds.filter((_, j) => j !== i))}
                   aria-label={t("autoRemoveCondition")}
@@ -630,7 +635,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
               </div>
             ))}
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() =>
                 setConds([
@@ -675,7 +680,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   </SelectContent>
                 </Select>
                 <Button
-                  variant="ghost"
+                  variant="tertiary"
                   size="icon"
                   onClick={() => setActs(acts.filter((_, j) => j !== i))}
                   aria-label={t("autoRemoveAction")}
@@ -837,7 +842,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
             </div>
           ))}
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => setActs([...acts, ACTION_DEFAULTS[allowedActions[0]!]])}
           >
@@ -855,14 +860,14 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
       <DialogFooter>
         {rule?.id && (
           <Button
-            variant="ghost"
+            variant="tertiary"
             onClick={remove}
             className="text-destructive hover:text-destructive sm:mr-auto"
           >
             <Trash2 /> {t("autoDelete")}
           </Button>
         )}
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="secondary" onClick={onClose}>
           {t("autoCancel")}
         </Button>
         <Button onClick={save}>{t("autoSave")}</Button>

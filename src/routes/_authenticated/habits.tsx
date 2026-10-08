@@ -9,7 +9,7 @@ import { RouteError } from "@/components/common/RouteError";
 import { HabitCard } from "@/components/habits/HabitCard";
 import { HabitDialog, type HabitDraft } from "@/components/habits/HabitDialog";
 import { asDate } from "@/components/reports/points";
-import { Button } from "@/components/ui/button";
+import { Button, ResponsiveButton } from "@/components/ui/button";
 import {
   habitLogsQuery,
   habitsQuery,
@@ -77,9 +77,11 @@ function HabitsPage() {
             : t("admHabitsSubtitle")
         }
         actions={
-          <Button className="h-11 sm:h-9" onClick={() => edit(null)}>
-            <Plus aria-hidden /> {t("habits")}
-          </Button>
+          <ResponsiveButton
+            onClick={() => edit(null)}
+            icon={<Plus aria-hidden />}
+            label={t("habits")}
+          />
         }
       />
       {isLoading ? (
@@ -100,7 +102,7 @@ function HabitsPage() {
               </h2>
               <div className="flex gap-1" role="group" aria-label={t("admPickWeek")}>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
                   className="h-11 w-11 sm:h-9 sm:w-9"
                   aria-label={t("admPrevWeek")}
@@ -109,7 +111,7 @@ function HabitsPage() {
                   <ChevronLeft aria-hidden />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
                   className="h-11 w-11 sm:h-9 sm:w-9"
                   aria-label={t("admNextWeek")}

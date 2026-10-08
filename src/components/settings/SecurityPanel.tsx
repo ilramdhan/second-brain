@@ -156,7 +156,10 @@ export function SecurityPanel() {
               }}
             />
           ) : (
-            <Button onClick={() => void startEnroll(factors)} variant={on ? "outline" : "default"}>
+            <Button
+              onClick={() => void startEnroll(factors)}
+              variant={on ? "secondary" : "primary"}
+            >
               {on ? t("mfaAddAnother") : t("mfaEnable")}
             </Button>
           )}

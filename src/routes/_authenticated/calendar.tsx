@@ -35,7 +35,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { TaskRows, useTaskRowLookups } from "@/components/tasks/TaskItem";
 import { byId, tasksByDay } from "@/lib/task-maps";
-import { Button } from "@/components/ui/button";
+import { Button, ResponsiveButton, pressableFocus } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, priorityOf } from "@/lib/constants";
 import {
@@ -306,16 +306,18 @@ function CalendarPage() {
         title={t("taskCalTitle")}
         subtitle={t("taskCalSubtitle")}
         actions={
-          <Button size="sm" onClick={() => newTask({ due_date: dateToIso(dayKey(cursor)) })}>
-            <Plus /> {t("taskAddButton")}
-          </Button>
+          <ResponsiveButton
+            onClick={() => newTask({ due_date: dateToIso(dayKey(cursor)) })}
+            icon={<Plus />}
+            label={t("taskAddButton")}
+          />
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
             className="h-8 w-8"
             onClick={() => step(-1)}
@@ -324,7 +326,7 @@ function CalendarPage() {
             <ChevronLeft />
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="h-8"
             onClick={() => setCursor(startOfDay(new Date()))}
@@ -332,7 +334,7 @@ function CalendarPage() {
             {t("taskCalToday")}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
             className="h-8 w-8"
             onClick={() => step(1)}
@@ -532,9 +534,11 @@ function DayCell({
         >
           {format(day, "d")}
         </span>
+        {/* eslint-disable-next-line no-restricted-syntax -- exception: dense calendar-cell control (tap-target gives 44px) */}
         <button
+          type="button"
           onClick={() => onAdd(day)}
-          className="tap-target rounded p-0.5 text-muted-foreground opacity-0 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
+          className="tap-target rounded p-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none text-muted-foreground opacity-0 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
           aria-label={t("taskCalAddOnDay")}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -560,12 +564,14 @@ function DayCell({
         <CalendarChip key={t.id} task={t} day={k} className={colorFor(t)} />
       ))}
       {items.length > max && (
-        <button
+        <Button
+          variant="link"
+          size="inline"
           onClick={() => onMore(day)}
-          className="px-1 text-left text-[10px] text-muted-foreground hover:text-foreground"
+          className="justify-start px-1 text-[10px] text-muted-foreground hover:text-foreground"
         >
           {t("taskCalMore", { count: items.length - max })}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -665,7 +671,7 @@ function DayView({
         <p className="py-6 text-center text-sm text-muted-foreground">{t("taskCalNoTasksDay")}</p>
       )}
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={() => newTask({ due_date: dateToIso(dayKey(day)) })}
       >
@@ -709,12 +715,15 @@ function YearView({
                 const n = byDay.get(dayKey(d))?.length ?? 0;
                 const inMonth = isSameMonth(d, m);
                 return (
+                  // eslint-disable-next-line no-restricted-syntax -- exception: year-heatmap day cell
                   <button
+                    type="button"
                     key={d.toISOString()}
                     onClick={() => onPick(d)}
                     disabled={!inMonth}
                     className={cn(
                       "aspect-square rounded text-[10px] motion-safe:transition-colors",
+                      pressableFocus,
                       !inMonth && "invisible",
                       isToday(d) && "ring-1 ring-primary",
                       n === 0

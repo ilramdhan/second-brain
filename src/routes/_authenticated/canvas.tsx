@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonGroup, ResponsiveButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { getUid } from "@/lib/data";
@@ -345,33 +345,25 @@ function CanvasPage() {
         title={t("canvas")}
         subtitle={t("noteCanvasSubtitle")}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <ButtonGroup>
             {selectedEdge ? (
-              <Button variant="outline" size="sm" onClick={() => deleteEdge(selectedEdge)}>
-                <Unlink /> {t("noteCanvasUnlink")}
-              </Button>
+              <ResponsiveButton
+                variant="secondary"
+                onClick={() => deleteEdge(selectedEdge)}
+                icon={<Unlink />}
+                label={t("noteCanvasUnlink")}
+              />
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
+              <ResponsiveButton
+                variant="secondary"
                 onClick={connectOrUnlink}
                 disabled={action.kind === "none"}
-              >
-                {action.kind === "unlink" ? (
-                  <>
-                    <Unlink /> {t("noteCanvasUnlink")}
-                  </>
-                ) : (
-                  <>
-                    <Link2 /> {t("noteCanvasConnect")}
-                  </>
-                )}
-              </Button>
+                icon={action.kind === "unlink" ? <Unlink /> : <Link2 />}
+                label={action.kind === "unlink" ? t("noteCanvasUnlink") : t("noteCanvasConnect")}
+              />
             )}
-            <Button size="sm" onClick={addNode}>
-              <Plus /> {t("noteCanvasCard")}
-            </Button>
-          </div>
+            <ResponsiveButton onClick={addNode} icon={<Plus />} label={t("noteCanvasCard")} />
+          </ButtonGroup>
         }
       />
       <p role="status" aria-live="polite" className="mb-2 min-h-5 text-sm text-muted-foreground">
@@ -504,7 +496,7 @@ function CanvasPage() {
                   />
                   {mine && (
                     <Button
-                      variant="ghost"
+                      variant="tertiary"
                       size="icon"
                       className="tap-target h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => removeNode(node.id)}
@@ -525,6 +517,7 @@ function CanvasPage() {
                   className="min-h-24 flex-1 resize-none bg-transparent p-3 text-sm outline-none"
                 />
                 {/* Connect handle: drag onto another card to link it; tap or Enter adds the card to the selection. */}
+                {/* eslint-disable-next-line no-restricted-syntax -- exception: drag handle (tap-target, own focus ring) */}
                 <button
                   type="button"
                   className="tap-target absolute top-1/2 -right-3 flex h-6 w-6 -translate-y-1/2 cursor-crosshair touch-none items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
