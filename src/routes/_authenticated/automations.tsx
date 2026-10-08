@@ -57,6 +57,7 @@ import { isDemo } from "@/lib/app-mode";
 import { usePreferences, type Locale, type MessageKey } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
 import { PRIORITY, TASK_STATUS } from "@/lib/constants";
+import { formatRunDetail } from "@/lib/automation-run-detail";
 import { optionLabel, translatedOptions } from "@/lib/option-labels";
 import { useConfirm } from "@/components/common/confirm-context";
 
@@ -276,7 +277,7 @@ function AutomationsPage() {
             ) : (
               <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
             )}
-            <span className="min-w-0 flex-1 break-words">{r.detail}</span>
+            <span className="min-w-0 flex-1 break-words">{formatRunDetail(t, r.detail)}</span>
             <span className="shrink-0 text-muted-foreground">
               {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: dateFns })}
             </span>

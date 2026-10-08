@@ -25,6 +25,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database, Tables } from "@/integrations/supabase/types";
 import type { Action, Trigger } from "@/lib/automation-types";
+import {
+  failureStep,
+  runDetailTextId,
+  serializeRunDetail,
+  type RunStep,
+} from "@/lib/automation-run-detail";
 import { CronError, isValidTimeZone, localDate, nextRun, WEEKDAYS_ID } from "@/lib/cron";
 
 import {
@@ -112,7 +118,7 @@ async function moveOverdue(ctx: RunCtx, projectId: string | null | undefined, st
   return ids.length;
 }
 
-async function sendDigest(ctx: RunCtx, a: Extract<Action, { type: "digest" }>) {
+async function sendDigest(ctx: RunCtx, a: Extract<Action, { type: "digest" }>): Promise<RunStep> {
   const { loadDigestData } = await import("./n8n/digest.server");
   const { buildDigest } = await import("./n8n/format.server");
   const digest = buildDigest(
@@ -120,14 +126,14 @@ async function sendDigest(ctx: RunCtx, a: Extract<Action, { type: "digest" }>) {
     await loadDigestData(a.kind, ctx.userId, ctx.now, ctx.tz),
     ctx.tz,
   );
-  if (!digest) return "ringkasan kosong";
-  if (ctx.demo) return `${a.channel} dilewati (demo)`;
+  if (!digest) return { code: "digestEmpty", params: { kind: a.kind } };
+  if (ctx.demo) return { code: "skippedDemo", params: { channel: a.channel } };
   if (a.channel === "telegram") {
     await telegramToUser(ctx.db, ctx.userId, digest.text, {
       parse_mode: "HTML",
       reply_markup: digest.reply_markup ?? undefined,
     });
-    return "ringkasan telegram";
+    return { code: "digestSent", params: { kind: a.kind, channel: "telegram" } };
   }
   if (!a.url) throw new Error("URL webhook kosong");
   const { safeWebhookPost } = await import("./ssrf.server");
@@ -140,12 +146,12 @@ async function sendDigest(ctx: RunCtx, a: Extract<Action, { type: "digest" }>) {
     kind: a.kind,
     url: appUrl(ctx.origin, "/today"),
   });
-  return "ringkasan webhook";
+  return { code: "digestSent", params: { kind: a.kind, channel: "webhook" } };
 }
 
-/** Runs the actions of one claimed scheduled rule; returns `{ok, log}`. */
+/** Runs the actions of one claimed scheduled rule; returns `{ok, log}` (coded steps). */
 export async function runScheduledActions(ctx: RunCtx) {
-  const log: string[] = [];
+  const log: RunStep[] = [];
   let ok = true;
   const date = localDate(ctx.now, ctx.tz);
   const weekday = WEEKDAYS_ID[new Date(`${date}T00:00:00Z`).getUTCDay()]!;
@@ -166,18 +172,18 @@ export async function runScheduledActions(ctx: RunCtx) {
           tz: ctx.tz,
           now: ctx.now,
         });
-        log.push(`tugas "${task.title}"`);
+        log.push({ code: "createTask", params: { title: task.title } });
       } else if (a.type === "move_overdue") {
         const n = await moveOverdue(ctx, a.project_id, a.status);
-        log.push(`${n} tugas terlambat → ${a.status}`);
+        log.push({ code: "moveOverdue", params: { count: n, status: a.status } });
       } else if (a.type === "digest") {
         log.push(await sendDigest(ctx, a));
       } else {
-        log.push(`${a.type} tidak berlaku untuk jadwal`);
+        log.push({ code: "notApplicable", params: { action: a.type, scope: "schedule" } });
       }
     } catch (e) {
       ok = false;
-      log.push(`gagal: ${e instanceof Error ? e.message : "error"}`);
+      log.push(failureStep(e));
     }
   }
   return { ok, log };
@@ -235,12 +241,12 @@ export async function runDueAutomations(
   };
   for (const rule of due ?? []) {
     let next: string | null;
-    let invalid: string | null = null;
+    let invalid: RunStep | null = null;
     try {
       next = computeNextRun(rule, now, fallbackTz);
     } catch (e) {
       next = null;
-      invalid = e instanceof Error ? e.message : "cron tidak valid";
+      invalid = failureStep(e);
     }
     // Claim this window (compare-and-swap on the next_run_at we read).
     const { data: claimed, error: claimError } = await db
@@ -256,7 +262,7 @@ export async function runDueAutomations(
     }
     const userId = rule.user_id;
     const run = invalid
-      ? { ok: false, log: [`gagal: ${invalid}; jadwal dihentikan`] }
+      ? { ok: false, log: [invalid, { code: "scheduleStopped" } as RunStep] }
       : await runScheduledActions({
           db,
           userId,
@@ -266,7 +272,7 @@ export async function runDueAutomations(
           origin: opts.origin ?? null,
           demo,
         });
-    const detail = `⏰ ${rule.name} → ${run.log.join("; ") || "tanpa aksi"}`.slice(0, 500);
+    const detail = serializeRunDetail("schedule", rule.name, run.log);
     await db.from("automation_runs").insert({
       user_id: userId,
       automation_id: rule.id,
@@ -280,7 +286,8 @@ export async function runDueAutomations(
       user_id: userId,
       ok: run.ok,
       next_run_at: next,
-      detail,
+      // n8n posts failures to Telegram as text: keep the Indonesian rendering in the response.
+      detail: runDetailTextId(detail),
     });
   }
   return result;

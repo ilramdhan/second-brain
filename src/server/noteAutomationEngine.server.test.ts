@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { runDetailTextId } from "@/lib/automation-run-detail";
 import type { Action, Condition, Trigger } from "@/lib/automation-types";
 import { fakeSupabase } from "@/test/fake-supabase";
 
@@ -175,8 +176,9 @@ describe("runNoteAutomationRules", () => {
     expect(f.db["tasks"]).toHaveLength(0);
     const run = f.db["automation_runs"]![0]!;
     expect(run["ok"]).toBe(false);
-    expect(run["detail"]).toContain("Proyek tidak ditemukan");
-    expect(run["detail"]).toContain("aksi tidak valid");
+    expect(runDetailTextId(String(run["detail"]))).toBe(
+      "Rapat mingguan → gagal: proyek tidak ditemukan; gagal: aksi tidak valid",
+    );
   });
 
   it("note_updated has a per-note cooldown (autosave)", async () => {

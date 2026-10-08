@@ -22,6 +22,7 @@ import { createHash } from "node:crypto";
 
 import type { Json, TablesInsert } from "@/integrations/supabase/types";
 import { noteIndexFields, shortcut, toMarkdown, type Block, type BlockType } from "@/lib/blocks";
+import { serializeRunDetail, type RunStep } from "@/lib/automation-run-detail";
 import { nextRun } from "@/lib/cron";
 import {
   DEMO_BRAIN_DUMP_EXAMPLES,
@@ -1523,7 +1524,8 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
     conditions: Json;
     actions: Json;
     enabled: boolean;
-    runs: [string, number, boolean, string][];
+    /** [task key, day offset, ok, coded steps] (see src/lib/automation-run-detail.ts). */
+    runs: [string, number, boolean, RunStep[]][];
     /** Scheduled rules (9.4): cron in the demo zone. Never actually run on the demo (no n8n tick). */
     cron?: string;
   }[] = [
@@ -1535,8 +1537,8 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
       actions: [{ type: "add_tag", value: "urgent" }],
       enabled: true,
       runs: [
-        ["proposal", -1, true, "tambah tag urgent"],
-        ["ssl", -4, true, "tambah tag urgent"],
+        ["proposal", -1, true, [{ code: "addTag", params: { tag: "urgent" } }]],
+        ["ssl", -4, true, [{ code: "addTag", params: { tag: "urgent" } }]],
       ],
     },
     {
@@ -1547,9 +1549,9 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
       actions: [{ type: "comment", text: "Selesai ✅ — jangan lupa update catatan proyek." }],
       enabled: true,
       runs: [
-        ["bug-struk-log", -1, true, "komentar ditambahkan"],
-        ["audit-lighthouse", -4, true, "komentar ditambahkan"],
-        ["skema-laporan", -6, true, "komentar ditambahkan"],
+        ["bug-struk-log", -1, true, [{ code: "comment" }]],
+        ["audit-lighthouse", -4, true, [{ code: "comment" }]],
+        ["skema-laporan", -6, true, [{ code: "comment" }]],
       ],
     },
     {
@@ -1559,7 +1561,14 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
       conditions: [{ field: "project_id", op: "eq", value: project("kasir") }],
       actions: [{ type: "set_field", field: "assignee_name", value: "Rina" }],
       enabled: true,
-      runs: [["export-stok", 0, true, "assignee_name = Rina"]],
+      runs: [
+        [
+          "export-stok",
+          0,
+          true,
+          [{ code: "setField", params: { field: "assignee_name", value: "Rina" } }],
+        ],
+      ],
     },
     {
       key: "fleksibel",
@@ -1577,7 +1586,9 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
       conditions: [{ field: "tag", op: "contains", value: "bug" }],
       actions: [{ type: "telegram", text: "Bug baru: {title}" }],
       enabled: true,
-      runs: [["bug-struk-retry", -2, true, "telegram dilewati (demo)"]],
+      runs: [
+        ["bug-struk-retry", -2, true, [{ code: "skippedDemo", params: { channel: "telegram" } }]],
+      ],
     },
     {
       key: "weekly-review",
@@ -1626,7 +1637,7 @@ export function buildDemoSeed(input: DemoSeedInput): DemoSeed {
       automation_id: id(`automation:${a.key}`),
       task_id: task(t),
       ok,
-      detail: `${titleOf(t)} → ${log}`.slice(0, 500),
+      detail: serializeRunDetail("task", titleOf(t), log),
       created_at: at(d, 14 - i),
     })),
   );
