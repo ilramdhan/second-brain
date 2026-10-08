@@ -166,6 +166,11 @@ describe("runDueAutomations (tick)", () => {
     expect(res).toMatchObject({ ran: 1, failed: 1 });
     expect(f.db["automations"]![0]!["next_run_at"]).toBeNull();
     expect(f.db["tasks"]).toHaveLength(0);
+    expect(res.results[0]!.detail).toMatch(/^⏰ .+ → gagal: .+; jadwal dihentikan$/);
+    expect(JSON.parse(String(f.db["automation_runs"]![0]!["detail"]))).toMatchObject({
+      kind: "schedule",
+      steps: [{ code: "failed", params: { reason: "cron" } }, { code: "scheduleStopped" }],
+    });
   });
 
   it("move_overdue is scoped to the owner (or a reachable project) and never sets done", async () => {

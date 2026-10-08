@@ -2,6 +2,7 @@
 // n8n endpoints (service-role client acting for a resolved user).
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { failureStep, serializeRunDetail, type RunStep } from "@/lib/automation-run-detail";
 import type { Database, Tables, TablesUpdate } from "@/integrations/supabase/types";
 import {
   isTaskTrigger,
@@ -140,7 +141,7 @@ export async function runAutomationRules(
     if (!isTaskTrigger(trigger?.type)) continue;
     if (!triggerMatches(trigger, data.event, data.before, current)) continue;
     if (!conditions.every((c) => conditionMatches(c, current))) continue;
-    const log: string[] = [];
+    const log: RunStep[] = [];
     let ok = true;
     for (const a of actions) {
       try {
@@ -164,7 +165,12 @@ export async function runAutomationRules(
           if (error) throw new Error(error.message);
           current = { ...current, ...patch } as T;
           changed = true;
-          log.push(`ubah ${Object.keys(patch).join(",")}`);
+          if (a.type === "set_field")
+            log.push({ code: "setField", params: { field: a.field, value: a.value } });
+          else if (a.type === "add_tag")
+            log.push({ code: "addTag", params: { tag: a.value.replace(/^#/, "").trim() } });
+          else if (patch.due_date) log.push({ code: "shiftDue", params: { days: a.days } });
+          else log.push({ code: "shiftDueNoDate" });
         } else if (a.type === "comment") {
           const { error } = await supabase.from("task_comments").insert({
             task_id: task.id,
@@ -173,11 +179,11 @@ export async function runAutomationRules(
           });
           if (error) throw new Error(error.message);
           changed = true;
-          log.push("komentar");
+          log.push({ code: "comment" });
         } else if ((a.type === "telegram" || a.type === "webhook") && demo) {
           // The public demo never reaches Telegram or third-party URLs. The rule still runs
           // (other actions apply, the run is logged) so visitors see automations working.
-          log.push(`${a.type} dilewati (demo)`);
+          log.push({ code: "skippedDemo", params: { channel: a.type } });
         } else if (a.type === "telegram") {
           const { data: prof } = await supabase
             .from("profiles")
@@ -188,7 +194,7 @@ export async function runAutomationRules(
           const { sendTelegram } = await import("@/lib/telegram.server");
           const err = await sendTelegram(prof.telegram_chat_id, fill(a.text, current, projectName));
           if (err) throw new Error(err);
-          log.push("telegram");
+          log.push({ code: "telegram" });
         } else if (a.type === "webhook") {
           const { safeWebhookPost } = await import("@/server/ssrf.server");
           const text = fill(
@@ -204,13 +210,13 @@ export async function runAutomationRules(
             project: projectName,
             task: webhookTask(current, origin),
           });
-          log.push("webhook");
+          log.push({ code: "webhook" });
         } else {
-          log.push(`${a.type} tidak berlaku untuk tugas`);
+          log.push({ code: "notApplicable", params: { action: a.type, scope: "task" } });
         }
       } catch (e) {
         ok = false;
-        log.push(`gagal: ${e instanceof Error ? e.message : "error"}`);
+        log.push(failureStep(e));
       }
     }
     ran++;
@@ -219,7 +225,7 @@ export async function runAutomationRules(
       automation_id: rule.id,
       task_id: task.id,
       ok,
-      detail: `${current.title} → ${log.join("; ")}`.slice(0, 500),
+      detail: serializeRunDetail("task", current.title, log),
     });
     await supabase
       .from("automations")

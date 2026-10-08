@@ -5,6 +5,7 @@
 // again (a tag added by a rule does not fire `note_tagged`, a task it creates runs no task rules).
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { failureStep, serializeRunDetail, type RunStep } from "@/lib/automation-run-detail";
 import type { Database, Tables } from "@/integrations/supabase/types";
 import {
   addedTags,
@@ -142,7 +143,7 @@ export async function runNoteAutomationRules(
     });
     const noteUrl = appUrl(origin, `/notes/${note.id}`);
 
-    const log: string[] = [];
+    const log: RunStep[] = [];
     let ok = true;
     for (const raw of (rule.actions as unknown[]) ?? []) {
       const a = parseAction(raw);
@@ -152,7 +153,7 @@ export async function runNoteAutomationRules(
           const tag = a.value.replace(/^#/, "").trim().toLowerCase();
           if (!tag) throw new Error("tag kosong");
           if ((note.tags ?? []).some((t) => t.toLowerCase() === tag)) {
-            log.push(`tag ${tag} sudah ada`);
+            log.push({ code: "tagExists", params: { tag } });
             continue;
           }
           const tags = [...(note.tags ?? []), tag];
@@ -163,12 +164,12 @@ export async function runNoteAutomationRules(
           if (error) throw new Error(error.message);
           note = { ...note, tags };
           changed = true;
-          log.push(`tag ${tag}`);
+          log.push({ code: "addTag", params: { tag } });
         } else if (a.type === "link_project") {
           const project = await projectAccessible(supabase, userId, a.project_id);
           if (!project) throw new Error("Proyek tidak ditemukan");
           if (note.project_id === project.id) {
-            log.push("sudah di proyek");
+            log.push({ code: "alreadyInProject" });
             continue;
           }
           const { error } = await supabase
@@ -179,7 +180,7 @@ export async function runNoteAutomationRules(
           note = { ...note, project_id: project.id };
           projectName = project.name;
           changed = true;
-          log.push(`proyek ${project.name}`);
+          log.push({ code: "linkProject", params: { project: project.name } });
         } else if (a.type === "create_task") {
           const task = await createTaskFromAction(supabase, userId, a, {
             values: values(),
@@ -189,12 +190,12 @@ export async function runNoteAutomationRules(
             description: noteUrl ? `Dari catatan: ${noteUrl}` : `Dari catatan "${note.title}"`,
           });
           changed = true;
-          log.push(`tugas "${task.title}"`);
+          log.push({ code: "createTask", params: { title: task.title } });
         } else if ((a.type === "telegram" || a.type === "webhook") && demo) {
-          log.push(`${a.type} dilewati (demo)`);
+          log.push({ code: "skippedDemo", params: { channel: a.type } });
         } else if (a.type === "telegram") {
           await telegramToUser(supabase, userId, fillTemplate(a.text, values()));
-          log.push("telegram");
+          log.push({ code: "telegram" });
         } else if (a.type === "webhook") {
           const { safeWebhookPost } = await import("@/server/ssrf.server");
           const text = `[${rule.name}] Catatan "${note.title}"`;
@@ -213,13 +214,13 @@ export async function runNoteAutomationRules(
               url: noteUrl,
             },
           });
-          log.push("webhook");
+          log.push({ code: "webhook" });
         } else {
-          log.push(`${a.type} tidak berlaku untuk catatan`);
+          log.push({ code: "notApplicable", params: { action: a.type, scope: "note" } });
         }
       } catch (e) {
         ok = false;
-        log.push(`gagal: ${e instanceof Error ? e.message : "error"}`);
+        log.push(failureStep(e));
       }
     }
     ran++;
@@ -228,7 +229,7 @@ export async function runNoteAutomationRules(
       automation_id: rule.id,
       note_id: note.id,
       ok,
-      detail: `${note.title} → ${log.join("; ")}`.slice(0, 500),
+      detail: serializeRunDetail("note", note.title, log),
     });
     await supabase
       .from("automations")

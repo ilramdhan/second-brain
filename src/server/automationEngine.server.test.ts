@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { parseRunDetail, runDetailTextId } from "@/lib/automation-run-detail";
 import type { Action, Condition, Trigger } from "@/lib/automation-types";
+
+/** Indonesian rendering of a stored (coded) run detail. */
+const text = (row: Row | undefined) => runDetailTextId(String(row?.["detail"]));
 
 const sendTelegram = vi.fn<(chat: string, text: string) => Promise<string | null>>();
 const safeWebhookPost = vi.fn<(url: string, body: unknown) => Promise<{ status: number }>>();
@@ -229,9 +233,16 @@ describe("runAutomationRules: actions", () => {
     expect(task).toMatchObject({ status: "done", assignee_name: "Ani", assignee_id: null });
     expect(typeof task["completed_at"]).toBe("string");
     expect(runs[0]).toMatchObject({ ok: true, user_id: USER, task_id: "t1" });
-    expect(runs[0]!["detail"]).toBe(
-      "Write spec → ubah status,completed_at; ubah assignee_name,assignee_id",
-    );
+    expect(parseRunDetail(runs[0]!["detail"] as string)).toEqual({
+      v: 1,
+      kind: "task",
+      subject: "Write spec",
+      steps: [
+        { code: "setField", params: { field: "status", value: "done" } },
+        { code: "setField", params: { field: "assignee_name", value: "Ani" } },
+      ],
+    });
+    expect(text(runs[0])).toBe("Write spec → Status → Selesai; Penanggung jawab → Ani");
   });
 
   it("set_field status other than done clears completed_at", async () => {
@@ -293,18 +304,19 @@ describe("runAutomationRules: actions", () => {
     const tg = [rule({ type: "task_created" }, [{ type: "telegram", text: "Hi {{project}}" }])];
     const unlinked = await run(tg, created);
     expect(unlinked.runs[0]).toMatchObject({ ok: false });
-    expect(unlinked.runs[0]!["detail"]).toContain("gagal: Akun Telegram belum ditautkan");
+    expect(text(unlinked.runs[0])).toContain("gagal: akun Telegram belum ditautkan");
     expect(sendTelegram).not.toHaveBeenCalled();
 
     sendTelegram.mockResolvedValueOnce(null);
     const ok = await run(tg, created, { profiles: [{ id: USER, telegram_chat_id: "42" }] });
     expect(sendTelegram).toHaveBeenCalledWith("42", "Hi Website");
-    expect(ok.runs[0]).toMatchObject({ ok: true, detail: "Write spec → telegram" });
+    expect(ok.runs[0]).toMatchObject({ ok: true });
+    expect(text(ok.runs[0])).toBe("Write spec → terkirim ke Telegram");
     expect(ok.res.changed).toBe(false);
 
     sendTelegram.mockResolvedValueOnce("Bot blocked");
     const failed = await run(tg, created, { profiles: [{ id: USER, telegram_chat_id: "42" }] });
-    expect(failed.runs[0]!["detail"]).toContain("gagal: Bot blocked");
+    expect(text(failed.runs[0])).toContain("gagal: Bot blocked");
   });
 
   it("webhook sends a minimal payload (no internal ids or description)", async () => {
@@ -352,10 +364,12 @@ describe("runAutomationRules: actions", () => {
       ],
       created,
     );
-    expect(runs[0]).toMatchObject({
-      ok: false,
-      detail: "Write spec → gagal: Webhook 500; komentar",
-    });
+    expect(runs[0]).toMatchObject({ ok: false });
+    expect(text(runs[0])).toBe(
+      "Write spec → gagal: webhook menjawab HTTP 500; komentar ditambahkan",
+    );
+    // The webhook URL never reaches the run log.
+    expect(String(runs[0]!["detail"])).not.toContain("hook.example.com");
     expect(calls.some((c) => c.table === "task_comments")).toBe(true);
   });
 
@@ -364,7 +378,7 @@ describe("runAutomationRules: actions", () => {
       failUpdate: "permission denied",
     });
     expect(res).toEqual({ ran: 1, changed: false });
-    expect(runs[0]!["detail"]).toBe("Write spec → gagal: permission denied");
+    expect(text(runs[0])).toBe("Write spec → gagal: permission denied");
   });
 
   it("bumps run_count and last_run_at for every rule that ran", async () => {
@@ -409,9 +423,9 @@ describe("runAutomationRules: demo mode", () => {
     expect(safeWebhookPost).not.toHaveBeenCalled();
     expect(res).toEqual({ ran: 1, changed: true });
     expect(task["tags"]).toContain("auto");
-    expect(runs[0]).toMatchObject({
-      ok: true,
-      detail: "Write spec → telegram dilewati (demo); webhook dilewati (demo); ubah tags",
-    });
+    expect(runs[0]).toMatchObject({ ok: true });
+    expect(text(runs[0])).toBe(
+      "Write spec → Telegram dilewati (demo); webhook dilewati (demo); tag #auto ditambahkan",
+    );
   });
 });
