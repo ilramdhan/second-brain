@@ -157,7 +157,7 @@ function KanbanColumn({
           <IconButton
             label={t("taskKanbanAddIn", { name: column.label })}
             size="icon-sm"
-            className="text-muted-foreground hover:bg-background"
+            className="text-muted-foreground"
             onClick={onAdd}
           >
             <Plus />

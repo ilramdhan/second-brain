@@ -84,7 +84,7 @@ export function DemoBanner({
       <IconButton
         label={t("demoNoticeDismiss")}
         onClick={dismiss}
-        className="absolute top-1.5 right-1.5 size-11 hover:bg-amber-100 dark:hover:bg-amber-900/60"
+        className="absolute top-1.5 right-1.5"
       >
         <X aria-hidden />
       </IconButton>

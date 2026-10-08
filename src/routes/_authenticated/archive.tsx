@@ -229,11 +229,10 @@ function ArchivePage() {
                   </Button>
                   {tab === "trash" && (
                     <Button
-                      variant="tertiary"
+                      variant="danger-ghost"
                       size="icon"
                       onClick={() => purge(it)}
                       aria-label={tt("admPurge")}
-                      className="text-destructive hover:text-destructive"
                     >
                       <Trash2 />
                     </Button>

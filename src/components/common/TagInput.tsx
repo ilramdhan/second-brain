@@ -30,8 +30,7 @@ export function TagInput({
           {t}
           <IconButton
             label={tr("noteTagRemove", { tag: t })}
-            size="icon-sm"
-            className="size-4 rounded-full hover:bg-background/70 [&_svg]:size-3"
+            size="icon-xs"
             onClick={() => onChange(value.filter((x) => x !== t))}
           >
             <X />

@@ -18,10 +18,10 @@ import { cn } from "@/lib/utils";
  * Legacy shadcn names stay as aliases so older call sites keep compiling and render identically:
  * `default` → primary, `outline` → secondary, `ghost` → tertiary, `destructive` → danger.
  *
- * Sizes: `sm` (h-8), `md` (h-9, default), `lg` (h-10), `icon` (36px), `icon-sm` (32px), and
- * `inline` (text-sized, for `link` buttons inside a sentence).
+ * Sizes: `sm` (h-8), `md` (h-9, default), `lg` (h-10), `icon` (36px), `icon-sm` (32px), `icon-xs`
+ * (16px round, chip removers) and `inline` (text-sized, for `link` buttons inside a sentence).
  * On touch screens (`coarse:` = `@media (pointer: coarse)`, phones and the installed PWA) `md`,
- * `lg` and `icon` grow to 44px; `sm` and `icon-sm` keep their look but get an invisible 44×44 px
+ * `lg` and `icon` grow to 44px; `sm`, `icon-sm` and `icon-xs` keep their look but get an invisible 44×44 px
  * hit area (`tap-area`, see styles.css) so they still meet WCAG 2.5.8.
  */
 
@@ -54,6 +54,8 @@ const buttonVariants = cva(
         lg: "h-10 px-8 coarse:min-h-11",
         icon: "size-9 coarse:size-11",
         "icon-sm": "size-8 tap-area",
+        /** Tiny round remover inside a chip/pill (tag × button); keeps a 44px touch target. */
+        "icon-xs": "size-4 rounded-full tap-area [&_svg]:size-3",
         /** Text-sized, no padding: `link` buttons inside a sentence (WCAG 2.5.8 inline exception). */
         inline: "h-auto p-0 text-[length:inherit] align-baseline",
       },
@@ -63,6 +65,10 @@ const buttonVariants = cva(
         false: "",
       },
     },
+    compoundVariants: [
+      // Links read as text: no side padding, so they line up with the copy around them.
+      { variant: "link", size: ["sm", "md", "lg"], class: "px-0" },
+    ],
     defaultVariants: {
       variant: "primary",
       size: "md",
