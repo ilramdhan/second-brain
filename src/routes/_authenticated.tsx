@@ -247,7 +247,7 @@ function Shell() {
           <Button
             variant="tertiary"
             onClick={signOut}
-            className="w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
+            className="w-full justify-start gap-3 font-normal text-muted-foreground"
           >
             <LogOut /> {t("signOut")}
           </Button>
@@ -361,7 +361,7 @@ function Shell() {
           <Button
             variant="link"
             size="sm"
-            className="justify-start px-0 font-normal text-muted-foreground"
+            className="justify-start font-normal text-muted-foreground"
             onClick={() => {
               setCapture(false);
               setQuick(true);
@@ -372,7 +372,7 @@ function Shell() {
           <Button
             variant="link"
             size="sm"
-            className="justify-start px-0 font-normal text-muted-foreground"
+            className="justify-start font-normal text-muted-foreground"
             onClick={() => {
               setCapture(false);
               newTask();

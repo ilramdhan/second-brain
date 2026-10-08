@@ -176,7 +176,7 @@ function LoginPage() {
       <Button
         asChild
         variant="tertiary"
-        className="absolute top-4 left-4 px-3 text-muted-foreground hover:text-foreground sm:top-6 sm:left-6"
+        className="absolute top-4 left-4 text-muted-foreground sm:top-6 sm:left-6"
       >
         <Link to="/" aria-label={t("loginBackHomeLabel")}>
           <ArrowLeft aria-hidden />
@@ -299,7 +299,7 @@ function LoginPage() {
                   <Button
                     variant="link"
                     size="sm"
-                    className="px-0 font-normal text-muted-foreground hover:text-foreground"
+                    className="font-normal text-muted-foreground"
                     type="button"
                     onClick={() => setMode("forgot")}
                   >

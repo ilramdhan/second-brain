@@ -545,14 +545,11 @@ export function BlockEditor({
                     {BLOCK_TYPES.filter((bt) => bt.id !== "embed").map((bt) => (
                       <Button
                         key={bt.id}
-                        variant="tertiary"
+                        variant={b.type === bt.id ? "secondary" : "tertiary"}
                         size="sm"
                         aria-pressed={b.type === bt.id}
                         onClick={() => set(b.id, { type: bt.id })}
-                        className={cn(
-                          "justify-start px-2 font-normal",
-                          b.type === bt.id && "bg-accent",
-                        )}
+                        className="justify-start font-normal"
                       >
                         {blockLabel(bt.id)}
                       </Button>
@@ -739,7 +736,7 @@ export function BlockEditor({
         <Button
           variant="tertiary"
           size="sm"
-          className="ml-6 gap-1.5 px-1 text-muted-foreground"
+          className="ml-6 gap-1.5 text-muted-foreground"
           onClick={() => {
             const last = blocks[blocks.length - 1];
             if (last && !last.text && last.type === "p") setFocus({ id: last.id, caret: 0 });

@@ -663,7 +663,7 @@ function Properties({
       <Button
         variant="tertiary"
         size="sm"
-        className="self-start px-2 font-normal text-muted-foreground"
+        className="self-start font-normal text-muted-foreground"
         onClick={() => onChange([...props, ["", ""]])}
       >
         <Plus /> {t("noteAddProperty")}{" "}

@@ -561,7 +561,7 @@ function DayCell({
           variant="link"
           size="inline"
           onClick={() => onMore(day)}
-          className="justify-start px-1 text-[10px] text-muted-foreground hover:text-foreground"
+          className="ml-1 justify-start text-[10px] text-muted-foreground"
         >
           {t("taskCalMore", { count: items.length - max })}
         </Button>
