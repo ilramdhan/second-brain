@@ -78,7 +78,7 @@ describe("PublicSharePage", () => {
       "en",
     );
     expect(screen.getByRole("heading", { level: 2, name: /Tasks/ })).toBeInTheDocument();
-    const done = screen.getByRole("region", { name: /Selesai/ });
+    const done = screen.getByRole("region", { name: /^Done/ });
     expect(within(done).getByText("Desain")).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: /To do/ })).getByText("Uji"),

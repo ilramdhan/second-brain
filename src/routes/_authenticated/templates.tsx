@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { TEMPLATE_FIELD_LABEL } from "@/lib/capture-fields";
+import { fieldLabels, TEMPLATE_FIELD_LABEL } from "@/lib/capture-fields";
 import { PRIORITY } from "@/lib/constants";
 import { DEMO_TEMPLATE_PREFILL_EXAMPLES } from "@/lib/demo-examples";
 import { draftTemplateFromText } from "@/lib/prefill.functions";
@@ -37,6 +37,7 @@ import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { usePreferences } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
+import { optionLabel } from "@/lib/option-labels";
 
 export const Route = createFileRoute("/_authenticated/templates")({
   head: (ctx) => pageHead(ctx, { title: "metaTemplatesTitle", desc: "metaTemplatesDesc" }),
@@ -256,7 +257,7 @@ function TemplateDialog({
           <FillFromText
             examples={DEMO_TEMPLATE_PREFILL_EXAMPLES}
             placeholder={tr("wsTplFillPlaceholder")}
-            labels={TEMPLATE_FIELD_LABEL}
+            labels={fieldLabels(tr, TEMPLATE_FIELD_LABEL)}
             onFill={(text) => draftTemplate({ data: { text } })}
             onApply={({ draft: d }) => {
               setKind(d.kind);
@@ -314,7 +315,7 @@ function TemplateDialog({
                 <SelectContent>
                   {PRIORITY.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.label}
+                      {optionLabel(tr, "priority", p.id, p.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>

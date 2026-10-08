@@ -27,13 +27,14 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { isDemo } from "@/lib/app-mode";
 import { draftNoteFromText } from "@/lib/capture.functions";
-import { NOTE_FIELD_LABEL } from "@/lib/capture-fields";
+import { filledFieldsText, NOTE_FIELD_LABEL } from "@/lib/capture-fields";
 import { NOTE_STATUS } from "@/lib/constants";
 import { useNoteActions, useProjects } from "@/lib/data";
 import { DEMO_NOTE_CAPTURE_EXAMPLES } from "@/lib/demo-examples";
 import { toastError } from "@/lib/errors";
 import { draftToForm, emptyNoteForm, formToInsert, type NoteForm } from "@/lib/note-prefill";
 import { useI18n } from "@/lib/preferences";
+import { optionLabel } from "@/lib/option-labels";
 
 const NONE = "none";
 const MAX_TEXT = 4000;
@@ -88,7 +89,7 @@ function NoteFromTextForm({
     try {
       const r = await draftFn({ data: { text: text.slice(0, MAX_TEXT) } });
       setForm(draftToForm(r.draft, projectId));
-      const fields = r.filled.map((f) => NOTE_FIELD_LABEL[f] ?? f).join(", ");
+      const fields = filledFieldsText(t, NOTE_FIELD_LABEL, r.filled);
       setSummary(
         [
           `${t(r.via === "ai" ? "noteFilledByAi" : "noteFilledByParser")}${fields ? `: ${fields}` : ""}`,
@@ -108,7 +109,7 @@ function NoteFromTextForm({
   async function save() {
     setSaving(true);
     try {
-      const row = await create(formToInsert(form));
+      const row = await create(formToInsert(form, t("noteUntitled")));
       if (!row) return;
       toast.success(t("noteCreated"));
       onClose();
@@ -181,7 +182,7 @@ function NoteFromTextForm({
                 <SelectContent>
                   {NOTE_STATUS.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.label}
+                      {optionLabel(t, "noteStatus", s.id, s.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>

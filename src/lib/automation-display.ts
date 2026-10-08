@@ -1,9 +1,9 @@
 // Pure helpers for rendering automation rules in the list (no React, unit-tested). Every helper
 // takes the UI locale (default Indonesian) so the page can pass the active one.
 import type { Condition } from "@/lib/automation-types";
-import { labelOf, PRIORITY, TASK_STATUS } from "@/lib/constants";
 import { describeCron, isValidCron, isValidTimeZone } from "@/lib/cron";
 import { format, intlLocale, messages, type Locale, type MessageKey } from "@/lib/i18n";
+import { optionLabel } from "@/lib/option-labels";
 
 const t = (locale: Locale, key: MessageKey, vars?: Record<string, string | number>) =>
   format(messages[locale][key], vars);
@@ -22,8 +22,8 @@ export function conditionValueLabel(
 ): string {
   if (c.field === "project_id")
     return projects.find((p) => p.id === c.value)?.name ?? t(locale, "autoUnknownProject");
-  if (c.field === "status") return labelOf(TASK_STATUS, c.value);
-  if (c.field === "priority") return labelOf(PRIORITY, c.value);
+  if (c.field === "status" || c.field === "priority")
+    return optionLabel((key) => t(locale, key), c.field, c.value);
   return c.value;
 }
 

@@ -1,7 +1,7 @@
 import { CalendarDays, CheckCircle2, Circle, Eye, Flag } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 
-import { labelOf, PRIORITY, PROJECT_STATUS, TASK_STATUS } from "@/lib/constants";
+import { PRIORITY, TASK_STATUS } from "@/lib/constants";
 import { intlLocale, usePreferences, type Locale } from "@/lib/preferences";
 import type {
   PublicBlock,
@@ -12,6 +12,7 @@ import type {
   PublicTask,
 } from "@/lib/share";
 import { cn } from "@/lib/utils";
+import { optionLabel } from "@/lib/option-labels";
 
 // Read-only page for `/s/$token`. Renders only the sanitized DTO from the server: no ids, no
 // links into the app, no external scripts (CSP-safe), light/dark via the root theme script.
@@ -208,7 +209,7 @@ function TaskItem({ task }: { task: PublicTask }) {
               priority.className,
             )}
           >
-            <Flag className="h-3 w-3" aria-hidden /> {priority.label}
+            <Flag className="h-3 w-3" aria-hidden /> {optionLabel(t, "priority", priority.id)}
           </span>
         )}
         {task.dueDate && (
@@ -256,7 +257,7 @@ function ProjectBody({ project }: { project: PublicProject }) {
                   id={`col-${status.id}`}
                   className="mb-2 flex items-center justify-between text-sm font-semibold"
                 >
-                  {status.label}
+                  {optionLabel(t, "status", status.id, status.label)}
                   <span className="text-xs font-normal text-muted-foreground">{tasks.length}</span>
                 </h3>
                 <ul className="space-y-2">
@@ -327,7 +328,7 @@ function PublicChrome({ children }: { children: ReactNode }) {
 
 export function PublicSharePage({ share }: { share: PublicShare }) {
   const { t, locale } = usePreferences();
-  const status = share.kind === "project" ? labelOf(PROJECT_STATUS, share.status) : null;
+  const status = share.kind === "project" ? optionLabel(t, "projectStatus", share.status) : null;
   return (
     <PublicChrome>
       <article

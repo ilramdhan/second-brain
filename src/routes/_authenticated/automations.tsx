@@ -47,7 +47,6 @@ import {
   scheduleTriggerLabel,
 } from "@/lib/automation-display";
 import { DEFAULT_ZONE, SchedulePicker } from "@/components/automations/SchedulePicker";
-import { labelOf, PRIORITY, TASK_STATUS } from "@/lib/constants";
 import { useAutomationActions, useAutomations, useProjects, type Automation } from "@/lib/data";
 import type { Json } from "@/integrations/supabase/types";
 import { PageContainer } from "@/components/common/PageContainer";
@@ -56,6 +55,8 @@ import { RouteError } from "@/components/common/RouteError";
 import { isDemo } from "@/lib/app-mode";
 import { usePreferences, type Locale, type MessageKey } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
+import { PRIORITY, TASK_STATUS } from "@/lib/constants";
+import { optionLabel, translatedOptions } from "@/lib/option-labels";
 
 /** Action types that reach outside the app; switched off on the public demo. */
 const DEMO_OFF_ACTIONS = new Set<string>(["telegram", "webhook"]);
@@ -142,7 +143,7 @@ function describeTrigger(
   const base = keyedLabel(t, TRIGGERS, tr.type);
   if (!tr.to) return base;
   if (tr.type === "note_tagged") return `${base} #${tr.to}`;
-  return `${base} → ${tr.type === "status_changed" ? labelOf(TASK_STATUS, tr.to) : labelOf(PRIORITY, tr.to)}`;
+  return `${base} → ${optionLabel(t, tr.type === "status_changed" ? "status" : "priority", tr.to)}`;
 }
 
 function AutomationsPage() {
@@ -412,6 +413,8 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
   }
   const setAct = (i: number, a: Action) => setActs(acts.map((x, j) => (j === i ? a : x)));
   const projectOpts = projects.map((p) => ({ id: p.id, label: p.name }));
+  const statusOpts = translatedOptions(t, "status", TASK_STATUS);
+  const priorityOpts = translatedOptions(t, "priority", PRIORITY);
 
   const optionSelect = (
     label: string,
@@ -445,9 +448,9 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
   const valueInput = (field: string, value: string, onChange: (v: string) => void) => {
     const opts =
       field === "priority"
-        ? PRIORITY
+        ? priorityOpts
         : field === "status"
-          ? TASK_STATUS
+          ? statusOpts
           : field === "project_id"
             ? projectOpts
             : null;
@@ -536,7 +539,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ANY}>{t("autoBecomesAny")}</SelectItem>
-                  {(tdef.hasTo === "status" ? TASK_STATUS : PRIORITY).map((o) => (
+                  {(tdef.hasTo === "status" ? statusOpts : priorityOpts).map((o) => (
                     <SelectItem key={o.id} value={o.id}>
                       {t("autoBecomes", { value: o.label })}
                     </SelectItem>
@@ -752,8 +755,11 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                     aria-label={t("autoTaskTitle")}
                   />
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    {optionSelect(t("autoFieldPriority"), a.priority ?? "medium", PRIORITY, (v) =>
-                      setAct(i, { ...a, priority: v as "high" | "medium" | "low" }),
+                    {optionSelect(
+                      t("autoFieldPriority"),
+                      a.priority ?? "medium",
+                      priorityOpts,
+                      (v) => setAct(i, { ...a, priority: v as "high" | "medium" | "low" }),
                     )}
                     {projectSelect(
                       t("autoTaskProject"),
@@ -793,7 +799,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
                   {optionSelect(
                     t("autoTargetStatus"),
                     a.status,
-                    TASK_STATUS.filter((s) => s.id !== "done"),
+                    statusOpts.filter((s) => s.id !== "done"),
                     (v) => setAct(i, { ...a, status: v as typeof a.status }),
                   )}
                 </div>

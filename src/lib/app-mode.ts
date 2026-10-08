@@ -3,14 +3,18 @@
 // (`vi.stubEnv`). The matching server-side switch is `APP_MODE` (src/server/demo/mode.server.ts);
 // the UI is only a hint, the server guards are the real boundary.
 import { REPO_URL } from "@/lib/app-version";
+import { messages } from "@/lib/i18n";
 
 export const DEFAULT_DEMO_EMAIL = "demo@ilramdhan.dev";
 export const DEFAULT_DEMO_PASSWORD = "demo2ndbrain";
 export const DEFAULT_PROD_URL = "https://2ndbrain.ilramdhan.dev";
 export const DEMO_GITHUB_URL = REPO_URL;
 
-/** Short reason shown next to every feature that is switched off in the demo. */
-export const DEMO_DISABLED_MESSAGE = "Tidak tersedia di demo";
+/**
+ * Short reason shown next to every feature that is switched off in the demo, in the default
+ * locale. UI code uses `t("demoDisabled")` (DemoDisabled, toasts) so it follows the language.
+ */
+export const DEMO_DISABLED_MESSAGE = messages.id.demoDisabled;
 
 const text = (raw: unknown) => (typeof raw === "string" ? raw.trim() : "");
 

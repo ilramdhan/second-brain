@@ -64,6 +64,7 @@ import { noteBlocksQuery, noteQuery, preloadQueries, projectsQuery } from "@/lib
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { pageHead } from "@/lib/page-head";
+import { optionLabel } from "@/lib/option-labels";
 
 export const Route = createFileRoute("/_authenticated/notes/$noteId")({
   head: (ctx) =>
@@ -442,7 +443,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
               <SelectContent>
                 {NOTE_STATUS.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.label}
+                    {optionLabel(t, "noteStatus", s.id, s.label)}
                   </SelectItem>
                 ))}
               </SelectContent>

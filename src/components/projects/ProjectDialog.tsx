@@ -23,13 +23,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PROJECT_FIELD_LABEL } from "@/lib/capture-fields";
+import { fieldLabels, PROJECT_FIELD_LABEL } from "@/lib/capture-fields";
 import { COLORS, PARA, PROJECT_STATUS } from "@/lib/constants";
 import { DEMO_PROJECT_PREFILL_EXAMPLES } from "@/lib/demo-examples";
 import { draftProjectFromText } from "@/lib/prefill.functions";
 import { useProjectActions, useProjects, type Project } from "@/lib/data";
 import { useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
+import { optionLabel } from "@/lib/option-labels";
 
 const NONE = "none";
 
@@ -129,7 +130,7 @@ function ProjectForm({
           <FillFromText
             examples={DEMO_PROJECT_PREFILL_EXAMPLES}
             placeholder={t("wsProjectFillPlaceholder")}
-            labels={PROJECT_FIELD_LABEL}
+            labels={fieldLabels(t, PROJECT_FIELD_LABEL)}
             onFill={(text) => draftProject({ data: { text } })}
             onApply={({ draft: d }) => {
               setName(d.name);
@@ -174,7 +175,7 @@ function ProjectForm({
               <SelectContent>
                 {PARA.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.label}
+                    {optionLabel(t, "para", p.id, p.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -188,7 +189,7 @@ function ProjectForm({
               <SelectContent>
                 {PROJECT_STATUS.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.label}
+                    {optionLabel(t, "projectStatus", p.id, p.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -229,7 +230,7 @@ function ProjectForm({
                 key={k}
                 type="button"
                 onClick={() => setCol(k)}
-                aria-label={c.label}
+                aria-label={optionLabel(t, "color", k, c.label)}
                 className={cn(
                   "h-9 w-9 rounded-full ring-offset-2 ring-offset-background transition sm:h-7 sm:w-7",
                   c.dot,

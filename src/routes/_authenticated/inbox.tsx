@@ -19,7 +19,7 @@ import { parseBrainDump, paraphrasePoint } from "@/lib/ai.functions";
 import { captureInboxNote, captureInboxTask } from "@/lib/capture.functions";
 import { QuickCapture } from "@/components/QuickCapture";
 import { DemoExamples } from "@/components/demo/DemoExamples";
-import { FIELD_LABEL, NOTE_FIELD_LABEL } from "@/lib/capture-fields";
+import { FIELD_LABEL, filledFieldsText, NOTE_FIELD_LABEL } from "@/lib/capture-fields";
 import { scheduleSemanticSync } from "@/lib/semantic-sync";
 import { isDemoGenericReply } from "@/lib/demo-examples";
 import type { Tables } from "@/integrations/supabase/types";
@@ -163,7 +163,7 @@ function InboxPage() {
       for (const key of [qk.tasks, qk.deps, ["inbox-count"]])
         void qc.invalidateQueries({ queryKey: key });
       scheduleSemanticSync();
-      const fields = r.filled.map((f) => FIELD_LABEL[f] ?? f).join(", ");
+      const fields = filledFieldsText(tr, FIELD_LABEL, r.filled);
       toast.success(tr("wsInboxTaskCreated", { title: r.title }), {
         description: [
           `${r.via === "ai" ? tr("wsInboxFilledAi") : tr("wsInboxFilledLocal")}${fields ? `: ${fields}` : ""}`,
@@ -188,7 +188,7 @@ function InboxPage() {
       for (const key of [qk.notes, qk.noteBlocks, ["inbox-count"]])
         void qc.invalidateQueries({ queryKey: key });
       scheduleSemanticSync();
-      const fields = r.filled.map((f) => NOTE_FIELD_LABEL[f] ?? f).join(", ");
+      const fields = filledFieldsText(tr, NOTE_FIELD_LABEL, r.filled);
       toast.success(tr("wsInboxNoteCreated", { title: r.title }), {
         description: [
           `${r.via === "ai" ? tr("wsInboxFilledAi") : tr("wsInboxFilledLocal")}${fields ? `: ${fields}` : ""}`,
