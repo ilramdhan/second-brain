@@ -47,7 +47,8 @@ import { Button, pressableFocus } from "@/components/ui/button";
 import { usePreferences } from "@/lib/preferences";
 import { logActivity } from "@/lib/activity";
 import { LOGIN_PATH, requireSession } from "@/lib/auth";
-import { matchShortcut, shouldIgnoreShortcut } from "@/lib/shortcuts";
+import { useShortcuts } from "@/hooks/use-shortcuts";
+import { matchShortcut, shortcutKeyLabel, shouldIgnoreShortcut } from "@/lib/shortcuts";
 
 // Dialog bodies are loaded the first time they open, not with the app shell.
 const CommandMenu = lazy(() => import("@/components/CommandMenu"));
@@ -139,16 +140,19 @@ function Shell() {
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { newTask } = useTaskDialog();
-  const { t } = usePreferences();
+  const { t, singleKeyShortcuts } = usePreferences();
   const [cmd, setCmd] = useState(false);
   const [capture, setCapture] = useState(false);
   const [more, setMore] = useState(false);
   const [quick, setQuick] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const demo = isDemo();
+  const shortcutList = useShortcuts();
+  const quickTaskKey = singleKeyShortcuts ? shortcutKeyLabel("quickTask", shortcutList) : null;
 
   // Global shortcuts (src/lib/shortcuts.ts). Ctrl/Cmd+K toggles the palette from anywhere (also
-  // inside inputs); single keys (Q, ?) are ignored while typing or while a dialog is open.
+  // inside inputs); single keys (Q, ? or their remapped keys) are ignored while typing or while a
+  // dialog is open. matchShortcut reads the effective (remapped) bindings on every key press.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const m = matchShortcut(e, "global");
@@ -228,9 +232,11 @@ function Shell() {
             onClick={() => setQuick(true)}
           >
             <Zap /> {t("quickTask")}{" "}
-            <kbd className="ml-auto rounded border px-1.5 text-[10px] font-normal text-muted-foreground">
-              Q
-            </kbd>
+            {quickTaskKey && (
+              <kbd className="ml-auto rounded border px-1.5 text-[10px] font-normal text-muted-foreground">
+                {quickTaskKey}
+              </kbd>
+            )}
           </Button>
           <Button
             variant="secondary"

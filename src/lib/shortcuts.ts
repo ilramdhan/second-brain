@@ -2,8 +2,11 @@ import type { MessageKey } from "@/lib/preferences";
 
 /**
  * Keyboard shortcuts: one list shared by the handlers (app shell, list/kanban navigation) and the
- * `?` cheat-sheet, so what the sheet shows is exactly what the keys do. Pure functions only; the
- * React wiring lives in src/routes/_authenticated.tsx and src/hooks/use-keyboard-nav.ts.
+ * `?` cheat-sheet, so what the sheet shows is exactly what the keys do. `SHORTCUTS` holds the
+ * defaults; `getEffectiveShortcuts()` adds this device's remapped keys (Settings → Pintasan) and
+ * is what the handlers match against. Pure functions plus a tiny subscribe/get store; the React
+ * wiring lives in src/hooks/use-shortcuts.ts, src/routes/_authenticated.tsx and
+ * src/hooks/use-keyboard-nav.ts.
  */
 
 export type ShortcutId =
@@ -186,13 +189,218 @@ export function matchShortcut(
   e: KeyLike,
   scope: ShortcutScope,
   singleKeys: boolean = singleKeyShortcutsEnabled(),
+  shortcuts: readonly Shortcut[] = getEffectiveShortcuts(),
 ): { id: ShortcutId; binding: Binding } | null {
-  for (const s of SHORTCUTS) {
+  for (const s of shortcuts) {
     if (s.scope !== scope) continue;
     const binding = activeBindings(s, singleKeys).find((b) => matchesBinding(e, b));
     if (binding) return { id: s.id, binding };
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Remapping (WCAG 2.1.4): every single-key binding (one printable character, no Ctrl/⌘, not a
+// focused-list key) can be given another key in Settings → Pintasan. Ctrl/⌘ combos and the
+// arrow/Enter/Home/End/Esc keys stay fixed. Overrides are stored per device as JSON
+// `{ [ShortcutId]: key }`; invalid, stale or conflicting entries are ignored when read.
+
+export const SHORTCUT_OVERRIDES_STORAGE_KEY = "second-brain-shortcut-overrides";
+
+export type ShortcutOverrides = Partial<Record<ShortcutId, string>>;
+
+/** A binding the user may move to another key. */
+export function isRemappableBinding(b: Binding): boolean {
+  return isCharacterKeyBinding(b) && !b.inList;
+}
+
+/** The binding of `s` that can be remapped, if any (each shortcut has at most one). */
+export function remappableBinding(s: Shortcut): Binding | undefined {
+  return s.bindings.find(isRemappableBinding);
+}
+
+export function isRemappable(s: Shortcut): boolean {
+  return !!remappableBinding(s);
+}
+
+/** Lower-cases letters so `Q` and `q` are one key; symbols are kept as typed (`?`, `[`). */
+export function normalizeShortcutKey(key: string): string {
+  return key.toLowerCase();
+}
+
+/**
+ * Whether a key press can become a single-key shortcut: one printable, non-space character with
+ * no Ctrl/⌘/Alt. Rejects modifiers alone, Tab, Escape, Enter, Space, arrows, F-keys, dead keys.
+ */
+export function isAllowedShortcutKey(
+  e: Pick<KeyLike, "key"> & Partial<Pick<KeyLike, "metaKey" | "ctrlKey" | "altKey">>,
+): boolean {
+  if (e.metaKey || e.ctrlKey || e.altKey) return false;
+  return [...e.key].length === 1 && e.key.trim() !== "";
+}
+
+/** SHORTCUTS with `overrides` applied (the remappable binding gets the new key). */
+export function applyOverrides(
+  overrides: ShortcutOverrides,
+  base: readonly Shortcut[] = SHORTCUTS,
+): Shortcut[] {
+  return base.map((s) => {
+    const key = overrides[s.id];
+    if (!key) return s;
+    return {
+      ...s,
+      bindings: s.bindings.map((b) => (isRemappableBinding(b) ? { ...b, key } : b)),
+    };
+  });
+}
+
+function scopesClash(a: ShortcutScope, b: ShortcutScope): boolean {
+  return a === b || a === "global" || b === "global";
+}
+
+/**
+ * The shortcut that already uses `key` where `id` would also fire: the same scope, or global
+ * (global clashes with every scope). Only Ctrl/⌘-free bindings count.
+ */
+export function findConflict(
+  id: ShortcutId,
+  key: string,
+  shortcuts: readonly Shortcut[],
+): Shortcut | null {
+  const target = shortcuts.find((s) => s.id === id);
+  if (!target) return null;
+  const k = normalizeShortcutKey(key);
+  return (
+    shortcuts.find(
+      (s) =>
+        s.id !== id &&
+        scopesClash(s.scope, target.scope) &&
+        s.bindings.some((b) => !b.mod && normalizeShortcutKey(b.key) === k),
+    ) ?? null
+  );
+}
+
+export type RemapResult =
+  | { ok: true; overrides: ShortcutOverrides }
+  | { ok: false; reason: "notRemappable" | "forbidden" }
+  | { ok: false; reason: "conflict"; conflict: Shortcut };
+
+/** `overrides` with `id` moved to `key`, or why that is refused (no swapping). */
+export function remapShortcut(
+  overrides: ShortcutOverrides,
+  id: ShortcutId,
+  key: string,
+): RemapResult {
+  const base = SHORTCUTS.find((s) => s.id === id);
+  const original = base && remappableBinding(base);
+  if (!base || !original) return { ok: false, reason: "notRemappable" };
+  if (!isAllowedShortcutKey({ key })) return { ok: false, reason: "forbidden" };
+  const k = normalizeShortcutKey(key);
+  const conflict = findConflict(id, k, applyOverrides(overrides));
+  if (conflict) return { ok: false, reason: "conflict", conflict };
+  const next: ShortcutOverrides = { ...overrides };
+  if (normalizeShortcutKey(original.key) === k) delete next[id];
+  else next[id] = k;
+  return { ok: true, overrides: next };
+}
+
+/** Stored overrides, dropping anything unknown, invalid or conflicting (applied in order). */
+export function parseOverrides(raw: string | null): ShortcutOverrides {
+  if (!raw) return {};
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+  let result: ShortcutOverrides = {};
+  for (const [id, key] of Object.entries(data as Record<string, unknown>)) {
+    if (typeof key !== "string") continue;
+    if (!SHORTCUTS.some((s) => s.id === id)) continue;
+    const r = remapShortcut(result, id as ShortcutId, key);
+    if (r.ok) result = r.overrides;
+  }
+  return result;
+}
+
+// Store: read once, kept in memory (so the choice holds for the session even when storage is
+// blocked), with listeners so React views re-render (`useShortcuts`).
+let overridesCache: ShortcutOverrides | null = null;
+let effectiveCache: { from: ShortcutOverrides; shortcuts: readonly Shortcut[] } | null = null;
+const listeners = new Set<() => void>();
+
+export function getShortcutOverrides(): ShortcutOverrides {
+  if (overridesCache === null) {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(SHORTCUT_OVERRIDES_STORAGE_KEY);
+    } catch {
+      // storage blocked: defaults
+    }
+    overridesCache = parseOverrides(raw);
+  }
+  return overridesCache;
+}
+
+/** The bindings in effect on this device (defaults + overrides); stable between changes. */
+export function getEffectiveShortcuts(): readonly Shortcut[] {
+  const overrides = getShortcutOverrides();
+  if (effectiveCache?.from !== overrides) {
+    effectiveCache = { from: overrides, shortcuts: applyOverrides(overrides) };
+  }
+  return effectiveCache.shortcuts;
+}
+
+export function subscribeShortcuts(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function writeOverrides(next: ShortcutOverrides): void {
+  overridesCache = next;
+  try {
+    if (Object.keys(next).length === 0) localStorage.removeItem(SHORTCUT_OVERRIDES_STORAGE_KEY);
+    else localStorage.setItem(SHORTCUT_OVERRIDES_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // storage blocked: the change lasts for this session only
+  }
+  listeners.forEach((l) => l());
+}
+
+/** Moves `id` to `key` on this device, unless the key is forbidden or already used. */
+export function setShortcutKey(id: ShortcutId, key: string): RemapResult {
+  const r = remapShortcut(getShortcutOverrides(), id, key);
+  if (r.ok) writeOverrides(r.overrides);
+  return r;
+}
+
+export function resetShortcut(id: ShortcutId): void {
+  const current = getShortcutOverrides();
+  if (!(id in current)) return;
+  const next = { ...current };
+  delete next[id];
+  writeOverrides(next);
+}
+
+export function resetAllShortcuts(): void {
+  writeOverrides({});
+}
+
+/** Test helper: forget the in-memory copy so the next read goes back to storage. */
+export function reloadShortcutOverrides(): void {
+  overridesCache = null;
+  listeners.forEach((l) => l());
+}
+
+/** Display form of the remappable key of `id` (e.g. "Q"), for hints next to buttons. */
+export function shortcutKeyLabel(
+  id: ShortcutId,
+  shortcuts: readonly Shortcut[] = getEffectiveShortcuts(),
+): string | null {
+  const s = shortcuts.find((x) => x.id === id);
+  const b = s && remappableBinding(s);
+  return b ? bindingKeys(b, false).join(" ") : null;
 }
 
 /** Text fields where letters must type, not run shortcuts. */
