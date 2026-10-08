@@ -10,6 +10,19 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.7.0](https://github.com/ilramdhan/second-brain/compare/v0.6.0...v0.7.0) (2026-10-08)
+
+
+### Features
+
+* **automations:** coded run details translated in the UI ([#92](https://github.com/ilramdhan/second-brain/issues/92)) ([762d81f](https://github.com/ilramdhan/second-brain/commit/762d81f4a1e4c33a61e30b7aab4ac87823889b43))
+* **shortcuts:** remap single-key shortcuts per device ([#93](https://github.com/ilramdhan/second-brain/issues/93)) ([a407cfd](https://github.com/ilramdhan/second-brain/commit/a407cfd7d52bb9f70bb7d5dae1a5219b541c8817))
+
+
+### Refactoring
+
+* **ui:** drop leftover button class overrides (phase C) ([#90](https://github.com/ilramdhan/second-brain/issues/90)) ([7bb7545](https://github.com/ilramdhan/second-brain/commit/7bb75451a8f7ee1f351c41cf43ef99d356a42dd8))
+
 ## [0.6.0](https://github.com/ilramdhan/second-brain/compare/v0.5.0...v0.6.0) (2026-10-08)
 
 
