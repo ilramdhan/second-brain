@@ -133,7 +133,7 @@ function SettingsPage() {
   }
 
   return (
-    <PageContainer contentWidth="readable">
+    <PageContainer>
       <PageHeader title={t("settings")} subtitle={t("admSettingsSubtitle")} />
 
       <section className="mb-4 rounded-md border bg-card p-5">
