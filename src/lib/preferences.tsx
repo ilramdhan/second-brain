@@ -8,6 +8,7 @@ import {
   type MessageKey,
   type MessageVars,
 } from "./i18n";
+import { setSingleKeyShortcutsEnabled, singleKeyShortcutsEnabled } from "./shortcuts";
 import { LOCALE_COOKIE, THEME_COOKIE, writePreferenceCookie } from "./preference-cookies";
 import { THEME_STORAGE_KEY } from "./theme-script";
 
@@ -47,6 +48,9 @@ type PreferencesContextValue = {
   setTheme: (theme: Theme) => void;
   locale: Locale;
   setLocale: (locale: Locale) => void;
+  /** Single-key shortcuts (WCAG 2.1.4); off leaves only Ctrl/⌘ combos and focused-list keys. */
+  singleKeyShortcuts: boolean;
+  setSingleKeyShortcuts: (enabled: boolean) => void;
   /** Translate `key`; `vars` fill `{name}` placeholders. */
   t: (key: MessageKey, vars?: MessageVars) => string;
   /** BCP 47 tag of the active locale, for `Intl` / `toLocale*String`. */
@@ -85,6 +89,8 @@ export function PreferencesProvider({
 }) {
   const [theme, setThemeState] = useState<Theme>(initialTheme);
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  // On during SSR; the stored choice is applied after mount (localStorage).
+  const [singleKeyShortcuts, setSingleKeyState] = useState(true);
   // Snapshot of the server values for the mount effect (it must run only once).
   const [initial] = useState({ locale: initialLocale, theme: initialTheme });
 
@@ -106,6 +112,7 @@ export function PreferencesProvider({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reconcile with localStorage after mount (not available during SSR).
     setThemeState(nextTheme);
     setLocaleState(nextLocale);
+    setSingleKeyState(singleKeyShortcutsEnabled());
     applyTheme(nextTheme);
     document.documentElement.lang = nextLocale;
     writePreferenceCookie(LOCALE_COOKIE, nextLocale);
@@ -144,11 +151,16 @@ export function PreferencesProvider({
         writePreferenceCookie(LOCALE_COOKIE, next);
         document.documentElement.lang = next;
       },
+      singleKeyShortcuts,
+      setSingleKeyShortcuts: (enabled) => {
+        setSingleKeyShortcutsEnabled(enabled);
+        setSingleKeyState(enabled);
+      },
       t: (key, vars) => format(messages[locale][key], vars),
       intl: intlLocale(locale),
       dateFns: dateLocale(locale),
     }),
-    [theme, locale],
+    [theme, locale, singleKeyShortcuts],
   );
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
