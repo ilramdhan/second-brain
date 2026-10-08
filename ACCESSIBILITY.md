@@ -58,10 +58,16 @@ been confirmed by a full manual audit with assistive technology.
   tabindex (one tab stop per list), `aria-current` and a visible ring, and follows focus.
   Single-key shortcuts are ignored while a modifier key is held, while focus is in an input,
   textarea, select or contenteditable element, and while a dialog or menu is open, and they can
-  be turned off (2.1.4 Character Key Shortcuts) with Settings → Tampilan → "Pintasan satu
-  tombol" (stored per device): every one-character binding stops, while `Cmd/Ctrl+K` and the
+  be turned off (2.1.4 Character Key Shortcuts) with Settings → Pintasan keyboard → "Pintasan
+  satu tombol" (stored per device): every one-character binding stops, while `Cmd/Ctrl+K` and the
   arrow/`Enter`/`Home`/`End`/`Esc` keys of a focused list or calendar grid keep working, and the
-  cheat-sheet then lists only the bindings that still apply.
+  cheat-sheet then lists only the bindings that still apply. The same section remaps each
+  single-key binding ("Ubah" waits for the next key, `Esc` or `Tab` cancels; per-row reset and
+  "Reset semua"): a key already used in the same scope or in the global scope is refused with
+  "Sudah dipakai untuk …" (no silent swap), and Tab, Esc, Enter, Space, arrows, F-keys and
+  Ctrl/⌘/Alt combos are refused. `Cmd/Ctrl+K` and the focused-list keys stay fixed and are shown
+  read-only. Handlers, the `?` cheat-sheet and the palette hints all read the effective bindings
+  (`getEffectiveShortcuts` in `src/lib/shortcuts.ts`).
 - **Keyboard drag and drop** (2.1.1, 2.5.7). Kanban boards (tasks, notes, projects) and calendar
   chips register dnd-kit's `KeyboardSensor` with a custom coordinate getter
   (`src/lib/dnd-a11y.ts`, used instead of `sortableKeyboardCoordinates` because
@@ -144,9 +150,9 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
 9. **Focus outline on note blocks.** The block `<textarea>` uses `outline-none` without a
    replacement focus style, which relies on the caret alone (2.4.7, 2.4.11 Focus Not Obscured).
 10. **Single-key shortcuts** (`Q`, `?`, `j`/`k`/`h`/`l`/`o`/`e`/`x`, calendar `t`/`[`/`]`; 2.1.4
-    Character Key Shortcuts) can be turned off in Settings ("Pintasan satu tombol"), which meets
-    2.1.4. Remaining gap: they cannot be remapped, and the setting is per device (localStorage),
-    not per account.
+    Character Key Shortcuts) can be turned off in Settings ("Pintasan satu tombol") and remapped
+    to another key (Settings → Pintasan keyboard → "Ubah"), which meets 2.1.4. Remaining gap: both
+    the switch and the remapped keys are stored per device (localStorage), not per account.
 11. **Target size** (2.5.8). Task check circles and switches have a 44 px hit area, segmented
     tabs are 44 px tall on phones, and dialog fields are 44 px tall below `sm`. The small icon
     buttons (calendar day "add", note block handle, project tree expander, canvas card and
@@ -154,9 +160,13 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
     invisible `::after` grows the hit area to at least 44×44 px without changing the look, and
     the calendar "add" button and block handle stay visible there instead of appearing on hover.
     Mouse users keep the compact `h-7`/`p-0.5` buttons, which meet the 24×24 px minimum through
-    the spacing exception. Use `tap-target` for new icon buttons smaller than 44 px (the `Button` sizes `sm`/`icon-sm` already include it as `tap-area`; `md`/`lg`/`icon` are 44 px tall on coarse pointers). Remaining
-    gap: neighbouring touch hit areas can overlap in dense rows (e.g. the project tree), where
-    the later element wins.
+    the spacing exception. Use `tap-target` for new icon buttons smaller than 44 px (the `Button` sizes `sm`/`icon-sm` already include it as `tap-area`; `md`/`lg`/`icon` are 44 px tall on coarse pointers). In the
+    project tree (`/projects`, tree view) each row is 44 px tall on coarse pointers with no
+    vertical padding, so the centred 44 px hit area of the expander and "add sub-project" buttons
+    fills the row instead of spilling into the rows above and below (the name link also spans
+    the full row height); the desktop rows keep their compact look. Remaining gap: other dense
+    rows that use `tap-target`/`tap-area` inside rows shorter than 44 px can still overlap their
+    neighbours on touch, where the later element wins.
 
 ## Testing approach
 

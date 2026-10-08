@@ -23,6 +23,7 @@ import {
   Info,
   Sparkles,
   RefreshCw,
+  Keyboard,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SecurityPanel } from "@/components/settings/SecurityPanel";
+import { ShortcutSettings } from "@/components/settings/ShortcutSettings";
 import { SharesPanel } from "@/components/settings/SharesPanel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -170,7 +172,13 @@ function SettingsPage() {
             <p className="mt-2 text-xs text-muted-foreground">{t("admLanguageNote")}</p>
           </div>
         </div>
-        <div className="mt-4 space-y-1 border-t pt-4">
+      </section>
+
+      <section className="rounded-2xl border bg-card p-5" aria-labelledby="settings-shortcuts">
+        <h2 id="settings-shortcuts" className="mb-4 flex items-center gap-2 font-semibold">
+          <Keyboard className="h-4 w-4 text-primary" /> {t("kbTitle")}
+        </h2>
+        <div className="space-y-1">
           <label className="flex items-center gap-2 text-sm font-medium">
             <Switch
               checked={singleKeyShortcuts}
@@ -183,6 +191,7 @@ function SettingsPage() {
             {t("kbSingleKeyBody")}
           </p>
         </div>
+        <ShortcutSettings />
       </section>
 
       <IdleSetting />

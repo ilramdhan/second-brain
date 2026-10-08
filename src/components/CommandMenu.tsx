@@ -24,6 +24,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandShortcut,
 } from "@/components/ui/command";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { useDebounced } from "@/hooks/use-debounced";
@@ -38,7 +39,8 @@ import {
   type SemanticHit,
 } from "@/lib/data";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
-import { matchesCommand } from "@/lib/shortcuts";
+import { useShortcuts } from "@/hooks/use-shortcuts";
+import { matchesCommand, shortcutKeyLabel, type ShortcutId } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -79,7 +81,10 @@ export default function CommandMenu({
   onShortcuts: () => void;
 }) {
   const navigate = useNavigate();
-  const { t, locale, setLocale, setTheme } = usePreferences();
+  const { t, locale, setLocale, setTheme, singleKeyShortcuts } = usePreferences();
+  const shortcuts = useShortcuts();
+  const keyHint = (id: ShortcutId) =>
+    singleKeyShortcuts ? (shortcutKeyLabel(id, shortcuts) ?? undefined) : undefined;
   const { openTask, newTask } = useTaskDialog();
   const { setStatus } = useTaskActions();
   const { create: createNote } = useNoteActions();
@@ -125,7 +130,14 @@ export default function CommandMenu({
   const openNote = (id: string) =>
     run(() => navigate({ to: "/notes/$noteId", params: { noteId: id } }));
 
-  type Command = { id: string; label: string; icon: LucideIcon; run: () => void };
+  type Command = {
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    run: () => void;
+    /** Single-key shortcut that does the same (effective binding, so remaps show). */
+    hint?: string | undefined;
+  };
   const actions: Command[] = [
     { id: "new-task", label: t("searchNewTask"), icon: Plus, run: () => newTask() },
     {
@@ -137,7 +149,13 @@ export default function CommandMenu({
           if (row) void navigate({ to: "/notes/$noteId", params: { noteId: row.id } });
         }),
     },
-    { id: "quick-task", label: t("quickTask"), icon: Zap, run: onQuickTask },
+    {
+      id: "quick-task",
+      label: t("quickTask"),
+      icon: Zap,
+      run: onQuickTask,
+      hint: keyHint("quickTask"),
+    },
     { id: "quick-capture", label: t("quickCapture"), icon: Inbox, run: onQuickCapture },
     {
       id: "theme",
@@ -151,7 +169,13 @@ export default function CommandMenu({
       icon: Languages,
       run: () => setLocale(locale === "id" ? "en" : "id"),
     },
-    { id: "shortcuts", label: t("kbTitle"), icon: Keyboard, run: onShortcuts },
+    {
+      id: "shortcuts",
+      label: t("kbTitle"),
+      icon: Keyboard,
+      run: onShortcuts,
+      hint: keyHint("cheatSheet"),
+    },
   ];
   const selectionActions: Command[] = selectedTask
     ? [
@@ -253,6 +277,11 @@ export default function CommandMenu({
                 {g.items.map((c) => (
                   <CommandItem key={c.id} value={`command ${c.id}`} onSelect={() => run(c.run)}>
                     <c.icon /> {c.label}
+                    {c.hint && (
+                      <CommandShortcut>
+                        <kbd className="font-sans">{c.hint}</kbd>
+                      </CommandShortcut>
+                    )}
                   </CommandItem>
                 ))}
               </CommandGroup>

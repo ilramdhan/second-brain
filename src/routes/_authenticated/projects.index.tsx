@@ -316,8 +316,12 @@ function TreeNode({
   const { t } = usePreferences();
   return (
     <li>
+      {/* Touch (coarse:): each row is 44px (min-h-11, content is shorter) with no vertical padding, so the 44px hit area
+          of the icon-sm expander/add buttons (tap-area ::after, centred) fills the row height and
+          ends at the row edge instead of spilling into the rows above and below; the name link
+          stretches to the full row height too. Desktop keeps the compact py-1.5 rows. */}
       <div
-        className="group flex items-center gap-1 rounded-lg py-1.5 pr-2 hover:bg-accent/60"
+        className="group flex items-center gap-1 rounded-lg py-1.5 pr-2 hover:bg-accent/60 coarse:min-h-11 coarse:py-0"
         style={{ paddingLeft: depth * 20 + 4 }}
       >
         <IconButton
@@ -332,9 +336,9 @@ function TreeNode({
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
-          className="flex-1 truncate text-sm hover:text-primary"
+          className="flex-1 truncate text-sm hover:text-primary coarse:flex coarse:items-center coarse:self-stretch"
         >
-          {p.name}
+          <span className="truncate">{p.name}</span>
         </Link>
         <span className="text-xs text-muted-foreground">
           {pr.done}/{pr.total}

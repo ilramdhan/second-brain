@@ -7,12 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useShortcuts } from "@/hooks/use-shortcuts";
 import { usePreferences } from "@/lib/preferences";
 import {
   activeBindings,
   bindingKeys,
   isMacPlatform,
-  SHORTCUTS,
+  shortcutKeyLabel,
   type ShortcutScope,
 } from "@/lib/shortcuts";
 
@@ -25,7 +26,7 @@ const GROUPS: {
   { scope: "calendar", title: "kbGroupCalendar" },
 ];
 
-/** `?` cheat-sheet, rendered from the same SHORTCUTS list the handlers use. */
+/** `?` cheat-sheet, rendered from the same effective bindings the handlers use (remaps included). */
 export function ShortcutsDialog({
   open,
   onOpenChange,
@@ -34,19 +35,23 @@ export function ShortcutsDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t, singleKeyShortcuts } = usePreferences();
+  const shortcuts = useShortcuts();
   const mac = isMacPlatform();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("kbTitle")}</DialogTitle>
-          <DialogDescription>{t("kbDescription")}</DialogDescription>
+          <DialogDescription>
+            {t("kbDescription", { key: shortcutKeyLabel("cheatSheet", shortcuts) ?? "?" })}
+          </DialogDescription>
         </DialogHeader>
         {GROUPS.map((g) => (
           <section key={g.scope} className="space-y-2">
             <h3 className="text-sm font-semibold">{t(g.title)}</h3>
             <dl className="divide-y rounded-lg border text-sm">
-              {SHORTCUTS.filter((s) => s.scope === g.scope)
+              {shortcuts
+                .filter((s) => s.scope === g.scope)
                 .map((s) => ({
                   s,
                   bindings: activeBindings(s, singleKeyShortcuts),
