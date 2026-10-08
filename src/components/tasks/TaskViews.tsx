@@ -18,7 +18,7 @@ import {
   type TaskFilter,
 } from "@/components/tasks/TaskFilters";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { Button, IconButton } from "@/components/ui/button";
+import { Button, IconButton, ResponsiveButton } from "@/components/ui/button";
 import { useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TASK_STATUS } from "@/lib/constants";
@@ -118,9 +118,11 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <Button size="sm" onClick={() => newTask({ project_id: projectId ?? null })}>
-          <Plus /> {t("taskAddButton")}
-        </Button>
+        <ResponsiveButton
+          onClick={() => newTask({ project_id: projectId ?? null })}
+          icon={<Plus />}
+          label={t("taskAddButton")}
+        />
       </div>
 
       <TaskFilters

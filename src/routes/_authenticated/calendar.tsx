@@ -35,7 +35,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { TaskRows, useTaskRowLookups } from "@/components/tasks/TaskItem";
 import { byId, tasksByDay } from "@/lib/task-maps";
-import { Button, ResponsiveButton, pressableFocus } from "@/components/ui/button";
+import { Button, IconButton, ResponsiveButton, pressableFocus } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, priorityOf } from "@/lib/constants";
 import {
@@ -316,32 +316,25 @@ function CalendarPage() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
-          <Button
+          <IconButton
             variant="secondary"
-            size="icon"
-            className="h-8 w-8"
+            size="icon-sm"
             onClick={() => step(-1)}
-            aria-label={t("taskCalPrevious")}
+            label={t("taskCalPrevious")}
           >
             <ChevronLeft />
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-8"
-            onClick={() => setCursor(startOfDay(new Date()))}
-          >
+          </IconButton>
+          <Button variant="secondary" size="sm" onClick={() => setCursor(startOfDay(new Date()))}>
             {t("taskCalToday")}
           </Button>
-          <Button
+          <IconButton
             variant="secondary"
-            size="icon"
-            className="h-8 w-8"
+            size="icon-sm"
             onClick={() => step(1)}
-            aria-label={t("taskCalNext")}
+            label={t("taskCalNext")}
           >
             <ChevronRight />
-          </Button>
+          </IconButton>
           <h2 className="ml-2 text-base font-semibold capitalize">{title}</h2>
         </div>
         <Tabs value={view} onValueChange={(v) => setView(v as View)}>

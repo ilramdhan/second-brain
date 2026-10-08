@@ -327,15 +327,9 @@ function NoteEditor({ note }: { note: NoteDetail }) {
             >
               <Archive />
             </Button>
-            <Button
-              variant="tertiary"
-              size="icon"
-              onClick={remove}
-              aria-label={t("noteDelete")}
-              className="text-destructive hover:text-destructive"
-            >
+            <IconButton variant="danger-ghost" onClick={remove} label={t("noteDelete")}>
               <Trash2 />
-            </Button>
+            </IconButton>
           </div>
         </div>
         <DemoExamples

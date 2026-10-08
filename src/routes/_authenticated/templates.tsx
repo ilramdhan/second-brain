@@ -9,7 +9,7 @@ import { FillFromText } from "@/components/common/FillFromText";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { Button, ResponsiveButton } from "@/components/ui/button";
+import { Button, IconButton, ResponsiveButton } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -160,15 +160,14 @@ function TemplatesPage() {
                       {p.tags?.length ? ` · ${p.tags.map((x) => `#${x}`).join(" ")}` : ""}
                     </p>
                   </div>
-                  <Button
-                    variant="tertiary"
-                    size="icon"
-                    className="tap-target h-7 w-7 text-muted-foreground hover:text-destructive"
+                  <IconButton
+                    variant="danger-ghost"
+                    size="icon-sm"
                     onClick={() => remove(t.id)}
-                    aria-label={tr("wsTplDelete")}
+                    label={tr("wsTplDelete")}
                   >
                     <Trash2 />
-                  </Button>
+                  </IconButton>
                 </div>
                 {p.body && (
                   <p className="mt-2 line-clamp-4 whitespace-pre-line text-xs text-muted-foreground">

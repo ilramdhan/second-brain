@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Button, ButtonGroup, ResponsiveButton } from "@/components/ui/button";
+import { Button, ButtonGroup, IconButton, ResponsiveButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { getUid } from "@/lib/data";
@@ -495,15 +495,15 @@ function CanvasPage() {
                     className="h-7 border-0 px-1 font-semibold shadow-none"
                   />
                   {mine && (
-                    <Button
-                      variant="tertiary"
-                      size="icon"
-                      className="tap-target h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    <IconButton
+                      variant="danger-ghost"
+                      size="icon-sm"
+                      className="shrink-0"
                       onClick={() => removeNode(node.id)}
-                      aria-label={t("noteCanvasDeleteCard")}
+                      label={t("noteCanvasDeleteCard")}
                     >
                       <Trash2 />
-                    </Button>
+                    </IconButton>
                   )}
                 </div>
                 <textarea

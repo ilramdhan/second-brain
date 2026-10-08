@@ -9,7 +9,7 @@ import { RouteError } from "@/components/common/RouteError";
 import { HabitCard } from "@/components/habits/HabitCard";
 import { HabitDialog, type HabitDraft } from "@/components/habits/HabitDialog";
 import { asDate } from "@/components/reports/points";
-import { Button, ResponsiveButton } from "@/components/ui/button";
+import { IconButton, ResponsiveButton } from "@/components/ui/button";
 import {
   habitLogsQuery,
   habitsQuery,
@@ -101,25 +101,21 @@ function HabitsPage() {
                   : `${asDate(week[0]!).toLocaleDateString(intl, { day: "numeric", month: "short" })} – ${asDate(week[6]!).toLocaleDateString(intl, { day: "numeric", month: "short" })}`}
               </h2>
               <div className="flex gap-1" role="group" aria-label={t("admPickWeek")}>
-                <Button
+                <IconButton
                   variant="secondary"
-                  size="icon"
-                  className="h-11 w-11 sm:h-9 sm:w-9"
-                  aria-label={t("admPrevWeek")}
+                  label={t("admPrevWeek")}
                   onClick={() => setOffset(offset - 1)}
                 >
                   <ChevronLeft aria-hidden />
-                </Button>
-                <Button
+                </IconButton>
+                <IconButton
                   variant="secondary"
-                  size="icon"
-                  className="h-11 w-11 sm:h-9 sm:w-9"
-                  aria-label={t("admNextWeek")}
+                  label={t("admNextWeek")}
                   disabled={offset >= 0}
                   onClick={() => setOffset(offset + 1)}
                 >
                   <ChevronRight aria-hidden />
-                </Button>
+                </IconButton>
               </div>
             </div>
             <ul className="space-y-3">

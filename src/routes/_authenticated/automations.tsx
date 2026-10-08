@@ -859,11 +859,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
       </div>
       <DialogFooter>
         {rule?.id && (
-          <Button
-            variant="tertiary"
-            onClick={remove}
-            className="text-destructive hover:text-destructive sm:mr-auto"
-          >
+          <Button variant="danger-ghost" onClick={remove} className="sm:mr-auto">
             <Trash2 /> {t("autoDelete")}
           </Button>
         )}

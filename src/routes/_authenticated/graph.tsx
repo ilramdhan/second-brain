@@ -14,7 +14,7 @@ import { Minus, Plus, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { NoteFromTextButton } from "@/components/notes/NoteFromTextDialog";
 import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
-import { Button, ButtonGroup, IconButton } from "@/components/ui/button";
+import { ButtonGroup, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,

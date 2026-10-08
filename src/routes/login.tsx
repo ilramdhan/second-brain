@@ -176,8 +176,7 @@ function LoginPage() {
       <Button
         asChild
         variant="tertiary"
-        size="sm"
-        className="absolute top-4 left-4 h-11 px-3 text-muted-foreground hover:text-foreground sm:top-6 sm:left-6"
+        className="absolute top-4 left-4 px-3 text-muted-foreground hover:text-foreground sm:top-6 sm:left-6"
       >
         <Link to="/" aria-label={t("loginBackHomeLabel")}>
           <ArrowLeft aria-hidden />

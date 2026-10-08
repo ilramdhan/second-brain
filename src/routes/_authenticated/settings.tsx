@@ -200,12 +200,8 @@ function SettingsPage() {
               <p className="font-medium text-secondary-foreground">{t("admConnected")}</p>
               <p className="text-xs text-muted-foreground">@{telegramUsername ?? telegramChatId}</p>
             </div>
-            <Button
-              variant="tertiary"
-              onClick={unlinkTelegram}
-              className="text-destructive hover:text-destructive"
-            >
-              <Unlink className="h-3.5 w-3.5" /> {t("admDisconnect")}
+            <Button variant="danger-ghost" onClick={unlinkTelegram}>
+              <Unlink /> {t("admDisconnect")}
             </Button>
           </div>
         ) : (

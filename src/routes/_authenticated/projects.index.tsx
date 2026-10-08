@@ -14,7 +14,7 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { Kanban } from "@/components/Kanban";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
-import { Button, IconButton, ResponsiveButton, pressableFocus } from "@/components/ui/button";
+import { IconButton, ResponsiveButton, pressableFocus } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { color, PARA, PROJECT_STATUS } from "@/lib/constants";
 import { useProjectActions, useProjects, useTasks, type Project, type Task } from "@/lib/data";
