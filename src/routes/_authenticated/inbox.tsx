@@ -26,6 +26,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { VirtualList } from "@/components/common/VirtualList";
 import { PageContainer } from "@/components/common/PageContainer";
+import { PageHeader } from "@/components/common/PageHeader";
 import { withNoteIndex } from "@/lib/blocks";
 import { qk, useAutomations, useProjects } from "@/lib/data";
 import { useServerFn } from "@tanstack/react-start";
@@ -236,11 +237,9 @@ function InboxPage() {
   const paged = usePaged(items, 15);
   return (
     <PageContainer>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{tr("inbox")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tr("wsInboxSubtitle")}</p>
+      <PageHeader title={tr("inbox")} subtitle={tr("wsInboxSubtitle")}>
         <DemoExamples className="mt-2" />
-      </header>
+      </PageHeader>
 
       <QuickCapture onCaptured={load} />
 
