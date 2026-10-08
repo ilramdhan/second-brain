@@ -31,83 +31,98 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+/**
+ * Verifies the request's bearer token and returns an RLS client acting as that user plus the
+ * token claims. Does NOT check the assurance level; see `requireSupabaseAuth`.
+ */
+async function authenticateRequest() {
+  const SUPABASE_URL = process.env["SUPABASE_URL"];
+  const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
+
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    const missing = [
+      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
+      ...(!SUPABASE_PUBLISHABLE_KEY ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+    ];
+    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Set them in the environment (see .env.example).`;
+    console.error(`[Supabase] ${message}`);
+    throw new Error(message);
+  }
+
+  const request = getRequest();
+
+  if (!request?.headers) {
+    throw new Error("Unauthorized: No request headers available");
+  }
+
+  const authHeader = request.headers.get("authorization");
+
+  if (!authHeader) {
+    throw new Error("Unauthorized: No authorization header provided");
+  }
+
+  if (!authHeader.startsWith("Bearer ")) {
+    throw new Error("Unauthorized: Only Bearer tokens are supported");
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) {
+    throw new Error("Unauthorized: No token provided");
+  }
+
+  if (token.split(".").length !== 3) {
+    throw new Error("Unauthorized: Invalid token");
+  }
+
+  const supabase = createClient<Database>(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!, {
+    global: {
+      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+    auth: {
+      storage: undefined,
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const { data, error } = await supabase.auth.getClaims(token);
+  if (error || !data?.claims) {
+    throw new Error("Unauthorized: Invalid token");
+  }
+
+  if (!data.claims.sub) {
+    throw new Error("Unauthorized: No user ID found in token");
+  }
+
+  return { supabase, userId: data.claims.sub, claims: data.claims };
+}
+
 export const requireSupabaseAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
-    const SUPABASE_URL = process.env["SUPABASE_URL"];
-    const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
-
-    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-      const missing = [
-        ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
-        ...(!SUPABASE_PUBLISHABLE_KEY ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
-      ];
-      const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Set them in the environment (see .env.example).`;
-      console.error(`[Supabase] ${message}`);
-      throw new Error(message);
-    }
-
-    const request = getRequest();
-
-    if (!request?.headers) {
-      throw new Error("Unauthorized: No request headers available");
-    }
-
-    const authHeader = request.headers.get("authorization");
-
-    if (!authHeader) {
-      throw new Error("Unauthorized: No authorization header provided");
-    }
-
-    if (!authHeader.startsWith("Bearer ")) {
-      throw new Error("Unauthorized: Only Bearer tokens are supported");
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    if (!token) {
-      throw new Error("Unauthorized: No token provided");
-    }
-
-    if (token.split(".").length !== 3) {
-      throw new Error("Unauthorized: Invalid token");
-    }
-
-    const supabase = createClient<Database>(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!, {
-      global: {
-        fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-      auth: {
-        storage: undefined,
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-
-    const { data, error } = await supabase.auth.getClaims(token);
-    if (error || !data?.claims) {
-      throw new Error("Unauthorized: Invalid token");
-    }
-
-    if (!data.claims.sub) {
-      throw new Error("Unauthorized: No user ID found in token");
-    }
-
+    const { supabase, userId, claims } = await authenticateRequest();
     // TOTP two-factor (migration 0022): an aal1 token of a user with a verified factor must not
     // reach server functions either, because some of them use the service role (which bypasses
     // the restrictive aal2 RLS policies). aal2 tokens skip the extra query.
-    if (!(await mfaSatisfied(data.claims, supabase))) {
+    if (!(await mfaSatisfied(claims, supabase))) {
       throw new Error("Unauthorized: two-factor verification required");
     }
 
-    return next({
-      context: {
-        supabase,
-        userId: data.claims.sub,
-        claims: data.claims,
-      },
-    });
+    return next({ context: { supabase, userId, claims } });
+  },
+);
+
+/**
+ * Like `requireSupabaseAuth` but WITHOUT the aal2 check: a valid aal1 token passes. Only for the
+ * server functions of the TOTP sign-in step itself (redeeming a recovery code,
+ * `src/lib/mfa.functions.ts`); they must never read or write user data with it.
+ */
+export const requireSupabaseSession = createMiddleware({ type: "function" }).server(
+  async ({ next }) => {
+    const { supabase, userId, claims } = await authenticateRequest();
+    return next({ context: { supabase, userId, claims } });
   },
 );
 

@@ -10,6 +10,13 @@ const mfa = vi.hoisted(() => ({
   refreshSession: vi.fn(),
 }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const recovery = vi.hoisted(() => ({
+  generateRecoveryCodes: vi.fn(),
+  recoveryCodesStatus: vi.fn(),
+  redeemRecoveryCode: vi.fn(),
+}));
+
+vi.mock("@/lib/mfa.functions", () => recovery);
 
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/integrations/supabase/client", () => ({
@@ -51,6 +58,43 @@ beforeEach(() => {
   mfa.verify.mockResolvedValue({ data: {}, error: null });
   mfa.unenroll.mockResolvedValue({ data: {}, error: null });
   mfa.refreshSession.mockResolvedValue({ data: {}, error: null });
+  for (const fn of Object.values(recovery)) fn.mockReset();
+  recovery.recoveryCodesStatus.mockResolvedValue({ remaining: 0 });
+  recovery.generateRecoveryCodes.mockResolvedValue({
+    codes: Array.from({ length: 10 }, (_, i) => `AAAA-000${i}`),
+  });
+});
+
+describe("Recovery codes", () => {
+  it("shows the remaining count and creates a batch shown once", async () => {
+    factors([verified]);
+    recovery.recoveryCodesStatus.mockResolvedValue({ remaining: 0 });
+    renderPanel();
+    expect(await screen.findByText("Kode tersisa: 0")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Buat kode pemulihan" }));
+    expect(await screen.findByText("AAAA-0003")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Unduh .txt" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Sudah saya simpan" }));
+    expect(screen.queryByText("AAAA-0003")).toBeNull();
+    expect(screen.getByText("Kode tersisa: 10")).toBeVisible();
+  });
+
+  it("creates the first batch right after 2FA is turned on", async () => {
+    factors([]);
+    mfa.enroll.mockResolvedValue({
+      data: { id: "new", type: "totp", totp: { qr_code: "data:x", secret: "S", uri: "u" } },
+      error: null,
+    });
+    renderPanel();
+    fireEvent.click(await screen.findByRole("button", { name: "Aktifkan verifikasi dua langkah" }));
+    fireEvent.change(await screen.findByLabelText("Kode autentikasi"), {
+      target: { value: "123456" },
+    });
+    factors([verified]);
+    fireEvent.click(screen.getByRole("button", { name: "Aktifkan" }));
+    expect(await screen.findByText("AAAA-0009")).toBeVisible();
+    expect(recovery.generateRecoveryCodes).toHaveBeenCalledTimes(1);
+  });
 });
 afterEach(() => vi.unstubAllEnvs());
 

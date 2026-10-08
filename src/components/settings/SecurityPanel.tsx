@@ -4,6 +4,7 @@ import { ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { TotpCodeInput } from "@/components/auth/TotpCodeInput";
+import { RecoveryCodes } from "@/components/settings/RecoveryCodes";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,6 +48,8 @@ export function SecurityPanel() {
   const demo = isDemo();
   const [state, setState] = useState<PanelState>({ step: "loading" });
   const [removing, setRemoving] = useState<Factor | null>(null);
+  // Set when 2FA was just turned on: the first batch of recovery codes is created right away.
+  const [freshlyEnabled, setFreshlyEnabled] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.auth.mfa.listFactors();
@@ -149,6 +152,7 @@ export function SecurityPanel() {
               onCancel={() => void cancelEnroll(state.enrollment, state.factors)}
               onDone={async () => {
                 toast.success(t("mfaEnrolled"));
+                if (!on) setFreshlyEnabled(true);
                 await load();
               }}
             />
@@ -157,6 +161,7 @@ export function SecurityPanel() {
               {on ? t("mfaAddAnother") : t("mfaEnable")}
             </Button>
           )}
+          {on ? <RecoveryCodes autoGenerate={freshlyEnabled} /> : null}
         </div>
       )}
 

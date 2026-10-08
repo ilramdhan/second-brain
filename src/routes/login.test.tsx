@@ -13,7 +13,14 @@ const auth = vi.hoisted(() => ({
   listFactors: vi.fn(),
   challenge: vi.fn(),
   verify: vi.fn(),
+  refreshSession: vi.fn(),
 }));
+const recovery = vi.hoisted(() => ({
+  generateRecoveryCodes: vi.fn(),
+  recoveryCodesStatus: vi.fn(),
+  redeemRecoveryCode: vi.fn(),
+}));
+vi.mock("@/lib/mfa.functions", () => recovery);
 const router = vi.hoisted(() => ({ navigate: vi.fn(), search: {} as { redirect?: string } }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -26,6 +33,7 @@ vi.mock("@/integrations/supabase/client", () => ({
       signInWithOtp: auth.signInWithOtp,
       signInWithOAuth: auth.signInWithOAuth,
       signOut: auth.signOut,
+      refreshSession: auth.refreshSession,
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
       mfa: {
         getAuthenticatorAssuranceLevel: auth.aal,
@@ -73,6 +81,7 @@ const levels = (currentLevel: string, nextLevel: string) =>
 
 beforeEach(() => {
   for (const fn of Object.values(auth)) fn.mockReset();
+  for (const fn of Object.values(recovery)) fn.mockReset();
   auth.getSession.mockResolvedValue({ data: { session: null } });
   levels("aal1", "aal1");
   router.navigate.mockReset();
@@ -384,6 +393,40 @@ describe("/login", () => {
       fireEvent.click(screen.getByRole("button", { name: "Verifikasi" }));
       expect(await screen.findByRole("alert")).toHaveTextContent("Masukkan 6 digit angka.");
       expect(auth.challenge).not.toHaveBeenCalled();
+    });
+
+    it("redeems a recovery code, resets 2FA and continues into the app", async () => {
+      auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u1" } } } });
+      levels("aal1", "aal2");
+      auth.listFactors.mockResolvedValue({
+        data: { all: [], totp: [{ id: "f1", status: "verified" }] },
+        error: null,
+      });
+      auth.refreshSession.mockResolvedValue({ data: {}, error: null });
+      recovery.redeemRecoveryCode.mockResolvedValueOnce({ ok: false, reason: "invalid" });
+      render(<LoginPage />, { wrapper: PreferencesProvider });
+      fireEvent.click(await screen.findByRole("button", { name: "Pakai kode pemulihan" }));
+
+      const input = screen.getByLabelText("Kode pemulihan");
+      fireEvent.change(input, { target: { value: "abc" } });
+      fireEvent.click(screen.getByRole("button", { name: "Pulihkan akses" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("XXXX-XXXX");
+      expect(recovery.redeemRecoveryCode).not.toHaveBeenCalled();
+
+      fireEvent.change(input, { target: { value: "abcd-ef12" } });
+      fireEvent.click(screen.getByRole("button", { name: "Pulihkan akses" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("salah atau sudah dipakai");
+
+      recovery.redeemRecoveryCode.mockResolvedValueOnce({ ok: true });
+      fireEvent.change(screen.getByLabelText("Kode pemulihan"), {
+        target: { value: "abcd-ef13" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Pulihkan akses" }));
+      await waitFor(() => expect(router.navigate).toHaveBeenCalled());
+      expect(recovery.redeemRecoveryCode).toHaveBeenLastCalledWith({
+        data: { code: "abcd-ef13" },
+      });
+      expect(auth.refreshSession).toHaveBeenCalled();
     });
   });
 });
