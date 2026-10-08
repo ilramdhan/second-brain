@@ -48,12 +48,20 @@ been confirmed by a full manual audit with assistive technology.
   `maximum-scale` or `user-scalable=no`.
 - **Keyboard shortcuts** for power users, defined once in `src/lib/shortcuts.ts` and listed in the
   `?` cheat-sheet: `Cmd/Ctrl+K` command palette (cmdk, accessible combobox; search plus actions,
-  pages and actions for the selected item), `Q` quick task, and in the task list, kanban boards and
-  notes list `j`/`k` (arrows while focused), `h`/`l` between kanban columns, `Enter`/`o` open, `e`
-  edit, `x` toggle done, `Esc` clear. The selection uses a roving tabindex (one tab stop per list),
-  `aria-current` and a visible ring, and follows focus. Single-key shortcuts are ignored while a
-  modifier key is held, while focus is in an input, textarea, select or contenteditable element,
-  and while a dialog or menu is open.
+  pages and actions for the selected item), `Q` quick task, and in the task list, kanban boards,
+  Upcoming tab, Today page, timeline rows and notes `j`/`k` (arrows while focused), `h`/`l` between
+  kanban columns (and between cards of a notes grid row, where `j`/`k` move a whole row for the
+  column count of the current breakpoint), `Enter`/`o` open, `e` edit, `x` toggle done, `Esc`
+  clear. In the calendar month/week grid the day cells use a roving tabindex: `h`/`j`/`k`/`l`
+  (arrows while a cell is focused) move by a day or a week, `Enter` adds a task on that day, `t`
+  jumps to today and `[`/`]` page to the previous/next period. The selection uses a roving
+  tabindex (one tab stop per list), `aria-current` and a visible ring, and follows focus.
+  Single-key shortcuts are ignored while a modifier key is held, while focus is in an input,
+  textarea, select or contenteditable element, and while a dialog or menu is open, and they can
+  be turned off (2.1.4 Character Key Shortcuts) with Settings → Tampilan → "Pintasan satu
+  tombol" (stored per device): every one-character binding stops, while `Cmd/Ctrl+K` and the
+  arrow/`Enter`/`Home`/`End`/`Esc` keys of a focused list or calendar grid keep working, and the
+  cheat-sheet then lists only the bindings that still apply.
 - **Keyboard drag and drop** (2.1.1, 2.5.7). Kanban boards (tasks, notes, projects) and calendar
   chips register dnd-kit's `KeyboardSensor` with a custom coordinate getter
   (`src/lib/dnd-a11y.ts`, used instead of `sortableKeyboardCoordinates` because
@@ -135,10 +143,10 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
    not announced.
 9. **Focus outline on note blocks.** The block `<textarea>` uses `outline-none` without a
    replacement focus style, which relies on the caret alone (2.4.7, 2.4.11 Focus Not Obscured).
-10. **Single-key shortcuts** (`Q`, `?`, `j`/`k`/`h`/`l`/`o`/`e`/`x`; 2.1.4 Character Key
-    Shortcuts) cannot be turned off or remapped. They are suppressed in editable fields and
-    dialogs, which limits accidental activation by speech-input users, but 2.1.4 also expects a
-    way to disable or remap them.
+10. **Single-key shortcuts** (`Q`, `?`, `j`/`k`/`h`/`l`/`o`/`e`/`x`, calendar `t`/`[`/`]`; 2.1.4
+    Character Key Shortcuts) can be turned off in Settings ("Pintasan satu tombol"), which meets
+    2.1.4. Remaining gap: they cannot be remapped, and the setting is per device (localStorage),
+    not per account.
 11. **Target size** (2.5.8). Task check circles and switches have a 44 px hit area, segmented
     tabs are 44 px tall on phones, and dialog fields are 44 px tall below `sm`. The small icon
     buttons (calendar day "add", note block handle, project tree expander, canvas card and

@@ -19,9 +19,17 @@ export type ShortcutId =
   | "navOpen"
   | "navToggle"
   | "navEdit"
-  | "navClear";
+  | "navClear"
+  | "calLeft"
+  | "calRight"
+  | "calUp"
+  | "calDown"
+  | "calNewTask"
+  | "calToday"
+  | "calPrev"
+  | "calNext";
 
-export type ShortcutScope = "global" | "list";
+export type ShortcutScope = "global" | "list" | "calendar";
 
 export type Binding = {
   /** `KeyboardEvent.key`, compared case-insensitively. */
@@ -85,7 +93,84 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { id: "navToggle", scope: "list", bindings: [{ key: "x" }], label: "kbNavToggle" },
   { id: "navEdit", scope: "list", bindings: [{ key: "e" }], label: "kbNavEdit" },
   { id: "navClear", scope: "list", bindings: [{ key: "Escape" }], label: "kbNavClear" },
+  {
+    id: "calLeft",
+    scope: "calendar",
+    bindings: [{ key: "h" }, { key: "ArrowLeft", inList: true }],
+    label: "kbCalLeft",
+  },
+  {
+    id: "calRight",
+    scope: "calendar",
+    bindings: [{ key: "l" }, { key: "ArrowRight", inList: true }],
+    label: "kbCalRight",
+  },
+  {
+    id: "calUp",
+    scope: "calendar",
+    bindings: [{ key: "k" }, { key: "ArrowUp", inList: true }],
+    label: "kbCalUp",
+  },
+  {
+    id: "calDown",
+    scope: "calendar",
+    bindings: [{ key: "j" }, { key: "ArrowDown", inList: true }],
+    label: "kbCalDown",
+  },
+  {
+    id: "calNewTask",
+    scope: "calendar",
+    bindings: [{ key: "Enter", inList: true }],
+    label: "kbCalNewTask",
+  },
+  { id: "calToday", scope: "calendar", bindings: [{ key: "t" }], label: "kbCalToday" },
+  { id: "calPrev", scope: "calendar", bindings: [{ key: "[" }], label: "kbCalPrev" },
+  { id: "calNext", scope: "calendar", bindings: [{ key: "]" }], label: "kbCalNext" },
 ];
+
+// ---------------------------------------------------------------------------------------------
+// Single-key shortcuts can be switched off (WCAG 2.1.4 Character Key Shortcuts): Settings →
+// "Pintasan satu tombol". Off disables every binding that is one printable character without
+// Ctrl/⌘ (Q, ?, j/k/h/l, o, e, x, t, [, ]); Ctrl/⌘ combos and the arrow/Enter/Home/End/Esc keys
+// of a focused list or grid keep working. Stored per device, like the theme.
+
+export const SINGLE_KEY_STORAGE_KEY = "second-brain-single-key-shortcuts";
+
+/** A character key shortcut in the 2.1.4 sense: one printable character, no modifier. */
+export function isCharacterKeyBinding(b: Binding): boolean {
+  return !b.mod && b.key.length === 1;
+}
+
+// Cached so storage is read once, and so the choice holds for the session even when storage
+// is blocked.
+let singleKeys: boolean | null = null;
+
+/** Whether single-key shortcuts are on (default) on this device. */
+export function singleKeyShortcutsEnabled(): boolean {
+  if (singleKeys === null) {
+    try {
+      singleKeys = localStorage.getItem(SINGLE_KEY_STORAGE_KEY) !== "off";
+    } catch {
+      singleKeys = true;
+    }
+  }
+  return singleKeys;
+}
+
+export function setSingleKeyShortcutsEnabled(enabled: boolean): void {
+  singleKeys = enabled;
+  try {
+    if (enabled) localStorage.removeItem(SINGLE_KEY_STORAGE_KEY);
+    else localStorage.setItem(SINGLE_KEY_STORAGE_KEY, "off");
+  } catch {
+    // storage blocked: the setting lasts for this session only
+  }
+}
+
+/** The bindings of `s` that are active with single keys on or off (for the cheat-sheet). */
+export function activeBindings(s: Shortcut, singleKeys: boolean): readonly Binding[] {
+  return singleKeys ? s.bindings : s.bindings.filter((b) => !isCharacterKeyBinding(b));
+}
 
 type KeyLike = Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey">;
 
@@ -100,10 +185,11 @@ export function matchesBinding(e: KeyLike, b: Binding): boolean {
 export function matchShortcut(
   e: KeyLike,
   scope: ShortcutScope,
+  singleKeys: boolean = singleKeyShortcutsEnabled(),
 ): { id: ShortcutId; binding: Binding } | null {
   for (const s of SHORTCUTS) {
     if (s.scope !== scope) continue;
-    const binding = s.bindings.find((b) => matchesBinding(e, b));
+    const binding = activeBindings(s, singleKeys).find((b) => matchesBinding(e, b));
     if (binding) return { id: s.id, binding };
   }
   return null;
@@ -234,6 +320,35 @@ export function moveSelection(
       return current;
     }
   }
+}
+
+/**
+ * A 2-D grid (the notes grid) as navigation columns: item `i` sits in column `i % cols`, row
+ * `floor(i / cols)`. With `moveSelection`, j/k (↑/↓) then move by a whole row (±cols in reading
+ * order) and h/l (←/→) to the neighbouring card in the same row.
+ */
+export function gridColumns(ids: readonly string[], cols: number): string[][] {
+  const n = Math.max(1, Math.floor(cols));
+  const columns: string[][] = Array.from(
+    { length: Math.min(n, Math.max(ids.length, 1)) },
+    () => [],
+  );
+  ids.forEach((id, i) => columns[i % n]!.push(id));
+  return columns;
+}
+
+/** Calendar grid moves (weeks start on Monday): the day offset each shortcut applies. */
+export const CALENDAR_MOVES: Partial<Record<ShortcutId, number>> = {
+  calLeft: -1,
+  calRight: 1,
+  calUp: -7,
+  calDown: 7,
+};
+
+/** The day `shortcut` moves the focused calendar cell to (local midnight, DST-safe). */
+export function moveCalendarDay(day: Date, id: ShortcutId): Date {
+  const offset = CALENDAR_MOVES[id] ?? 0;
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate() + offset);
 }
 
 /** Command-palette filter: the label contains every typed word (case-insensitive). */

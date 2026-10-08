@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   addDays,
   addMonths,
@@ -63,6 +63,12 @@ import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/li
 import { RouteError } from "@/components/common/RouteError";
 import { tr, useI18n } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
+import {
+  CALENDAR_MOVES,
+  matchShortcut,
+  moveCalendarDay,
+  shouldIgnoreShortcut,
+} from "@/lib/shortcuts";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
   head: (ctx) =>
@@ -221,7 +227,69 @@ function CalendarPage() {
           ? format(cursor, "MMMM yyyy", { locale: dateFns })
           : format(cursor, "yyyy");
 
+  // Keyboard (src/lib/shortcuts.ts, scope "calendar"): in the month/week grid the cursor day is
+  // the focused cell (roving tabindex); h/j/k/l move it from anywhere, arrows and Enter while a
+  // cell has focus. Enter adds a task on that day, t jumps to today, [ and ] page the period.
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const pendingFocus = useRef(false);
+  const latest = useRef({ view, cursor, step, newTask, dragging });
+  useLayoutEffect(() => {
+    latest.current = { view, cursor, step, newTask, dragging };
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (shouldIgnoreShortcut(e)) return;
+      const m = matchShortcut(e, "calendar");
+      if (!m) return;
+      const { view, cursor, step, newTask, dragging } = latest.current;
+      // A chip being dragged with the keyboard owns the arrows/Enter/Esc.
+      if (dragging || document.querySelector("[aria-pressed=true]")) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const onCell = !!target?.hasAttribute("data-cal-day");
+      if (m.binding.inList && !onCell) return;
+      if (m.id === "calToday") {
+        e.preventDefault();
+        pendingFocus.current = onCell;
+        setCursor(startOfDay(new Date()));
+        return;
+      }
+      if (m.id === "calPrev" || m.id === "calNext") {
+        e.preventDefault();
+        pendingFocus.current = onCell;
+        step(m.id === "calPrev" ? -1 : 1);
+        return;
+      }
+      if (view !== "month" && view !== "week") return;
+      if (m.id === "calNewTask") {
+        e.preventDefault();
+        newTask({ due_date: dateToIso(dayKey(cursor)) });
+        return;
+      }
+      if (CALENDAR_MOVES[m.id] !== undefined) {
+        e.preventDefault();
+        pendingFocus.current = true;
+        setCursor(moveCalendarDay(cursor, m.id));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const cursorKey = dayKey(cursor);
+  useLayoutEffect(() => {
+    if (!pendingFocus.current) return;
+    pendingFocus.current = false;
+    const el = gridRef.current?.querySelector<HTMLElement>(
+      `[data-cal-day="${CSS.escape(cursorKey)}"]`,
+    );
+    el?.focus({ preventScroll: true });
+    el?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [cursorKey, view]);
+
   const cellProps = {
+    cursorKey,
+    onFocusDay: (d: Date) => {
+      if (dayKey(d) !== cursorKey) setCursor(d);
+    },
     byDay,
     markers,
     colorFor,
@@ -291,8 +359,15 @@ function CalendarPage() {
         onDragEnd={onDragEnd}
         onDragCancel={() => setDragging(null)}
       >
-        {view === "month" && <MonthGrid cursor={cursor} {...cellProps} />}
-        {view === "week" && <WeekGrid cursor={cursor} {...cellProps} />}
+        {(view === "month" || view === "week") && (
+          <div ref={gridRef}>
+            {view === "month" ? (
+              <MonthGrid cursor={cursor} {...cellProps} />
+            ) : (
+              <WeekGrid cursor={cursor} {...cellProps} />
+            )}
+          </div>
+        )}
         {view === "day" && (
           <DayView
             day={cursor}
@@ -328,6 +403,9 @@ function CalendarPage() {
 }
 
 type CellProps = {
+  /** The cursor day: the grid's one tab stop. */
+  cursorKey: string;
+  onFocusDay: (d: Date) => void;
   byDay: Map<string, Task[]>;
   markers: Map<
     string,
@@ -343,9 +421,13 @@ function MonthGrid({ cursor, ...p }: { cursor: Date } & CellProps) {
     start: startOfWeek(startOfMonth(cursor), WEEK_OPTS),
     end: endOfWeek(endOfMonth(cursor), WEEK_OPTS),
   });
-  const { dateFns } = useI18n();
+  const { t, dateFns } = useI18n();
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card">
+    <div
+      role="group"
+      aria-label={t("kbCalGridLabel")}
+      className="overflow-hidden rounded-2xl border bg-card"
+    >
       <div className="grid grid-cols-7 border-b bg-secondary/40">
         {weekdays(dateFns).map((d) => (
           <div
@@ -377,10 +459,14 @@ function WeekGrid({ cursor, ...p }: { cursor: Date } & CellProps) {
     start: startOfWeek(cursor, WEEK_OPTS),
     end: endOfWeek(cursor, WEEK_OPTS),
   });
-  const { dateFns } = useI18n();
+  const { t, dateFns } = useI18n();
   const names = weekdays(dateFns);
   return (
-    <div className="scrollbar-subtle overflow-x-auto rounded-2xl border bg-card">
+    <div
+      role="group"
+      aria-label={t("kbCalGridLabel")}
+      className="scrollbar-subtle overflow-x-auto rounded-2xl border bg-card"
+    >
       <div className="grid min-w-[720px] grid-cols-7">
         {days.map((d, i) => (
           <div key={d.toISOString()} className="flex flex-col">
@@ -400,6 +486,8 @@ function DayCell({
   dim,
   max,
   minH,
+  cursorKey,
+  onFocusDay,
   byDay,
   markers,
   colorFor,
@@ -417,8 +505,15 @@ function DayCell({
       ref={setNodeRef}
       role="group"
       aria-label={dayLabel(k)}
+      data-cal-day={k}
+      tabIndex={k === cursorKey ? 0 : -1}
+      aria-current={isToday(day) ? "date" : undefined}
+      onFocus={(e) => {
+        // A click on a dimmed day of the next/previous month must not page the month.
+        if (e.target === e.currentTarget && !dim) onFocusDay(day);
+      }}
       className={cn(
-        "group relative flex flex-col gap-1 border-b border-r p-1 motion-safe:transition-colors",
+        "group relative flex flex-col gap-1 border-b border-r p-1 outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
         minH,
         dim && "bg-secondary/30",
         isOver && "bg-accent",
