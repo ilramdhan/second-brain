@@ -4,6 +4,7 @@
 // user presses save, which goes through useNoteActions.create like every other new note.
 import type { Json } from "@/integrations/supabase/types";
 import { loadBlocks, toMarkdown, type Block } from "@/lib/blocks";
+import { messages } from "@/lib/i18n";
 
 export type NoteDraft = {
   title: string;
@@ -53,8 +54,11 @@ export function draftToForm(draft: NoteDraft, keepProject: string | null = null)
   };
 }
 
-/** Form → note insert for useNoteActions.create (blocks are the source of truth). */
-export function formToInsert(form: NoteForm) {
+/**
+ * Form → note insert for useNoteActions.create (blocks are the source of truth). `untitled` is
+ * the fallback title in the UI locale (`t("noteUntitled")`); Indonesian by default.
+ */
+export function formToInsert(form: NoteForm, untitled: string = messages.id.noteUntitled) {
   const blocks = loadBlocks({ blocks: [], content: form.content });
   const properties = Object.fromEntries(
     form.properties
@@ -65,7 +69,7 @@ export function formToInsert(form: NoteForm) {
       ]),
   );
   return {
-    title: form.title.trim().slice(0, 300) || "Tanpa judul",
+    title: form.title.trim().slice(0, 300) || untitled,
     blocks: blocks as unknown as Json,
     content: toMarkdown(blocks),
     status: form.status,

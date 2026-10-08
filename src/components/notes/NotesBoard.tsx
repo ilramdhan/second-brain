@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { color, labelOf, NOTE_STATUS } from "@/lib/constants";
+import { color, NOTE_STATUS } from "@/lib/constants";
 import { useDebounced } from "@/hooks/use-debounced";
 import { NAV_ITEM_CLASS, navAttrs, useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { usePreferences } from "@/lib/preferences";
@@ -32,6 +32,7 @@ import {
   type Project,
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { optionLabel, translatedOptions } from "@/lib/option-labels";
 
 export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
   const { data: notes = [] } = useNotes();
@@ -186,7 +187,7 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
         <div {...containerProps}>
           <Kanban
             nav={nav}
-            columns={NOTE_STATUS}
+            columns={translatedOptions(t, "noteStatus", NOTE_STATUS)}
             items={filtered}
             getColumn={(n) => n.status}
             onMove={(n, status) => update(n.id, { status })}
@@ -271,7 +272,7 @@ function NoteCard({
   /** Grid cards are navigable themselves; kanban cards via their draggable wrapper. */
   nav?: NavState | undefined;
 }) {
-  const { dateFns } = usePreferences();
+  const { t, dateFns } = usePreferences();
   const p = projects.find((x) => x.id === note.project_id);
   return (
     <button
@@ -299,7 +300,7 @@ function NoteCard({
       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
         {!compact && (
           <span className="rounded-full bg-secondary px-2 py-0.5">
-            {labelOf(NOTE_STATUS, note.status)}
+            {optionLabel(t, "noteStatus", note.status)}
           </span>
         )}
         {p && (

@@ -25,6 +25,7 @@ import {
 } from "@/lib/landing";
 import { toastError } from "@/lib/errors";
 import { needsMfaChallenge, sessionAssurance } from "@/lib/mfa";
+import { headLocale, headT, pageTitle } from "@/lib/page-head";
 import { usePreferences } from "@/lib/preferences";
 import { Button } from "@/components/ui/button";
 
@@ -36,12 +37,15 @@ export const Route = createFileRoute("/login")({
   // A visitor who is already signed in skips the form (client-side navigations; the first SSR
   // load is covered by useRedirectSignedInVisitor after hydration).
   beforeLoad: ({ search }) => redirectSignedInVisitor(search.redirect),
-  head: () =>
-    publicPageHead({
-      title: "Masuk — Second Brain",
-      description: "Masuk ke Second Brain, asisten catatan dan tugas pribadi Anda.",
+  head: (ctx) => {
+    const t = headT(ctx);
+    return publicPageHead({
+      title: pageTitle(t("metaLoginTitle")),
+      description: t("metaLoginDesc"),
       path: "/login",
-    }),
+      locale: headLocale(ctx),
+    });
+  },
   component: LoginPage,
 });
 

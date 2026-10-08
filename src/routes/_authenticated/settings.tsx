@@ -73,21 +73,10 @@ import {
   REPO_URL,
   useLatestRelease,
 } from "@/lib/app-version";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({
-    meta: [
-      { title: "Pengaturan — Second Brain" },
-      { name: "description", content: "Atur tampilan, bahasa, koneksi, notifikasi, dan backup." },
-      { property: "og:title", content: "Pengaturan — Second Brain" },
-      {
-        property: "og:description",
-        content: "Atur tampilan, bahasa, koneksi, notifikasi, dan backup.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaSettingsTitle", desc: "metaSettingsDesc" }),
   component: SettingsPage,
   errorComponent: RouteError,
 });

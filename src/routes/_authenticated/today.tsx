@@ -24,22 +24,11 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { useI18n } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/today")({
-  head: () => ({
-    meta: [
-      { title: "Hari Ini — Second Brain" },
-      {
-        name: "description",
-        content:
-          "Agenda harian: tugas terlambat, jatuh tempo hari ini, minggu ini, dan milestone terdekat.",
-      },
-      { property: "og:title", content: "Hari Ini — Second Brain" },
-      { property: "og:description", content: "Asisten catatan dan tugas pribadi dengan AI." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, { title: "metaTodayTitle", desc: "metaTodayDesc", ogDesc: "metaAppOgDesc" }),
   loader: ({ context }) =>
     preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery, meQuery),
   component: Dashboard,

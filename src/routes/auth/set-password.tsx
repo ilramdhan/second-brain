@@ -16,17 +16,15 @@ import {
   type AuthLinkKind,
   type PasswordCheck,
 } from "@/lib/password";
+import { headT, pageTitle } from "@/lib/page-head";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 
-const TITLE = "Atur kata sandi — Second Brain";
-const DESCRIPTION = "Buat atau atur ulang kata sandi akun Second Brain dari tautan email.";
-
 export const Route = createFileRoute("/auth/set-password")({
-  head: () => ({
+  head: (ctx) => ({
     meta: [
-      { title: TITLE },
-      { name: "description", content: DESCRIPTION },
+      { title: pageTitle(headT(ctx)("metaSetPasswordTitle")) },
+      { name: "description", content: headT(ctx)("metaSetPasswordDesc") },
       // A one-time landing page for email links: never indexed, never shared.
       { name: "robots", content: "noindex, nofollow" },
     ],

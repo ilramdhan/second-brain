@@ -62,6 +62,7 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { tr, useI18n } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 import {
   CALENDAR_MOVES,
   matchShortcut,
@@ -70,21 +71,12 @@ import {
 } from "@/lib/shortcuts";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
-  head: () => ({
-    meta: [
-      { title: "Kalender — Second Brain" },
-      {
-        name: "description",
-        content:
-          "Kalender harian, mingguan, bulanan, dan tahunan. Geser tugas untuk mengubah tanggal.",
-      },
-      { property: "og:title", content: "Kalender — Second Brain" },
-      {
-        property: "og:description",
-        content: "Kalender interaktif dengan drag & drop untuk tugas, milestone, dan launch date.",
-      },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, {
+      title: "metaCalendarTitle",
+      desc: "metaCalendarDesc",
+      ogDesc: "metaCalendarOgDesc",
+    }),
   loader: ({ context }) =>
     preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery),
   component: CalendarPage,

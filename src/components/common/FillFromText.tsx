@@ -42,7 +42,7 @@ export function FillFromText<R extends FillResult>({
     try {
       const r = await onFill(text.slice(0, 4000));
       onApply(r);
-      setSummary(fillSummary(r, labels, extraSummary?.(r)));
+      setSummary(fillSummary(r, labels, extraSummary?.(r), t));
     } catch (err) {
       toastError(err, t("noteFillFailed"));
     } finally {

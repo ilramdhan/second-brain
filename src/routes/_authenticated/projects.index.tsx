@@ -16,29 +16,23 @@ import { Kanban } from "@/components/Kanban";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { color, labelOf, PARA, PROJECT_STATUS } from "@/lib/constants";
+import { color, PARA, PROJECT_STATUS } from "@/lib/constants";
 import { useProjectActions, useProjects, useTasks, type Project, type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/common/PageContainer";
 import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
+import { optionLabel, translatedOptions } from "@/lib/option-labels";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
-  head: () => ({
-    meta: [
-      { title: "Proyek — Second Brain" },
-      {
-        name: "description",
-        content: "Kelola proyek dengan metode PARA dalam tampilan grid, kanban, dan pohon.",
-      },
-      { property: "og:title", content: "Proyek — Second Brain" },
-      {
-        property: "og:description",
-        content: "Projects, Areas, Resources, Archives — lengkap dengan progres dan launch date.",
-      },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, {
+      title: "metaProjectsTitle",
+      desc: "metaProjectsDesc",
+      ogDesc: "metaProjectsOgDesc",
+    }),
   loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery, tasksQuery),
   component: ProjectsPage,
   errorComponent: RouteError,
@@ -89,7 +83,7 @@ function ProjectsPage() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="scrollbar-subtle -mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
-          {[{ id: "all", label: t("wsAll") }, ...PARA].map((p) => (
+          {[{ id: "all", label: t("wsAll") }, ...translatedOptions(t, "para", PARA)].map((p) => (
             <button
               key={p.id}
               onClick={() => setPara(p.id)}
@@ -147,7 +141,7 @@ function ProjectsPage() {
 
       {view === "board" && (
         <Kanban
-          columns={PROJECT_STATUS}
+          columns={translatedOptions(t, "projectStatus", PROJECT_STATUS)}
           items={list}
           getColumn={(p) => p.status}
           onMove={(p, status) => update(p.id, { status })}
@@ -238,10 +232,12 @@ function ProjectCard({
         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>
       )}
       <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
-        <span className="rounded-full bg-secondary px-2 py-0.5">{labelOf(PARA, p.para_type)}</span>
+        <span className="rounded-full bg-secondary px-2 py-0.5">
+          {optionLabel(t, "para", p.para_type)}
+        </span>
         {!compact && (
           <span className="rounded-full bg-secondary px-2 py-0.5">
-            {labelOf(PROJECT_STATUS, p.status)}
+            {optionLabel(t, "projectStatus", p.status)}
           </span>
         )}
         {p.launch_date && (

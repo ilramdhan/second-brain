@@ -10,6 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  CronError,
+  cronErrorText,
   cronToPreset,
   describeCron,
   nextRuns,
@@ -55,9 +57,12 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
       const runs = nextRuns(cron, tz, new Date(), 3);
       return { runs, error: null };
     } catch (e) {
-      return { runs: [], error: e instanceof Error ? e.message : t("autoCronInvalid") };
+      return {
+        runs: [],
+        error: e instanceof CronError ? cronErrorText(e, locale) : t("autoCronInvalid"),
+      };
     }
-  }, [cron, tz, t]);
+  }, [cron, tz, t, locale]);
   const fmt = new Intl.DateTimeFormat(intl, {
     timeZone: tz,
     weekday: "short",

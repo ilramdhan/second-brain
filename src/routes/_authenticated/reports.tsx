@@ -21,24 +21,10 @@ import {
 import { usePreferences } from "@/lib/preferences";
 import { localIsoDate, rangeFor, type BurndownUnit, type RangeDays } from "@/lib/reports";
 import { cn } from "@/lib/utils";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/reports")({
-  head: () => ({
-    meta: [
-      { title: "Laporan — Second Brain" },
-      {
-        name: "description",
-        content: "Fokus, burndown dan throughput tugas per 7, 30 atau 90 hari, per proyek.",
-      },
-      { property: "og:title", content: "Laporan — Second Brain" },
-      {
-        property: "og:description",
-        content: "Fokus, burndown dan throughput tugas per 7, 30 atau 90 hari, per proyek.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaReportsTitle", desc: "metaReportsDesc" }),
   loader: ({ context }) =>
     preloadQueries(context.queryClient, projectsQuery, tasksQuery, milestonesQuery),
   component: ReportsPage,

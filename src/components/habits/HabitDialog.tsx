@@ -23,6 +23,7 @@ import type { Habit, Project } from "@/lib/data";
 import { ALL_DAYS, weekdayLabels, WORKDAYS, type ScheduleType } from "@/lib/habits";
 import { useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
+import { optionLabel } from "@/lib/option-labels";
 
 export type HabitDraft = {
   name: string;
@@ -207,7 +208,7 @@ function HabitForm({
                 key={key}
                 type="button"
                 aria-pressed={d.color === key}
-                aria-label={c.label}
+                aria-label={optionLabel(t, "color", key, c.label)}
                 onClick={() => set({ color: key })}
                 className={cn(
                   "flex h-11 w-11 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",

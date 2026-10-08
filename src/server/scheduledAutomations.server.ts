@@ -57,7 +57,7 @@ export function computeNextRun(
   if ((rule.trigger as unknown as Trigger | null)?.type !== "schedule") return null;
   if (!rule.enabled || !rule.schedule_cron) return null;
   if (rule.schedule_tz && !isValidTimeZone(rule.schedule_tz))
-    throw new CronError(`zona waktu "${rule.schedule_tz}" tidak dikenal`);
+    throw new CronError("cronErrTimeZone", { tz: rule.schedule_tz });
   return nextRun(rule.schedule_cron, ruleTimezone(rule, fallbackTz), after)?.toISOString() ?? null;
 }
 

@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { color, labelOf, PARA, PROJECT_STATUS } from "@/lib/constants";
+import { color } from "@/lib/constants";
 import {
   useInviteActions,
   useMe,
@@ -46,22 +46,19 @@ import { meQuery, milestonesQuery, preloadQueries, projectsQuery, tasksQuery } f
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { DemoDisabled } from "@/components/demo/DemoDisabled";
-import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
+import { isDemo } from "@/lib/app-mode";
 import { normalizeEmail } from "@/lib/password";
 import { useI18n, usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
+import { optionLabel } from "@/lib/option-labels";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
-  head: () => ({
-    meta: [
-      { title: "Detail proyek — Second Brain" },
-      {
-        name: "description",
-        content: "Ringkasan, tugas, milestone, timeline, catatan, dan tim dalam satu proyek.",
-      },
-      { property: "og:title", content: "Detail proyek — Second Brain" },
-      { property: "og:description", content: "Semua hal tentang satu proyek di satu tempat." },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, {
+      title: "metaProjectTitle",
+      desc: "metaProjectDesc",
+      ogDesc: "metaProjectOgDesc",
+    }),
   loader: ({ context }) =>
     preloadQueries(context.queryClient, projectsQuery, tasksQuery, milestonesQuery, meQuery),
   component: ProjectDetail,
@@ -117,10 +114,10 @@ function ProjectDetail() {
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="rounded-full bg-secondary px-2 py-0.5">
-              {labelOf(PARA, project.para_type)}
+              {optionLabel(t, "para", project.para_type)}
             </span>
             <span className={cn("rounded-full px-2 py-0.5", color(project.color).soft)}>
-              {labelOf(PROJECT_STATUS, project.status)}
+              {optionLabel(t, "projectStatus", project.status)}
             </span>
             {(project.start_date || project.due_date) && (
               <span className="flex items-center gap-1">
@@ -424,7 +421,7 @@ function Team({ project }: { project: Project }) {
   async function send(address: string, resend = false) {
     // The server refuses in the demo as well (assertNotDemo + the 0019 row limit of 0).
     if (isDemo()) {
-      toast.error(DEMO_DISABLED_MESSAGE);
+      toast.error(t("demoDisabled"));
       return;
     }
     const value = normalizeEmail(address);

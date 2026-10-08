@@ -18,18 +18,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { RouteError } from "@/components/common/RouteError";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/activity")({
-  head: () => ({
-    meta: [
-      { title: "Aktivitas — Second Brain" },
-      { name: "description", content: "Riwayat aman perubahan dan aktivitas akun." },
-      { property: "og:title", content: "Aktivitas — Second Brain" },
-      { property: "og:description", content: "Riwayat aman perubahan dan aktivitas akun." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaActivityTitle", desc: "metaActivityDesc" }),
   component: ActivityPage,
   errorComponent: RouteError,
 });

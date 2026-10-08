@@ -3,6 +3,9 @@
 
 export const id = {
   noteUntitled: "Tanpa judul",
+  noteStatusIdea: "Ide",
+  noteStatusDraft: "Draf",
+  noteStatusFinal: "Final",
   noteNoProject: "Tanpa proyek",
   noteStatus: "Status",
   noteProject: "Proyek",
@@ -161,6 +164,9 @@ export const id = {
 
 export const en = {
   noteUntitled: "Untitled",
+  noteStatusIdea: "Idea",
+  noteStatusDraft: "Draft",
+  noteStatusFinal: "Final",
   noteNoProject: "No project",
   noteStatus: "Status",
   noteProject: "Project",

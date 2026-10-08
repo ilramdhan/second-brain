@@ -24,24 +24,10 @@ import { qk } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/archive")({
-  head: () => ({
-    meta: [
-      { title: "Arsip & Tempat Sampah — Second Brain" },
-      {
-        name: "description",
-        content: "Kembalikan tugas, catatan, dan proyek yang diarsipkan atau dihapus.",
-      },
-      { property: "og:title", content: "Arsip & Tempat Sampah — Second Brain" },
-      {
-        property: "og:description",
-        content: "Kembalikan tugas, catatan, dan proyek yang diarsipkan atau dihapus.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaArchiveTitle", desc: "metaArchiveDesc" }),
   component: ArchivePage,
   errorComponent: RouteError,
 });

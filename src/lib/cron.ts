@@ -22,11 +22,34 @@ export type CronSchedule = {
   dow: CronField;
 };
 
+type CronErrorKey = Extract<MessageKey, `cronErr${string}`>;
+
+/**
+ * Invalid cron / time zone. `message` is the Indonesian text (the server reports it as is);
+ * `code` + `vars` let the browser show it in the UI locale via `cronErrorText`.
+ */
 export class CronError extends Error {
-  constructor(message: string) {
-    super(message);
+  readonly code: CronErrorKey;
+  readonly vars: MessageVars;
+  constructor(code: CronErrorKey, vars: MessageVars = {}) {
+    super(format(messages.id[code], localizedVars(vars, "id")));
     this.name = "CronError";
+    this.code = code;
+    this.vars = vars;
   }
+}
+
+/** `{field}` holds a field key (`cronErrFieldMinute`…), translated with the message. */
+function localizedVars(vars: MessageVars, locale: Locale): MessageVars {
+  const field = vars["field"];
+  return typeof field === "string" && field in messages[locale]
+    ? { ...vars, field: messages[locale][field as MessageKey] }
+    : vars;
+}
+
+/** A `CronError` in the given UI locale (Indonesian = `error.message`). */
+export function cronErrorText(error: CronError, locale: Locale = "id"): string {
+  return format(messages[locale][error.code], localizedVars(error.vars, locale));
 }
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -41,11 +64,11 @@ const MACROS: Record<string, string> = {
   "@annually": "0 0 1 1 *",
 };
 const SPECS = [
-  { name: "menit", min: 0, max: 59 },
-  { name: "jam", min: 0, max: 23 },
-  { name: "tanggal", min: 1, max: 31 },
-  { name: "bulan", min: 1, max: 12, names: MONTHS },
-  { name: "hari", min: 0, max: 7, names: DAYS },
+  { name: "menit", key: "cronErrFieldMinute", min: 0, max: 59 },
+  { name: "jam", key: "cronErrFieldHour", min: 0, max: 23 },
+  { name: "tanggal", key: "cronErrFieldDom", min: 1, max: 31 },
+  { name: "bulan", key: "cronErrFieldMonth", min: 1, max: 12, names: MONTHS },
+  { name: "hari", key: "cronErrFieldDow", min: 0, max: 7, names: DAYS },
 ] as const;
 
 export const MAX_CRON_LENGTH = 120;
@@ -58,10 +81,10 @@ function parseNumber(raw: string, spec: (typeof SPECS)[number]): number {
     const i = (spec.names as readonly string[]).indexOf(upper);
     if (i >= 0) return spec.name === "bulan" ? i + 1 : i;
   }
-  if (!/^\d{1,2}$/.test(raw)) throw new CronError(`nilai ${spec.name} "${raw}" tidak valid`);
+  if (!/^\d{1,2}$/.test(raw)) throw new CronError("cronErrValue", { field: spec.key, raw });
   const n = Number(raw);
   if (n < spec.min || n > spec.max)
-    throw new CronError(`${spec.name} harus ${spec.min}–${spec.max} (dapat "${raw}")`);
+    throw new CronError("cronErrRange", { field: spec.key, min: spec.min, max: spec.max, raw });
   return n;
 }
 
@@ -69,13 +92,13 @@ function parseField(raw: string, spec: (typeof SPECS)[number]): CronField {
   const set = new Set<number>();
   let any = false;
   for (const part of raw.split(",")) {
-    if (!part) throw new CronError(`daftar ${spec.name} kosong`);
+    if (!part) throw new CronError("cronErrEmptyList", { field: spec.key });
     const [range = "", stepRaw, extra] = part.split("/");
-    if (extra !== undefined) throw new CronError(`langkah ${spec.name} "${part}" tidak valid`);
+    if (extra !== undefined) throw new CronError("cronErrStep", { field: spec.key, raw: part });
     let step = 1;
     if (stepRaw !== undefined) {
       if (!/^\d{1,2}$/.test(stepRaw) || Number(stepRaw) < 1)
-        throw new CronError(`langkah ${spec.name} "${stepRaw}" tidak valid`);
+        throw new CronError("cronErrStep", { field: spec.key, raw: stepRaw });
       step = Number(stepRaw);
     }
     let lo: number;
@@ -86,10 +109,11 @@ function parseField(raw: string, spec: (typeof SPECS)[number]): CronField {
       if (step === 1) any = true;
     } else if (range.includes("-")) {
       const [a = "", b = "", more] = range.split("-");
-      if (more !== undefined) throw new CronError(`rentang ${spec.name} "${range}" tidak valid`);
+      if (more !== undefined)
+        throw new CronError("cronErrRangeInvalid", { field: spec.key, raw: range });
       lo = parseNumber(a, spec);
       hi = parseNumber(b, spec);
-      if (lo > hi) throw new CronError(`rentang ${spec.name} "${range}" terbalik`);
+      if (lo > hi) throw new CronError("cronErrRangeReversed", { field: spec.key, raw: range });
     } else {
       lo = parseNumber(range, spec);
       // `a/n` means "from a to the end, every n".
@@ -103,14 +127,11 @@ function parseField(raw: string, spec: (typeof SPECS)[number]): CronField {
 /** Parses a cron expression; throws `CronError` (Indonesian message) when it is invalid. */
 export function parseCron(input: string): CronSchedule {
   const trimmed = input.trim().replace(/\s+/g, " ");
-  if (!trimmed) throw new CronError("ekspresi cron kosong");
-  if (trimmed.length > MAX_CRON_LENGTH) throw new CronError("ekspresi cron terlalu panjang");
+  if (!trimmed) throw new CronError("cronErrEmpty");
+  if (trimmed.length > MAX_CRON_LENGTH) throw new CronError("cronErrTooLong");
   const expr = MACROS[trimmed.toLowerCase()] ?? trimmed;
   const parts = expr.split(" ");
-  if (parts.length !== 5)
-    throw new CronError(
-      `cron harus 5 bagian (menit jam tanggal bulan hari), dapat ${parts.length}`,
-    );
+  if (parts.length !== 5) throw new CronError("cronErrParts", { count: parts.length });
   const [minute, hour, dom, month, dow] = parts.map((p, i) => parseField(p, SPECS[i]!)) as [
     CronField,
     CronField,
@@ -218,7 +239,7 @@ export function nextRuns(
   count = 1,
 ): Date[] {
   const s = typeof schedule === "string" ? parseCron(schedule) : schedule;
-  if (!isValidTimeZone(tz)) throw new CronError(`zona waktu "${tz}" tidak dikenal`);
+  if (!isValidTimeZone(tz)) throw new CronError("cronErrTimeZone", { tz });
   const out: Date[] = [];
   const afterMs = after.getTime();
   const startLocal = localMs(afterMs, tz);
@@ -326,8 +347,8 @@ function listOf(f: CronField, label: (v: number) => string) {
 
 /**
  * Human-readable description in a UI locale (default Indonesian), e.g. "Setiap Senin pukul
- * 09:00" / "Every Monday at 09:00". Only the browser shows it; the parser's own error detail
- * (`CronError.message`) stays Indonesian because the server reports the same text.
+ * 09:00" / "Every Monday at 09:00". Only the browser shows it; parser errors are translated
+ * from their code (`cronErrorText`), while `CronError.message` stays the server's Indonesian.
  */
 export function describeCron(input: string, locale: Locale = "id"): string {
   const t = (key: MessageKey, vars?: MessageVars) => format(messages[locale][key], vars);
@@ -338,7 +359,7 @@ export function describeCron(input: string, locale: Locale = "id"): string {
     s = parseCron(input);
   } catch (e) {
     return e instanceof CronError
-      ? t("autoCronInvalidDetail", { detail: e.message })
+      ? t("autoCronInvalidDetail", { detail: cronErrorText(e, locale) })
       : t("autoCronInvalid");
   }
   const preset = cronToPreset(s.expr);

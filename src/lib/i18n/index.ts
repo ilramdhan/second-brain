@@ -13,12 +13,13 @@ import * as admin from "./admin";
 import * as auth from "./auth";
 import * as automations from "./automations";
 import * as core from "./core";
+import * as meta from "./meta";
 import * as notes from "./notes";
 import * as tasks from "./tasks";
 import * as workspace from "./workspace";
 
 /** Every area, in merge order (exported for the key-collision test). */
-export const areas = { core, auth, tasks, notes, workspace, automations, admin } as const;
+export const areas = { core, auth, tasks, notes, workspace, automations, admin, meta } as const;
 
 export const messages = {
   id: {
@@ -29,6 +30,7 @@ export const messages = {
     ...workspace.id,
     ...automations.id,
     ...admin.id,
+    ...meta.id,
   },
   en: {
     ...core.en,
@@ -38,6 +40,7 @@ export const messages = {
     ...workspace.en,
     ...automations.en,
     ...admin.en,
+    ...meta.en,
   },
 } as const;
 

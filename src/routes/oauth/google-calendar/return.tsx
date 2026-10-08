@@ -2,19 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { isDemo } from "@/lib/app-mode";
+import { pageHead } from "@/lib/page-head";
 import { useI18n, type MessageKey } from "@/lib/preferences";
 
 export const Route = createFileRoute("/oauth/google-calendar/return")({
-  head: () => ({
-    meta: [
-      { title: "Google Calendar — Second Brain" },
-      { name: "description", content: "Menyelesaikan koneksi Google Calendar." },
-      { property: "og:title", content: "Google Calendar — Second Brain" },
-      { property: "og:description", content: "Menyelesaikan koneksi Google Calendar." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaGcalTitle", desc: "metaGcalDesc" }),
   component: GoogleCalendarReturn,
 });
 

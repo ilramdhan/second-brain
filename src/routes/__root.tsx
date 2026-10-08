@@ -15,12 +15,14 @@ import { AUTHOR, OG_IMAGE, SITE_NAME } from "@/lib/landing";
 import {
   PreferencesProvider,
   currentLocale,
+  usePreferences,
   translate,
   type Locale,
   type MessageKey,
 } from "@/lib/preferences";
 import { DEFAULT_PREFERENCES, type InitialPreferences } from "@/lib/preference-cookies";
 import { getInitialPreferences } from "@/lib/preferences-ssr";
+import { headT } from "@/lib/page-head";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 import { PwaUpdatePrompt } from "@/components/common/PwaUpdatePrompt";
 
@@ -111,7 +113,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  head: (ctx) => ({
     // Defaults for every page. Public pages (`/`, `/login`) override title, description, robots,
     // canonical and the Open Graph/Twitter tags via publicPageHead() in src/lib/landing.ts;
     // `_authenticated` adds `noindex`. theme-color lives in RootShell: it needs two tags with the
@@ -122,7 +124,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: SITE_NAME },
       {
         name: "description",
-        content: "Asisten catatan dan tugas pribadi: tangkap pikiran cepat, AI yang merapikan.",
+        content: headT(ctx)("metaAppDesc"),
       },
       { name: "application-name", content: SITE_NAME },
       { name: "apple-mobile-web-app-title", content: SITE_NAME },
@@ -136,11 +138,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: SITE_NAME },
       { property: "og:title", content: SITE_NAME },
-      { property: "og:description", content: "Asisten catatan dan tugas pribadi dengan AI." },
+      { property: "og:description", content: headT(ctx)("metaAppOgDesc") },
       { property: "og:image", content: OG_IMAGE.url },
       { property: "og:image:width", content: String(OG_IMAGE.width) },
       { property: "og:image:height", content: String(OG_IMAGE.height) },
-      { property: "og:image:alt", content: OG_IMAGE.alt },
+      { property: "og:image:alt", content: headT(ctx)("metaOgImageAlt") },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: OG_IMAGE.url },
     ],
@@ -198,9 +200,25 @@ function RootComponent() {
       <PreferencesProvider initialLocale={initial.locale} initialTheme={initial.theme}>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <HeadLocaleSync loaderLocale={initial.locale} />
         <Toaster position="top-center" richColors />
         <PwaUpdatePrompt />
       </PreferencesProvider>
     </QueryClientProvider>
   );
+}
+
+/**
+ * Route `head()` functions translate titles with the root loader's locale (the `sb_lang` cookie,
+ * src/lib/page-head.ts). When the language changes in the app (Settings, Cmd+K, the landing
+ * toggle, or a localStorage value from an older install), the provider has already rewritten the
+ * cookie: re-running the loaders picks it up and re-renders every `<title>`/description.
+ */
+function HeadLocaleSync({ loaderLocale }: { loaderLocale: Locale }) {
+  const router = useRouter();
+  const { locale } = usePreferences();
+  useEffect(() => {
+    if (locale !== loaderLocale) void router.invalidate();
+  }, [locale, loaderLocale, router]);
+  return null;
 }
