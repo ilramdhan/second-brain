@@ -10,6 +10,42 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.5.0](https://github.com/ilramdhan/second-brain/compare/v0.4.0...v0.5.0) (2026-10-08)
+
+
+### Features
+
+* **auth:** one-time recovery codes for TOTP two-factor ([c950e96](https://github.com/ilramdhan/second-brain/commit/c950e968a477b1cbc3611c2db1c82d9a94724eda))
+* **auth:** one-time recovery codes for TOTP two-factor ([#77](https://github.com/ilramdhan/second-brain/issues/77)) ([c950e96](https://github.com/ilramdhan/second-brain/commit/c950e968a477b1cbc3611c2db1c82d9a94724eda))
+* **capture:** fill every note field from one Telegram/inbox message ([#69](https://github.com/ilramdhan/second-brain/issues/69)) ([ada71ba](https://github.com/ilramdhan/second-brain/commit/ada71bad2a3b9a7a9ddec126cafe5803127e2d9a))
+* **capture:** fill every task field from one Telegram/inbox message ([#66](https://github.com/ilramdhan/second-brain/issues/66)) ([e7d45e8](https://github.com/ilramdhan/second-brain/commit/e7d45e8f8303a14b6616fd0f35745fe6de358b29))
+* **capture:** prefill the project and template forms from text with AI ([#70](https://github.com/ilramdhan/second-brain/issues/70)) ([1085cf5](https://github.com/ilramdhan/second-brain/commit/1085cf5abb520d3f24dfa3731ba766107a9aead3))
+* **i18n:** full ID/EN coverage of the app UI ([#76](https://github.com/ilramdhan/second-brain/issues/76)) ([70946cb](https://github.com/ilramdhan/second-brain/commit/70946cb9b4c48e1ef36de085faf5650a88ce1d82))
+* **i18n:** split dictionaries into src/lib/i18n with typed EN parity ([70946cb](https://github.com/ilramdhan/second-brain/commit/70946cb9b4c48e1ef36de085faf5650a88ce1d82))
+* **i18n:** translate route heads, option labels, capture fields and … ([7323307](https://github.com/ilramdhan/second-brain/commit/7323307b20f1cdc1cbf97bb5a1449a1d1eb2e809))
+* **i18n:** translate route heads, option labels, capture fields and cron errors ([#80](https://github.com/ilramdhan/second-brain/issues/80)) ([7323307](https://github.com/ilramdhan/second-brain/commit/7323307b20f1cdc1cbf97bb5a1449a1d1eb2e809))
+* **i18n:** translate the remaining app pages to English ([70946cb](https://github.com/ilramdhan/second-brain/commit/70946cb9b4c48e1ef36de085faf5650a88ce1d82))
+* **reports,habits:** focus, burndown and throughput charts plus a habit tracker ([#72](https://github.com/ilramdhan/second-brain/issues/72)) ([2a7bda1](https://github.com/ilramdhan/second-brain/commit/2a7bda161e6b89d8a5373fa82fb141af296071ff))
+* **ux:** keyboard nav for Today, Upcoming, calendar, timeline, notes… ([57b7f96](https://github.com/ilramdhan/second-brain/commit/57b7f96ac6fb04084f8f6d4f58d549aa13722cd2))
+* **ux:** keyboard navigation for Today, Upcoming, calendar, timeline and notes grid ([#79](https://github.com/ilramdhan/second-brain/issues/79)) ([57b7f96](https://github.com/ilramdhan/second-brain/commit/57b7f96ac6fb04084f8f6d4f58d549aa13722cd2))
+* **ux:** keyboard-first navigation, command palette actions and a shortcut cheat-sheet ([#74](https://github.com/ilramdhan/second-brain/issues/74)) ([4c05341](https://github.com/ilramdhan/second-brain/commit/4c0534105d47195defebf1642d2778df69e230f6))
+
+
+### Bug Fixes
+
+* **a11y:** 44 px touch hit area for small icon buttons ([44030ee](https://github.com/ilramdhan/second-brain/commit/44030ee458c69983a7b1028dcb9743812846a49f))
+* **backup:** restore habits and habit logs from Settings JSON ([e799f11](https://github.com/ilramdhan/second-brain/commit/e799f110487e485767325c905e1a34294ef7c3d1))
+* **backup:** restore habits and habit logs from Settings JSON ([#78](https://github.com/ilramdhan/second-brain/issues/78)) ([e799f11](https://github.com/ilramdhan/second-brain/commit/e799f110487e485767325c905e1a34294ef7c3d1))
+* **graph,automations:** colour graph nodes by project and show automation rules without UUIDs or false "invalid schedule" ([#68](https://github.com/ilramdhan/second-brain/issues/68)) ([1e89719](https://github.com/ilramdhan/second-brain/commit/1e89719e880c3e0fca4a398dd82ac8f1a9ef986c))
+* **share,a11y:** opt-in search indexing for public links and 44 px touch targets ([#75](https://github.com/ilramdhan/second-brain/issues/75)) ([44030ee](https://github.com/ilramdhan/second-brain/commit/44030ee458c69983a7b1028dcb9743812846a49f))
+* **share:** let owners allow search-engine indexing of public links ([44030ee](https://github.com/ilramdhan/second-brain/commit/44030ee458c69983a7b1028dcb9743812846a49f))
+
+
+### Documentation
+
+* add demo screenshots to the README and the landing page ([#65](https://github.com/ilramdhan/second-brain/issues/65)) ([cca3917](https://github.com/ilramdhan/second-brain/commit/cca3917f242330f3ae92e186b1067888917f80f7))
+* **screenshots:** re-capture graph and automations, add habits ([#73](https://github.com/ilramdhan/second-brain/issues/73)) ([371c272](https://github.com/ilramdhan/second-brain/commit/371c27215c8e675f7525ff735e674d7fa7744e5e))
+
 ## [0.4.0](https://github.com/ilramdhan/second-brain/compare/v0.3.1...v0.4.0) (2026-10-07)
 
 
