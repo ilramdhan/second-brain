@@ -33,7 +33,7 @@ export function LoadMore({
   if (total <= shown) return null;
   return (
     <div className="flex flex-col items-center gap-1 py-3">
-      <Button variant="outline" size="sm" onClick={onMore}>
+      <Button variant="secondary" size="sm" onClick={onMore}>
         {t("wsLoadMore")}
       </Button>
       <span className="text-[11px] text-muted-foreground">

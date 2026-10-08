@@ -21,7 +21,7 @@ type Pending = { resolve: (ok: boolean) => void };
  * - Focus starts on the cancel button, so a stray Enter never confirms a destructive action.
  * - Esc, the close button and a click on the overlay cancel; Enter/Space activate the focused
  *   button (native `<button>` behaviour).
- * - Destructive prompts use the red `destructive` button variant.
+ * - Destructive prompts use the red `danger` button variant.
  */
 export function ConfirmDialog({
   open,
@@ -57,12 +57,12 @@ export function ConfirmDialog({
           ) : null}
         </DialogHeader>
         <DialogFooter>
-          <Button ref={cancelRef} type="button" variant="outline" onClick={() => onResult(false)}>
+          <Button ref={cancelRef} type="button" variant="secondary" onClick={() => onResult(false)}>
             {options?.cancelLabel ?? t("confirmCancel")}
           </Button>
           <Button
             type="button"
-            variant={destructive ? "destructive" : "default"}
+            variant={destructive ? "danger" : "primary"}
             onClick={() => onResult(true)}
           >
             {confirmLabel}

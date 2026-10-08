@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square, ImageIcon, SendHorizonal, Loader2 } from "lucide-react";
+import { Button, IconButton } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -165,26 +166,24 @@ export function QuickCapture({
       />
       <div className="flex items-center justify-between border-t pt-2">
         <div className="flex gap-1">
-          <button
+          <IconButton
+            label={recording ? t("wsCaptureStopRecording") : t("wsCaptureRecord")}
+            variant={recording ? "danger" : "tertiary"}
+            className={recording ? undefined : "text-muted-foreground"}
+            aria-pressed={recording}
             onClick={toggleRecording}
             disabled={busy}
-            title={recording ? t("wsCaptureStopRecording") : t("wsCaptureRecord")}
-            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-              recording
-                ? "bg-destructive text-destructive-foreground"
-                : "text-muted-foreground hover:bg-accent"
-            }`}
           >
-            {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </button>
-          <button
+            {recording ? <Square /> : <Mic />}
+          </IconButton>
+          <IconButton
+            label={t("wsCapturePhoto")}
+            className="text-muted-foreground"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            title={t("wsCapturePhoto")}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent"
           >
-            <ImageIcon className="h-4 w-4" />
-          </button>
+            <ImageIcon />
+          </IconButton>
           <input
             ref={fileRef}
             type="file"
@@ -194,18 +193,10 @@ export function QuickCapture({
             onChange={handleImage}
           />
         </div>
-        <button
-          onClick={handleSend}
-          disabled={busy || !text.trim()}
-          className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <SendHorizonal className="h-4 w-4" />
-          )}
+        <Button onClick={handleSend} disabled={busy || !text.trim()}>
+          {busy ? <Loader2 className="animate-spin" /> : <SendHorizonal />}
           {t("wsSave")}
-        </button>
+        </Button>
       </div>
       <DemoExamples
         active={demo}
@@ -214,20 +205,22 @@ export function QuickCapture({
         selected={selectedExample}
         onPick={(example) => setText(example.text)}
       >
+        {/* eslint-disable-next-line no-restricted-syntax -- exception: demo sample chip (pill, tap-target) */}
         <button
           type="button"
           onClick={() => transcribe(async () => ({ ...DEMO_AUDIO_STUB }))}
           disabled={busy || recording}
-          className="flex items-center gap-1 rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent disabled:opacity-50"
+          className="tap-target flex items-center gap-1 rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
         >
           <Mic className="h-3 w-3" aria-hidden />
           {t("demoAiVoiceExample")}
         </button>
+        {/* eslint-disable-next-line no-restricted-syntax -- exception: demo sample chip (pill, tap-target) */}
         <button
           type="button"
           onClick={() => readImage(async () => ({ ...DEMO_IMAGE_STUB }))}
           disabled={busy}
-          className="flex items-center gap-1 rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent disabled:opacity-50"
+          className="tap-target flex items-center gap-1 rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
         >
           <ImageIcon className="h-3 w-3" aria-hidden />
           {t("demoAiImageExample")}

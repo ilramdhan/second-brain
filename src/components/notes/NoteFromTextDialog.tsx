@@ -249,7 +249,7 @@ function NoteFromTextForm({
         </div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="secondary" onClick={onClose}>
           {t("noteCancel")}
         </Button>
         <Button onClick={save} disabled={saving}>
@@ -267,7 +267,7 @@ export function NoteFromTextButton({ projectId = null }: { projectId?: string | 
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
         <Sparkles /> {t("noteFromTextTitle")}
       </Button>
       <NoteFromTextDialog open={open} onOpenChange={setOpen} projectId={projectId} />

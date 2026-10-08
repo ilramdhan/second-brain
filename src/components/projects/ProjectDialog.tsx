@@ -235,13 +235,15 @@ function ProjectForm({
           <span className="text-xs font-medium text-muted-foreground">{t("wsColor")}</span>
           <div className="flex flex-wrap gap-2">
             {Object.entries(COLORS).map(([k, c]) => (
+              // eslint-disable-next-line no-restricted-syntax -- exception: colour swatch
               <button
                 key={k}
                 type="button"
                 onClick={() => setCol(k)}
                 aria-label={optionLabel(t, "color", k, c.label)}
+                aria-pressed={col === k}
                 className={cn(
-                  "h-9 w-9 rounded-full ring-offset-2 ring-offset-background transition sm:h-7 sm:w-7",
+                  "tap-target h-9 w-9 rounded-full ring-offset-2 ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:h-7 sm:w-7",
                   c.dot,
                   col === k && "ring-2 ring-ring",
                 )}
@@ -252,15 +254,11 @@ function ProjectForm({
       </div>
       <DialogFooter>
         {project && (
-          <Button
-            variant="ghost"
-            onClick={remove}
-            className="text-destructive hover:text-destructive sm:mr-auto"
-          >
+          <Button variant="danger-ghost" onClick={remove} className="sm:mr-auto">
             <Trash2 /> {t("wsDelete")}
           </Button>
         )}
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="secondary" onClick={onClose}>
           {t("wsCancel")}
         </Button>
         <Button onClick={save}>{project ? t("wsSave") : t("wsCreateProject")}</Button>

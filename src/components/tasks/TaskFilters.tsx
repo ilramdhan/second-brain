@@ -1,6 +1,7 @@
 import { addDays, isBefore, isToday, startOfDay } from "date-fns";
 import { Search, X } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -137,12 +138,14 @@ export function TaskFilters({
         ]}
       />
       {dirty && (
-        <button
+        <Button
+          variant="tertiary"
+          size="sm"
+          className="px-2 text-muted-foreground"
           onClick={() => onChange(EMPTY_FILTER)}
-          className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
         >
-          <X className="h-3.5 w-3.5" /> {t("taskFilterReset")}
-        </button>
+          <X /> {t("taskFilterReset")}
+        </Button>
       )}
     </div>
   );

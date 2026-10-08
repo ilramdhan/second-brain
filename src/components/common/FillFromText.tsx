@@ -52,19 +52,21 @@ export function FillFromText<R extends FillResult>({
 
   return (
     <div className="rounded-lg border bg-secondary/40 p-3">
-      <button
+      <Button
         type="button"
+        variant="tertiary"
+        size="sm"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-1.5 text-left text-xs font-medium"
+        className="w-full justify-start gap-1.5 px-1"
       >
-        <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
+        <Sparkles className="text-primary" aria-hidden />
         {t("noteFillToggle")}
         <ChevronDown
-          className={`ml-auto h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`ml-auto transition-transform ${open ? "rotate-180" : ""}`}
           aria-hidden
         />
-      </button>
+      </Button>
       {open && (
         <div className="mt-2 space-y-2">
           <Textarea
@@ -84,6 +86,7 @@ export function FillFromText<R extends FillResult>({
             type="button"
             size="sm"
             variant="secondary"
+            className="self-start"
             onClick={fill}
             disabled={busy || !text.trim()}
           >

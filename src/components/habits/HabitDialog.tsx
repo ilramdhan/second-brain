@@ -155,6 +155,7 @@ function HabitForm({
               {weekdayLabels().map((label, i) => {
                 const on = (d.weekdays_mask & (1 << i)) !== 0;
                 return (
+                  // eslint-disable-next-line no-restricted-syntax -- exception: round weekday toggle
                   <button
                     key={label}
                     type="button"
@@ -171,8 +172,7 @@ function HabitForm({
               })}
               <Button
                 type="button"
-                variant="ghost"
-                className="h-11"
+                variant="tertiary"
                 onClick={() =>
                   set({ weekdays_mask: d.weekdays_mask === WORKDAYS ? ALL_DAYS : WORKDAYS })
                 }
@@ -204,6 +204,7 @@ function HabitForm({
           </span>
           <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="habit-color">
             {Object.entries(COLORS).map(([key, c]) => (
+              // eslint-disable-next-line no-restricted-syntax -- exception: colour swatch
               <button
                 key={key}
                 type="button"
@@ -241,7 +242,7 @@ function HabitForm({
         </label>
       </div>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onClose}>
+        <Button type="button" variant="secondary" onClick={onClose}>
           {t("admCancel")}
         </Button>
         <Button type="submit" disabled={!valid || saving}>

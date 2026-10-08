@@ -12,7 +12,7 @@ import {
 import { ChevronLeft, ChevronRight, Diamond, Rocket } from "lucide-react";
 
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { Button } from "@/components/ui/button";
+import { Button, pressableFocus } from "@/components/ui/button";
 import { NAV_ITEM_CLASS, navAttrs, useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { color } from "@/lib/constants";
 import {
@@ -171,26 +171,23 @@ export function Timeline({
     <div className="space-y-3">
       <div className="flex items-center gap-1">
         <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
+          variant="secondary"
+          size="icon-sm"
           onClick={() => setFrom((f) => addDays(f, -14))}
           aria-label={tl("taskTlBack")}
         >
           <ChevronLeft />
         </Button>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
-          className="h-8"
           onClick={() => setFrom(startOfWeek(addDays(new Date(), -7), { weekStartsOn: 1 }))}
         >
           {tl("taskGroupToday")}
         </Button>
         <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
+          variant="secondary"
+          size="icon-sm"
           onClick={() => setFrom((f) => addDays(f, 14))}
           aria-label={tl("taskTlForward")}
         >
@@ -388,14 +385,16 @@ function Row({
 }) {
   return (
     <div className="flex border-b last:border-b-0">
+      {/* eslint-disable-next-line no-restricted-syntax -- exception: sticky row label, keyboard-nav item */}
       <button
+        type="button"
         onClick={onLabel}
         {...(navId && nav
           ? navAttrs(navId, nav.selectedId === navId, nav.tabStopId === navId)
           : {})}
         className={cn(
           "sticky left-0 z-[5] w-[180px] shrink-0 truncate border-r bg-card px-3 py-2 text-left text-xs hover:text-primary",
-          navId && nav && NAV_ITEM_CLASS,
+          navId && nav ? NAV_ITEM_CLASS : pressableFocus,
           done && "text-muted-foreground line-through",
         )}
       >

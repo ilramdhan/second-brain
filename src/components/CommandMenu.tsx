@@ -40,6 +40,7 @@ import {
 import { usePreferences, type MessageKey } from "@/lib/preferences";
 import { matchesCommand } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export type SearchMode = "keyword" | "semantic";
 const MODE_STORAGE_KEY = "second-brain-search-mode";
@@ -209,25 +210,20 @@ export default function CommandMenu({
         {(["keyword", "semantic"] as const).map((m) => {
           const disabled = m === "semantic" && !semanticAvailable;
           return (
-            <button
+            <Button
               key={m}
               type="button"
+              size="sm"
+              variant={mode === m ? "primary" : "tertiary"}
               aria-pressed={mode === m}
               disabled={disabled}
               title={disabled ? t("searchModeSemanticUnavailable") : undefined}
               onClick={() => setMode(m)}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-1 font-medium transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-                mode === m
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-              )}
+              className={cn("gap-1 px-2", mode !== m && "text-muted-foreground")}
             >
-              {m === "semantic" && <Sparkles className="h-3.5 w-3.5" aria-hidden />}
+              {m === "semantic" && <Sparkles aria-hidden />}
               {m === "keyword" ? t("searchModeKeyword") : t("searchModeSemantic")}
-            </button>
+            </Button>
           );
         })}
         <span className="sr-only" aria-live="polite">

@@ -3,6 +3,7 @@ import type { Factor } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 import { TotpCodeInput } from "@/components/auth/TotpCodeInput";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toastError } from "@/lib/errors";
 import { normalizeTotpCode, totpErrorKey, verifiedTotpFactors, verifyTotp } from "@/lib/mfa";
@@ -154,13 +155,9 @@ export function MfaChallenge({ onVerified }: { onVerified: () => Promise<void> |
                 </p>
               ) : null}
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
+            <Button type="submit" disabled={loading} size="lg" className="w-full">
               {loading ? t("authSending") : t("mfaRecoverySubmit")}
-            </button>
+            </Button>
           </form>
         </>
       ) : (
@@ -197,31 +194,29 @@ export function MfaChallenge({ onVerified }: { onVerified: () => Promise<void> |
               autoFocus
               disabled={loading}
             />
-            <button
-              type="submit"
-              disabled={loading || !factorId}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
+            <Button type="submit" disabled={loading || !factorId} size="lg" className="w-full">
               {loading ? t("authSending") : t("mfaVerify")}
-            </button>
+            </Button>
           </form>
         </>
       )}
-      <button
+      <Button
         type="button"
+        variant="link"
+        className="w-full"
         onClick={() => switchMode(!useRecovery)}
         disabled={loading}
-        className="w-full rounded-sm text-center text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {useRecovery ? t("mfaUseTotp") : t("mfaUseRecovery")}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
+        variant="tertiary"
+        className="w-full text-muted-foreground"
         onClick={() => void cancel()}
-        className="w-full rounded-sm text-center text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {t("mfaCancel")}
-      </button>
+      </Button>
     </section>
   );
 }

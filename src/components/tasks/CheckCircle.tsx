@@ -14,6 +14,7 @@ export function CheckCircle({
 }) {
   const { t } = useI18n();
   return (
+    // eslint-disable-next-line no-restricted-syntax -- exception: round checkbox-like toggle
     <button
       type="button"
       onClick={(e) => {

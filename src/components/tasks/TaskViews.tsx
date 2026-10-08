@@ -18,7 +18,7 @@ import {
   type TaskFilter,
 } from "@/components/tasks/TaskFilters";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TASK_STATUS } from "@/lib/constants";
@@ -140,14 +140,16 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
           {listItems.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">{t("taskNoMatch")}</p>
           )}
-          <button
+          <Button
+            variant="link"
+            size="sm"
+            className="px-0 text-muted-foreground"
             onClick={() => setShowDone(!showDone)}
-            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
             {showDone
               ? t("taskHideDone")
               : t("taskShowDone", { count: filtered.filter((x) => x.status === "done").length })}
-          </button>
+          </Button>
         </>
       )}
 
@@ -239,13 +241,14 @@ function Group({
           {title} <span className="font-normal text-muted-foreground">{items.length || ""}</span>
         </h3>
         {date && (
-          <button
+          <IconButton
+            label={t("taskAddTask")}
+            size="icon-sm"
+            className="text-muted-foreground"
             onClick={() => newTask({ due_date: date.toISOString() })}
-            className="rounded p-1 text-muted-foreground hover:bg-accent"
-            aria-label={t("taskAddTask")}
           >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
+            <Plus />
+          </IconButton>
         )}
       </div>
       <TaskRows tasks={items} lookups={lookups} nav={nav} />

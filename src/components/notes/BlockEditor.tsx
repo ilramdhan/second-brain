@@ -24,6 +24,7 @@ import {
 import { useNoteBlocks, useNotes, useProjects, useTasks } from "@/lib/data";
 import { useI18n, type MessageKey } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
+import { Button, pressableFocus } from "@/components/ui/button";
 import { NoteLinksContext, noteTitleKey, useNoteLinks, useNoteLinksValue } from "./note-links";
 
 type Menu = { kind: "slash" | "wiki" | "ref"; query: string; index: number } | null;
@@ -76,14 +77,17 @@ export const InlineText = memo(function InlineText({
           const [target, alias] = p.slice(2, -2).split("|");
           const exists = titles.has(noteTitleKey(target!));
           return (
+            // eslint-disable-next-line no-restricted-syntax -- exception: inline [[wiki link]] inside rendered text
             <button
               key={i}
               onClick={(e) => {
                 e.stopPropagation();
                 openTitle(target!);
               }}
+              type="button"
               className={cn(
-                "font-medium underline decoration-primary/40 underline-offset-2 hover:decoration-primary",
+                "rounded-sm font-medium underline decoration-primary/40 underline-offset-2 hover:decoration-primary",
+                pressableFocus,
                 exists ? "text-primary" : "text-muted-foreground decoration-dashed",
               )}
             >
@@ -521,13 +525,15 @@ export function BlockEditor({
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
+                  {/* eslint-disable-next-line no-restricted-syntax -- exception: drag handle (draggable menu trigger) */}
                   <button
                     draggable
                     onDragStart={(e) => {
                       e.dataTransfer.effectAllowed = "move";
                       setDrag({ from: b.id, over: null });
                     }}
-                    className="tap-target mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-100 hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100 pointer-coarse:md:opacity-100"
+                    type="button"
+                    className="tap-target mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 opacity-100 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 pointer-coarse:md:opacity-100"
                     aria-label={t("noteBlockHandle")}
                   >
                     <GripVertical className="h-4 w-4" />
@@ -537,16 +543,19 @@ export function BlockEditor({
                   <DropdownMenuLabel className="text-xs">{t("noteTurnInto")}</DropdownMenuLabel>
                   <div className="grid grid-cols-2 gap-0.5 px-1 pb-1">
                     {BLOCK_TYPES.filter((bt) => bt.id !== "embed").map((bt) => (
-                      <button
+                      <Button
                         key={bt.id}
+                        variant="tertiary"
+                        size="sm"
+                        aria-pressed={b.type === bt.id}
                         onClick={() => set(b.id, { type: bt.id })}
                         className={cn(
-                          "rounded px-2 py-1 text-left text-xs hover:bg-accent",
+                          "justify-start px-2 font-normal",
                           b.type === bt.id && "bg-accent",
                         )}
                       >
                         {blockLabel(bt.id)}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                   <DropdownMenuSeparator />
@@ -581,8 +590,10 @@ export function BlockEditor({
 
               <div className="relative min-w-0 flex-1">
                 {b.type === "divider" ? (
+                  // eslint-disable-next-line no-restricted-syntax -- exception: divider block, focusable row
                   <button
-                    className="block w-full py-3"
+                    type="button"
+                    className={cn("block w-full rounded-sm py-3", pressableFocus)}
                     onClick={() => setFocus({ id: b.id, caret: 0 })}
                     aria-label={t("noteDivider")}
                   >
@@ -699,8 +710,10 @@ export function BlockEditor({
                           : t("noteMenuRef")}
                     </p>
                     {menuItems.map((it, i) => (
+                      // eslint-disable-next-line no-restricted-syntax -- exception: slash-menu option (combobox item, mouse-down)
                       <button
                         key={it.key + i}
+                        type="button"
                         onMouseDown={(e) => {
                           e.preventDefault();
                           const el = refs.current.get(b.id);
@@ -723,7 +736,10 @@ export function BlockEditor({
             </div>
           );
         })}
-        <button
+        <Button
+          variant="tertiary"
+          size="sm"
+          className="ml-6 gap-1.5 px-1 text-muted-foreground"
           onClick={() => {
             const last = blocks[blocks.length - 1];
             if (last && !last.text && last.type === "p") setFocus({ id: last.id, caret: 0 });
@@ -733,10 +749,9 @@ export function BlockEditor({
               setFocus({ id: nb.id, caret: 0 });
             }
           }}
-          className="ml-6 flex items-center gap-1.5 rounded-md px-1 py-1 text-xs text-muted-foreground hover:text-foreground"
         >
-          <Plus className="h-3.5 w-3.5" /> {t("noteAddBlock")}
-        </button>
+          <Plus /> {t("noteAddBlock")}
+        </Button>
       </div>
     </NoteLinksContext.Provider>
   );

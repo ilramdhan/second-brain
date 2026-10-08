@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { IconButton } from "@/components/ui/button";
 
 import { useI18n } from "@/lib/preferences";
 
@@ -27,13 +28,14 @@ export function TagInput({
           className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
         >
           {t}
-          <button
-            type="button"
+          <IconButton
+            label={tr("noteTagRemove", { tag: t })}
+            size="icon-sm"
+            className="size-4 rounded-full hover:bg-background/70 [&_svg]:size-3"
             onClick={() => onChange(value.filter((x) => x !== t))}
-            aria-label={tr("noteTagRemove", { tag: t })}
           >
-            <X className="h-3 w-3" />
-          </button>
+            <X />
+          </IconButton>
         </span>
       ))}
       <input

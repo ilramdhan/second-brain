@@ -154,7 +154,7 @@ Ordered roughly by impact. Each item names the WCAG success criterion it relates
     invisible `::after` grows the hit area to at least 44×44 px without changing the look, and
     the calendar "add" button and block handle stay visible there instead of appearing on hover.
     Mouse users keep the compact `h-7`/`p-0.5` buttons, which meet the 24×24 px minimum through
-    the spacing exception. Use `tap-target` for new icon buttons smaller than 44 px. Remaining
+    the spacing exception. Use `tap-target` for new icon buttons smaller than 44 px (the `Button` sizes `sm`/`icon-sm` already include it as `tap-area`; `md`/`lg`/`icon` are 44 px tall on coarse pointers). Remaining
     gap: neighbouring touch hit areas can overlap in dense rows (e.g. the project tree), where
     the later element wins.
 

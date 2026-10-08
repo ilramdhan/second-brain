@@ -103,11 +103,11 @@ export function SharesPanel() {
                   </p>
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="danger-ghost"
                   size="sm"
                   onClick={() => revoke(share.id)}
                   disabled={busy === share.id}
-                  className="ml-auto text-destructive hover:text-destructive"
+                  className="ml-auto"
                   aria-label={`${t("shareRevoke")}: ${title ?? t(isNote ? "sharesNote" : "sharesProject")}`}
                 >
                   {busy === share.id ? (

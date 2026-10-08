@@ -1,4 +1,5 @@
 import { ExternalLink, FlaskConical, X } from "lucide-react";
+import { IconButton } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 import { DEMO_GITHUB_URL, isDemo, prodUrl } from "@/lib/app-mode";
@@ -80,15 +81,13 @@ export function DemoBanner({
           </p>
         </div>
       </div>
-      <button
-        type="button"
+      <IconButton
+        label={t("demoNoticeDismiss")}
         onClick={dismiss}
-        aria-label={t("demoNoticeDismiss")}
-        title={t("demoNoticeDismiss")}
-        className="absolute top-1.5 right-1.5 flex h-11 w-11 items-center justify-center rounded-full hover:bg-amber-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:bg-amber-900/60"
+        className="absolute top-1.5 right-1.5 size-11 hover:bg-amber-100 dark:hover:bg-amber-900/60"
       >
-        <X className="h-4 w-4" aria-hidden />
-      </button>
+        <X aria-hidden />
+      </IconButton>
     </aside>
   );
 }

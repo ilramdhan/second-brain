@@ -8,7 +8,7 @@ import { NoteFromTextDialog } from "@/components/notes/NoteFromTextDialog";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { VirtualList } from "@/components/common/VirtualList";
 import { chunk, shouldVirtualize } from "@/components/common/virtual";
-import { Button } from "@/components/ui/button";
+import { Button, pressableFocus } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -116,7 +116,7 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
           </TabsList>
         </Tabs>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setFromText(true)}>
+          <Button size="sm" variant="secondary" onClick={() => setFromText(true)}>
             <Sparkles /> {t("noteFromTextShort")}
           </Button>
           <Button size="sm" onClick={() => newNote()}>
@@ -275,12 +275,14 @@ function NoteCard({
   const { t, dateFns } = usePreferences();
   const p = projects.find((x) => x.id === note.project_id);
   return (
+    // eslint-disable-next-line no-restricted-syntax -- exception: whole note card is the button
     <button
+      type="button"
       onClick={onClick}
       {...(nav ? navAttrs(note.id, nav.selectedId === note.id, nav.tabStopId === note.id) : {})}
       className={cn(
         "flex w-full flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/30",
-        nav && NAV_ITEM_CLASS,
+        nav ? NAV_ITEM_CLASS : pressableFocus,
       )}
     >
       <div className="flex items-start justify-between gap-2">

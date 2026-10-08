@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toastError } from "@/lib/errors";
 import { normalizeEmail, SET_PASSWORD_PATH } from "@/lib/password";
@@ -91,13 +92,9 @@ export function ForgotPasswordForm({
           </p>
         ) : null}
       </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-      >
+      <Button type="submit" disabled={loading} size="lg" className="w-full">
         {loading ? t("authSending") : (submitLabel ?? t("authForgotSubmit"))}
-      </button>
+      </Button>
     </form>
   );
 }

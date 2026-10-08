@@ -83,7 +83,7 @@ function ThemeToggle() {
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="tertiary"
       size="icon"
       onClick={() => setTheme(next)}
       aria-label={`${t("landingThemeLabel")}: ${t(theme)}`}
@@ -99,9 +99,9 @@ function LanguageToggle() {
   return (
     <Button
       type="button"
-      variant="ghost"
-      size="sm"
-      className="h-9 w-9 px-0 text-xs font-semibold"
+      variant="tertiary"
+      size="icon"
+      className="text-xs font-semibold"
       onClick={() => setLocale(locale === "id" ? "en" : "id")}
       aria-label={t("landingLanguageLabel")}
       title={t("landingLanguageLabel")}
@@ -167,7 +167,7 @@ function MobileMenu({ onLanding, demo }: { onLanding: boolean; demo: string | nu
       <SheetTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
+          variant="tertiary"
           size="icon"
           className="lg:hidden"
           aria-label={t("landingMenuOpen")}
@@ -219,7 +219,7 @@ function MobileMenu({ onLanding, demo }: { onLanding: boolean; demo: string | nu
               </a>
             </Button>
           )}
-          <Button asChild variant="outline">
+          <Button asChild variant="secondary">
             <a href={GITHUB_URL} target="_blank" rel="noreferrer">
               <GithubMark />
               GitHub
@@ -263,21 +263,21 @@ export function SiteHeader({ onLanding = false }: { onLanding?: boolean }) {
         <div className="flex items-center gap-1">
           <ThemeToggle />
           <LanguageToggle />
-          <Button asChild variant="ghost" size="icon" className="hidden xl:inline-flex">
+          <Button asChild variant="tertiary" size="icon" className="hidden xl:inline-flex">
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub">
               <GithubMark />
             </a>
           </Button>
           {/* The demo is its own deployment; it opens in the same tab like any other page. */}
           {demo && (
-            <Button asChild size="sm" variant="outline" className="ml-1 hidden h-9 sm:inline-flex">
+            <Button asChild variant="secondary" className="ml-1 hidden sm:inline-flex">
               <a href={demo}>
                 <Play aria-hidden />
                 {t("landingDemo")}
               </a>
             </Button>
           )}
-          <Button asChild size="sm" className="ml-1 hidden h-9 sm:inline-flex">
+          <Button asChild className="ml-1 hidden sm:inline-flex">
             <Link to="/login">{t("landingSignIn")}</Link>
           </Button>
           <MobileMenu onLanding={onLanding} demo={demo} />

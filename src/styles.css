@@ -3,6 +3,8 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+/* Touch screens (phones, installed PWA): `coarse:min-h-11` etc. Same media as `pointer-coarse:`. */
+@custom-variant coarse (@media (pointer: coarse));
 
 /*
  * Design system — "Second Brain"
@@ -270,6 +272,25 @@ html:has([data-public-page]) {
  */
 @utility tap-target {
   position: relative;
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
+/*
+ * Same 44x44 px touch hit area as `tap-target`, without setting `position` (the element must
+ * already be positioned). Used by the `sm`/`icon-sm` Button sizes, which are `relative` by
+ * default but may be made `absolute`/`fixed` by the caller.
+ */
+@utility tap-area {
   @media (pointer: coarse) {
     &::after {
       content: "";
