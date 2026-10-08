@@ -1,3 +1,4 @@
+import { messages } from "@/lib/i18n";
 import type { Locale } from "@/lib/preferences";
 
 /**
@@ -373,7 +374,6 @@ export const LEGAL_DOCS: Record<"privacy" | "terms", Record<Locale, LegalDoc>> =
   terms: { id: termsId, en: termsEn },
 };
 
-export const PRIVACY_DESCRIPTION =
-  "Kebijakan privasi Second Brain: data yang disimpan, layanan pihak ketiga, penyimpanan lokal, retensi, dan hak Anda.";
-export const TERMS_DESCRIPTION =
-  "Ketentuan penggunaan Second Brain: akun, konten Anda, penggunaan yang dapat diterima, dan batas tanggung jawab.";
+// The page descriptions live in the i18n `meta` area (src/lib/i18n/meta.ts), read by head().
+export const PRIVACY_DESCRIPTION = messages.id.metaPrivacyDesc;
+export const TERMS_DESCRIPTION = messages.id.metaTermsDesc;

@@ -31,22 +31,14 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { noteBlocksQuery, preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/graph")({
   validateSearch: (s: Record<string, unknown>) => ({
     focus: typeof s["focus"] === "string" ? (s["focus"] as string) : undefined,
   }),
-  head: () => ({
-    meta: [
-      { title: "Peta Pengetahuan — Second Brain" },
-      {
-        name: "description",
-        content: "Graf interaktif hubungan antar catatan dari tautan dua arah dan referensi blok.",
-      },
-      { property: "og:title", content: "Peta Pengetahuan — Second Brain" },
-      { property: "og:description", content: "Temukan koneksi tersembunyi antar ide Anda." },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, { title: "metaGraphTitle", desc: "metaGraphDesc", ogDesc: "metaGraphOgDesc" }),
   loader: ({ context }) => preloadQueries(context.queryClient, noteBlocksQuery, projectsQuery),
   component: GraphPage,
   errorComponent: RouteError,

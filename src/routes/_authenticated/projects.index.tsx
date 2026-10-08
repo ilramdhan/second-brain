@@ -23,22 +23,15 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
-  head: () => ({
-    meta: [
-      { title: "Proyek — Second Brain" },
-      {
-        name: "description",
-        content: "Kelola proyek dengan metode PARA dalam tampilan grid, kanban, dan pohon.",
-      },
-      { property: "og:title", content: "Proyek — Second Brain" },
-      {
-        property: "og:description",
-        content: "Projects, Areas, Resources, Archives — lengkap dengan progres dan launch date.",
-      },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, {
+      title: "metaProjectsTitle",
+      desc: "metaProjectsDesc",
+      ogDesc: "metaProjectsOgDesc",
+    }),
   loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery, tasksQuery),
   component: ProjectsPage,
   errorComponent: RouteError,

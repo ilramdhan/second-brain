@@ -13,18 +13,10 @@ import { cn } from "@/lib/utils";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/canvas")({
-  head: () => ({
-    meta: [
-      { title: "Kanvas — Second Brain" },
-      { name: "description", content: "Susun ide bebas dan hubungkan secara visual." },
-      { property: "og:title", content: "Kanvas — Second Brain" },
-      { property: "og:description", content: "Susun ide bebas dan hubungkan secara visual." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaCanvasTitle", desc: "metaCanvasDesc" }),
   component: CanvasPage,
   errorComponent: RouteError,
 });

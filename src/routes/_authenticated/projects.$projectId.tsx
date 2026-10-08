@@ -49,19 +49,15 @@ import { DemoDisabled } from "@/components/demo/DemoDisabled";
 import { DEMO_DISABLED_MESSAGE, isDemo } from "@/lib/app-mode";
 import { normalizeEmail } from "@/lib/password";
 import { useI18n, usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
-  head: () => ({
-    meta: [
-      { title: "Detail proyek — Second Brain" },
-      {
-        name: "description",
-        content: "Ringkasan, tugas, milestone, timeline, catatan, dan tim dalam satu proyek.",
-      },
-      { property: "og:title", content: "Detail proyek — Second Brain" },
-      { property: "og:description", content: "Semua hal tentang satu proyek di satu tempat." },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, {
+      title: "metaProjectTitle",
+      desc: "metaProjectDesc",
+      ogDesc: "metaProjectOgDesc",
+    }),
   loader: ({ context }) =>
     preloadQueries(context.queryClient, projectsQuery, tasksQuery, milestonesQuery, meQuery),
   component: ProjectDetail,

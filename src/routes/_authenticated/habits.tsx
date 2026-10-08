@@ -25,24 +25,10 @@ import {
 import { weekDays, weeklyCompletion } from "@/lib/habits";
 import { usePreferences } from "@/lib/preferences";
 import { addDays, localIsoDate } from "@/lib/reports";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/habits")({
-  head: () => ({
-    meta: [
-      { title: "Kebiasaan — Second Brain" },
-      {
-        name: "description",
-        content: "Check-in kebiasaan harian, streak dan tingkat konsistensi.",
-      },
-      { property: "og:title", content: "Kebiasaan — Second Brain" },
-      {
-        property: "og:description",
-        content: "Check-in kebiasaan harian, streak dan tingkat konsistensi.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaHabitsTitle", desc: "metaHabitsDesc" }),
   loader: ({ context }) =>
     preloadQueries(context.queryClient, habitsQuery, habitLogsQuery, projectsQuery),
   component: HabitsPage,

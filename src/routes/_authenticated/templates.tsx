@@ -36,21 +36,10 @@ import { getUid, useNoteActions } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/templates")({
-  head: () => ({
-    meta: [
-      { title: "Template — Second Brain" },
-      { name: "description", content: "Template tugas dan catatan yang bisa dipakai ulang." },
-      { property: "og:title", content: "Template — Second Brain" },
-      {
-        property: "og:description",
-        content: "Template tugas dan catatan yang bisa dipakai ulang.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaTemplatesTitle", desc: "metaTemplatesDesc" }),
   component: TemplatesPage,
   errorComponent: RouteError,
 });

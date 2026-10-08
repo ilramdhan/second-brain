@@ -55,23 +55,18 @@ import { automationsQuery, preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { isDemo } from "@/lib/app-mode";
 import { usePreferences, type Locale, type MessageKey } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 /** Action types that reach outside the app; switched off on the public demo. */
 const DEMO_OFF_ACTIONS = new Set<string>(["telegram", "webhook"]);
 
 export const Route = createFileRoute("/_authenticated/automations")({
-  head: () => ({
-    meta: [
-      { title: "Otomasi — Second Brain" },
-      {
-        name: "description",
-        content:
-          "Buat aturan jika-ini-maka-itu untuk tugas dan catatan, atau aturan terjadwal (cron): ubah tugas, buat tugas, kirim ringkasan, Telegram atau webhook.",
-      },
-      { property: "og:title", content: "Otomasi — Second Brain" },
-      { property: "og:description", content: "Mesin aturan otomatis untuk tugas Anda." },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, {
+      title: "metaAutomationsTitle",
+      desc: "metaAutomationsDesc",
+      ogDesc: "metaAutomationsOgDesc",
+    }),
   loader: ({ context }) => preloadQueries(context.queryClient, automationsQuery, projectsQuery),
   component: AutomationsPage,
   errorComponent: RouteError,

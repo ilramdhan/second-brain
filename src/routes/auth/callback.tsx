@@ -8,12 +8,13 @@ import { authCallbackErrorKey, takeAuthRedirect } from "@/lib/auth-methods";
 import { APP_HOME, LOGIN_PATH, safeRedirect } from "@/lib/auth";
 import { needsMfaChallenge, sessionAssurance } from "@/lib/mfa";
 import { parseAuthLinkParams } from "@/lib/password";
+import { headT, pageTitle } from "@/lib/page-head";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
 
 export const Route = createFileRoute("/auth/callback")({
-  head: () => ({
+  head: (ctx) => ({
     meta: [
-      { title: "Masuk — Second Brain" },
+      { title: pageTitle(headT(ctx)("metaLoginTitle")) },
       // A one-time landing page for OAuth and magic-link redirects: never indexed.
       { name: "robots", content: "noindex, nofollow" },
     ],

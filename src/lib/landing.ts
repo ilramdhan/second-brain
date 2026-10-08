@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { robotsFor } from "@/lib/app-mode";
 import { REPO_URL } from "@/lib/app-version";
+import { messages, type Locale } from "@/lib/i18n";
 
 /** Public production origin, used for canonical and Open Graph URLs on the public pages. */
 export const SITE_URL = "https://2ndbrain.ilramdhan.dev";
@@ -24,12 +25,11 @@ export const OG_IMAGE = {
   width: 1200,
   height: 630,
   type: "image/png",
-  alt: "Second Brain: otak kedua untuk tugas dan catatan Anda, dengan kartu inbox, kanban, graph, dan automations.",
+  alt: messages.id.metaOgImageAlt,
 } as const;
 
-export const LANDING_TITLE = "Second Brain — tugas & catatan dengan AI";
-export const LANDING_DESCRIPTION =
-  "Tangkap ide, biarkan AI merapikannya, lalu kelola tugas (list, kanban, kalender, timeline), catatan berblok, dan proyek tim. Open source, PWA.";
+export const LANDING_TITLE = messages.id.metaLandingTitle;
+export const LANDING_DESCRIPTION = messages.id.metaLandingDesc;
 
 /**
  * Optional public demo deployment (Phase 10). The "Coba Demo" button stays hidden unless
@@ -55,15 +55,29 @@ export function signupAllowed(raw: unknown = import.meta.env["VITE_ALLOW_SIGNUP"
   return typeof raw === "string" && raw.trim().toLowerCase() === "true";
 }
 
-type PageMeta = { title: string; description: string; path: string; robots?: string };
+type PageMeta = {
+  title: string;
+  description: string;
+  path: string;
+  robots?: string;
+  /** Language of the page text (the `sb_lang` cookie, see src/lib/page-head.ts). */
+  locale?: Locale;
+};
 
 /**
  * `<head>` entries for a public page: title, description, robots, canonical, Open Graph and
  * Twitter card. Every URL is absolute on the production origin, because crawlers and chat apps
  * do not resolve a relative og:image.
  */
-export function publicPageHead({ title, description, path, robots = "index, follow" }: PageMeta) {
+export function publicPageHead({
+  title,
+  description,
+  path,
+  robots = "index, follow",
+  locale = "id",
+}: PageMeta) {
   const url = `${SITE_URL}${path}`;
+  const imageAlt = messages[locale].metaOgImageAlt;
   return {
     meta: [
       { title },
@@ -75,19 +89,19 @@ export function publicPageHead({ title, description, path, robots = "index, foll
       { property: "og:title", content: title },
       { property: "og:description", content: description },
       { property: "og:url", content: url },
-      { property: "og:locale", content: "id_ID" },
-      { property: "og:locale:alternate", content: "en_US" },
+      { property: "og:locale", content: locale === "en" ? "en_US" : "id_ID" },
+      { property: "og:locale:alternate", content: locale === "en" ? "id_ID" : "en_US" },
       { property: "og:image", content: OG_IMAGE.url },
       { property: "og:image:secure_url", content: OG_IMAGE.url },
       { property: "og:image:type", content: OG_IMAGE.type },
       { property: "og:image:width", content: String(OG_IMAGE.width) },
       { property: "og:image:height", content: String(OG_IMAGE.height) },
-      { property: "og:image:alt", content: OG_IMAGE.alt },
+      { property: "og:image:alt", content: imageAlt },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: description },
       { name: "twitter:image", content: OG_IMAGE.url },
-      { name: "twitter:image:alt", content: OG_IMAGE.alt },
+      { name: "twitter:image:alt", content: imageAlt },
     ],
     links: [{ rel: "canonical", href: url }],
   };
@@ -121,11 +135,12 @@ export const LANDING_JSON_LD = {
 };
 
 /** Full `<head>` of the landing page `/`. */
-export function landingHead() {
+export function landingHead(locale: Locale = "id") {
   const head = publicPageHead({
-    title: LANDING_TITLE,
-    description: LANDING_DESCRIPTION,
+    title: messages[locale].metaLandingTitle,
+    description: messages[locale].metaLandingDesc,
     path: "/",
+    locale,
   });
   return {
     ...head,

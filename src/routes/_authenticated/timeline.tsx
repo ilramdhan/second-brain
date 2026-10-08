@@ -7,19 +7,15 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { milestonesQuery, preloadQueries, projectsQuery, tasksQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { usePreferences } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/timeline")({
-  head: () => ({
-    meta: [
-      { title: "Timeline — Second Brain" },
-      {
-        name: "description",
-        content: "Timeline ala Gantt untuk semua proyek, tugas, milestone, dan launch date.",
-      },
-      { property: "og:title", content: "Timeline — Second Brain" },
-      { property: "og:description", content: "Geser dan perpanjang tugas langsung di timeline." },
-    ],
-  }),
+  head: (ctx) =>
+    pageHead(ctx, {
+      title: "metaTimelineTitle",
+      desc: "metaTimelineDesc",
+      ogDesc: "metaTimelineOgDesc",
+    }),
   loader: ({ context }) =>
     preloadQueries(context.queryClient, tasksQuery, projectsQuery, milestonesQuery),
   component: TimelinePage,

@@ -35,17 +35,10 @@ import { preloadQueries, projectsQuery } from "@/lib/data";
 import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
+import { pageHead } from "@/lib/page-head";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
-  head: () => ({
-    meta: [
-      { title: "Inbox — Second Brain" },
-      {
-        name: "description",
-        content: "Rapikan catatan mentah menjadi tugas dan catatan terstruktur dengan bantuan AI.",
-      },
-    ],
-  }),
+  head: (ctx) => pageHead(ctx, { title: "metaInboxTitle", desc: "metaInboxDesc" }),
   loader: ({ context }) => preloadQueries(context.queryClient, projectsQuery),
   component: InboxPage,
   errorComponent: RouteError,
