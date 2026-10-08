@@ -57,6 +57,7 @@ import { usePreferences, type Locale, type MessageKey } from "@/lib/preferences"
 import { pageHead } from "@/lib/page-head";
 import { PRIORITY, TASK_STATUS } from "@/lib/constants";
 import { optionLabel, translatedOptions } from "@/lib/option-labels";
+import { useConfirm } from "@/components/common/confirm-context";
 
 /** Action types that reach outside the app; switched off on the public demo. */
 const DEMO_OFF_ACTIONS = new Set<string>(["telegram", "webhook"]);
@@ -328,6 +329,7 @@ function webhookUrlOf(a: Action): string | null {
 
 function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose: () => void }) {
   const { t, locale } = usePreferences();
+  const confirm = useConfirm();
   const actions = useAutomationActions();
   const { data: projects = [] } = useProjects();
   const demo = isDemo();
@@ -407,7 +409,7 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
     onClose();
   }
   async function remove() {
-    if (!rule?.id || !confirm(t("autoConfirmDelete"))) return;
+    if (!rule?.id || !(await confirm({ title: t("autoConfirmDelete"), destructive: true }))) return;
     await actions.remove(rule.id);
     onClose();
   }

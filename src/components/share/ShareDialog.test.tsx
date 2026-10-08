@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ShareRow } from "@/lib/share";
@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   share: null as ShareRow | null,
   create: vi.fn(),
   setIndexing: vi.fn(),
+  revoke: vi.fn(),
 }));
 
 vi.mock("@/lib/data", () => ({
@@ -18,11 +19,12 @@ vi.mock("@/lib/data", () => ({
     create: state.create,
     setIndexing: state.setIndexing,
     regenerate: vi.fn(),
-    revoke: vi.fn(),
+    revoke: state.revoke,
     setExpiry: vi.fn(),
   }),
 }));
 
+import { ConfirmProvider } from "@/components/common/ConfirmDialog";
 import { PreferencesProvider } from "@/lib/preferences";
 
 import { ShareDialog } from "./ShareDialog";
@@ -45,7 +47,9 @@ const row = (over: Partial<ShareRow> = {}): ShareRow => ({
 const open = () =>
   render(
     <PreferencesProvider initialLocale="id">
-      <ShareDialog open onOpenChange={() => {}} resourceType="note" resourceId={ID} />
+      <ConfirmProvider>
+        <ShareDialog open onOpenChange={() => {}} resourceType="note" resourceId={ID} />
+      </ConfirmProvider>
     </PreferencesProvider>,
   );
 
@@ -54,6 +58,7 @@ describe("ShareDialog search-engine indexing", () => {
     state.share = null;
     state.create.mockReset().mockResolvedValue({ token: "t", share: row() });
     state.setIndexing.mockReset().mockResolvedValue(row({ allow_indexing: true }));
+    state.revoke.mockReset().mockResolvedValue(undefined);
   });
 
   it("is off by default and creates the link without indexing", async () => {
@@ -76,5 +81,22 @@ describe("ShareDialog search-engine indexing", () => {
     open();
     fireEvent.click(screen.getByRole("switch", { name: "Izinkan mesin pencari" }));
     await vi.waitFor(() => expect(state.setIndexing).toHaveBeenCalledWith(state.share!.id, true));
+  });
+
+  it("revokes only after the in-app confirmation (not window.confirm)", async () => {
+    state.share = row();
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Cabut" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Cabut tautan ini?");
+    // Cancel first: nothing happens.
+    fireEvent.click(within(dialog).getByRole("button", { name: "Batal" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(state.revoke).not.toHaveBeenCalled();
+    // Then confirm.
+    fireEvent.click(screen.getByRole("button", { name: "Cabut" }));
+    const again = await screen.findByRole("alertdialog");
+    fireEvent.click(within(again).getByRole("button", { name: "Cabut" }));
+    await waitFor(() => expect(state.revoke).toHaveBeenCalledWith(state.share!.id));
   });
 });

@@ -38,6 +38,7 @@ import { toastError } from "@/lib/errors";
 import { usePreferences } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
 import { optionLabel } from "@/lib/option-labels";
+import { useConfirm } from "@/components/common/confirm-context";
 
 export const Route = createFileRoute("/_authenticated/templates")({
   head: (ctx) => pageHead(ctx, { title: "metaTemplatesTitle", desc: "metaTemplatesDesc" }),
@@ -59,6 +60,7 @@ function TemplatesPage() {
   const { newTask } = useTaskDialog();
   const notes = useNoteActions();
   const { t: tr } = usePreferences();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const { data = [] } = useQuery({
     queryKey: ["templates"],
@@ -94,7 +96,7 @@ function TemplatesPage() {
     }
   }
   async function remove(id: string) {
-    if (!confirm(tr("wsTplDeleteConfirm"))) return;
+    if (!(await confirm({ title: tr("wsTplDeleteConfirm"), destructive: true }))) return;
     await supabase.from("templates").delete().eq("id", id);
     void qc.invalidateQueries({ queryKey: ["templates"] });
   }

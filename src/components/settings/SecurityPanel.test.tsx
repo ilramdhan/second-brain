@@ -35,6 +35,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import { SecurityPanel } from "@/components/settings/SecurityPanel";
+import { ConfirmProvider } from "@/components/common/ConfirmDialog";
 import { PreferencesProvider } from "@/lib/preferences";
 
 const verified = {
@@ -49,7 +50,13 @@ const factors = (list: unknown[]) =>
   mfa.listFactors.mockResolvedValue({ data: { all: list, totp: list }, error: null });
 
 function renderPanel() {
-  return render(<SecurityPanel />, { wrapper: PreferencesProvider });
+  return render(<SecurityPanel />, {
+    wrapper: ({ children }) => (
+      <PreferencesProvider>
+        <ConfirmProvider>{children}</ConfirmProvider>
+      </PreferencesProvider>
+    ),
+  });
 }
 
 beforeEach(() => {
@@ -77,6 +84,24 @@ describe("Recovery codes", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sudah saya simpan" }));
     expect(screen.queryByText("AAAA-0003")).toBeNull();
     expect(screen.getByText("Kode tersisa: 10")).toBeVisible();
+  });
+
+  it("asks before replacing existing codes", async () => {
+    factors([verified]);
+    recovery.recoveryCodesStatus.mockResolvedValue({ remaining: 4 });
+    renderPanel();
+    expect(await screen.findByText("Kode tersisa: 4")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Buat ulang kode pemulihan" }));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(recovery.generateRecoveryCodes).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Buat ulang kode pemulihan" }));
+    fireEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Lanjutkan" }),
+    );
+    expect(await screen.findByText("AAAA-0003")).toBeVisible();
+    expect(recovery.generateRecoveryCodes).toHaveBeenCalledTimes(1);
   });
 
   it("creates the first batch right after 2FA is turned on", async () => {

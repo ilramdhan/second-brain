@@ -32,6 +32,26 @@ export default tseslint.config(
           ],
         },
       ],
+      // Native dialogs block the page, ignore the app theme/locale and are unstyled on phones.
+      "no-restricted-globals": [
+        "error",
+        ...["confirm", "alert", "prompt"].map((name) => ({
+          name,
+          message:
+            "Use `useConfirm()` (src/components/common/confirm-context.ts) for confirmations and `toast` from sonner for messages instead of native browser dialogs.",
+        })),
+      ],
+      "no-restricted-properties": [
+        "error",
+        ...["window", "globalThis", "self"].flatMap((object) =>
+          ["confirm", "alert", "prompt"].map((property) => ({
+            object,
+            property,
+            message:
+              "Use `useConfirm()` (src/components/common/confirm-context.ts) for confirmations and `toast` from sonner for messages instead of native browser dialogs.",
+          })),
+        ),
+      ],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
       // Rows come from the typed client (`Tables<"x">` etc.); narrow `unknown` instead of `any`.

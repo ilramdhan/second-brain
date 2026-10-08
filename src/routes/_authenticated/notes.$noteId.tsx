@@ -65,6 +65,7 @@ import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { pageHead } from "@/lib/page-head";
 import { optionLabel } from "@/lib/option-labels";
+import { useConfirm } from "@/components/common/confirm-context";
 
 export const Route = createFileRoute("/_authenticated/notes/$noteId")({
   head: (ctx) =>
@@ -120,6 +121,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   const [saving, setSaving] = useState<"idle" | "dirty" | "saving">("idle");
   const [busy, setBusy] = useState(false);
   const { t, dateFns } = usePreferences();
+  const confirm = useConfirm();
   const demo = isDemo();
   const [historyOpen, setHistoryOpen] = useState(false);
   const qc = useQueryClient();
@@ -238,10 +240,14 @@ function NoteEditor({ note }: { note: NoteDetail }) {
     }
   }
   /** Demo: loads an example meeting note so "Buat notulen" has something to work with. */
-  function loadExample(example: DemoExample) {
+  async function loadExample(example: DemoExample) {
     const current = toMarkdown(blocks).trim();
     if (current === example.text) return;
-    if (current && !confirm(t("demoAiFillNote"))) return;
+    if (
+      current &&
+      !(await confirm({ title: t("demoAiFillNote"), confirmLabel: t("confirmContinue") }))
+    )
+      return;
     changeBlocks(loadBlocks({ blocks: [], content: example.text }));
     if (!title.trim()) {
       setTitle(example.label.id);
@@ -250,7 +256,14 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   }
 
   async function remove() {
-    if (!confirm(t("noteTrashConfirm"))) return;
+    if (
+      !(await confirm({
+        title: t("noteTrashConfirm"),
+        confirmLabel: t("confirmTrash"),
+        destructive: true,
+      }))
+    )
+      return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     await actions.remove(note.id);
