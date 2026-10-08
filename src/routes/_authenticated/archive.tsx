@@ -17,7 +17,7 @@ import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { VirtualList } from "@/components/common/VirtualList";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Button } from "@/components/ui/button";
+import { Button, ResponsiveButton } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { qk } from "@/lib/data";
@@ -166,14 +166,12 @@ function ArchivePage() {
         }
         actions={
           tab === "trash" && data.length > 0 ? (
-            <Button
-              variant="outline"
-              size="sm"
+            <ResponsiveButton
+              variant="danger"
               onClick={emptyTrash}
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 /> {tt("admEmptyTrash")}
-            </Button>
+              icon={<Trash2 />}
+              label={tt("admEmptyTrash")}
+            />
           ) : undefined
         }
       />
@@ -215,12 +213,12 @@ function ArchivePage() {
                   </p>
                 </div>
                 <div className="ml-auto flex gap-1">
-                  <Button variant="outline" size="sm" onClick={() => restore(it)}>
+                  <Button variant="secondary" size="sm" onClick={() => restore(it)}>
                     <RotateCcw /> {tt("admRestore")}
                   </Button>
                   {tab === "trash" && (
                     <Button
-                      variant="ghost"
+                      variant="tertiary"
                       size="icon"
                       onClick={() => purge(it)}
                       aria-label={tt("admPurge")}

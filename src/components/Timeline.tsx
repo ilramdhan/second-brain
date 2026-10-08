@@ -12,7 +12,7 @@ import {
 import { ChevronLeft, ChevronRight, Diamond, Rocket } from "lucide-react";
 
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { Button, pressableFocus } from "@/components/ui/button";
+import { Button, IconButton, pressableFocus } from "@/components/ui/button";
 import { NAV_ITEM_CLASS, navAttrs, useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { color } from "@/lib/constants";
 import {
@@ -170,14 +170,14 @@ export function Timeline({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-1">
-        <Button
+        <IconButton
           variant="secondary"
           size="icon-sm"
           onClick={() => setFrom((f) => addDays(f, -14))}
-          aria-label={tl("taskTlBack")}
+          label={tl("taskTlBack")}
         >
           <ChevronLeft />
-        </Button>
+        </IconButton>
         <Button
           variant="secondary"
           size="sm"
@@ -185,14 +185,14 @@ export function Timeline({
         >
           {tl("taskGroupToday")}
         </Button>
-        <Button
+        <IconButton
           variant="secondary"
           size="icon-sm"
           onClick={() => setFrom((f) => addDays(f, 14))}
-          aria-label={tl("taskTlForward")}
+          label={tl("taskTlForward")}
         >
           <ChevronRight />
-        </Button>
+        </IconButton>
         <span className="ml-2 text-sm font-medium capitalize">
           {format(from, "d MMM", { locale: dateFns })} –{" "}
           {format(addDays(from, DAYS - 1), "d MMM yyyy", { locale: dateFns })}
