@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { Field } from "@/components/common/TagInput";
 import { Input } from "@/components/ui/input";
+import { TimeInput } from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -174,12 +175,7 @@ export function SchedulePicker({ cron, tz, onChange }: Props) {
             </Field>
           )}
           <Field label={t("autoHour")}>
-            <Input
-              className="h-9"
-              type="time"
-              value={time ?? "08:00"}
-              onChange={(e) => withTime(e.target.value)}
-            />
+            <TimeInput value={time ?? "08:00"} onChange={(e) => withTime(e.target.value)} />
           </Field>
         </div>
       )}

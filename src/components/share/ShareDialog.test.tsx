@@ -88,7 +88,8 @@ describe("ShareDialog search-engine indexing", () => {
     open();
     fireEvent.click(screen.getByRole("button", { name: "Cabut" }));
     const dialog = await screen.findByRole("alertdialog");
-    expect(dialog).toHaveTextContent("Cabut tautan ini?");
+    expect(dialog).toHaveAccessibleName("Cabut tautan publik?");
+    expect(dialog).toHaveAccessibleDescription(/tidak bisa membuka halamannya lagi/);
     // Cancel first: nothing happens.
     fireEvent.click(within(dialog).getByRole("button", { name: "Batal" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());

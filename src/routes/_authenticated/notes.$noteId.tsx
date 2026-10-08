@@ -120,7 +120,7 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   );
   const [saving, setSaving] = useState<"idle" | "dirty" | "saving">("idle");
   const [busy, setBusy] = useState(false);
-  const { t, dateFns } = usePreferences();
+  const { t, dateFns, locale } = usePreferences();
   const confirm = useConfirm();
   const demo = isDemo();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -245,7 +245,12 @@ function NoteEditor({ note }: { note: NoteDetail }) {
     if (current === example.text) return;
     if (
       current &&
-      !(await confirm({ title: t("demoAiFillNote"), confirmLabel: t("confirmContinue") }))
+      !(await confirm({
+        title: t("demoAiFillNoteConfirmTitle"),
+        description: t("demoAiFillNoteConfirmDesc", { example: example.label[locale] }),
+        confirmLabel: t("confirmContinue"),
+        tone: "warning",
+      }))
     )
       return;
     changeBlocks(loadBlocks({ blocks: [], content: example.text }));
@@ -258,7 +263,8 @@ function NoteEditor({ note }: { note: NoteDetail }) {
   async function remove() {
     if (
       !(await confirm({
-        title: t("noteTrashConfirm"),
+        title: t("noteTrashConfirmTitle"),
+        description: t("noteTrashConfirmDesc", { title: title.trim() || t("noteUntitled") }),
         confirmLabel: t("confirmTrash"),
         destructive: true,
       }))

@@ -56,8 +56,13 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     /** Accessible name of the close button (defaults to the Indonesian "Tutup"). */
     closeLabel?: string;
+    /**
+     * Render the corner close button (default). Alert dialogs (`ConfirmDialog`) turn it off: their
+     * footer already has a cancel button, and Esc / an overlay click still close them.
+     */
+    showCloseButton?: boolean;
   }
->(({ className, children, closeLabel = "Tutup", ...props }, ref) => (
+>(({ className, children, closeLabel = "Tutup", showCloseButton = true, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -76,14 +81,16 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      {/* Zero-height sticky row: the button floats over the sticky header's top-right corner.
-          `-mb-4` cancels the flex gap so the header starts at the very top. */}
-      <div className="pointer-events-none sticky top-0 z-20 order-first -mx-(--dialog-px) -mb-4 h-0 shrink-0">
-        <DialogPrimitive.Close className="pointer-events-auto absolute top-2.5 right-1.5 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none sm:top-3.5 sm:right-3">
-          <X className="h-4 w-4" aria-hidden />
-          <span className="sr-only">{closeLabel}</span>
-        </DialogPrimitive.Close>
-      </div>
+      {showCloseButton ? (
+        /* Zero-height sticky row: the button floats over the sticky header's top-right corner.
+          `-mb-4` cancels the flex gap so the header starts at the very top. */
+        <div className="pointer-events-none sticky top-0 z-20 order-first -mx-(--dialog-px) -mb-4 h-0 shrink-0">
+          <DialogPrimitive.Close className="pointer-events-auto absolute top-2.5 right-1.5 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none sm:top-3.5 sm:right-3">
+            <X className="h-4 w-4" aria-hidden />
+            <span className="sr-only">{closeLabel}</span>
+          </DialogPrimitive.Close>
+        </div>
+      ) : null}
     </DialogPrimitive.Content>
   </DialogPortal>
 ));

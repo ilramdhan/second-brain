@@ -175,7 +175,12 @@ export function ShareDialog({
   async function regenerate() {
     if (
       !share ||
-      !(await confirm({ title: t("shareRegenerateConfirm"), confirmLabel: t("shareRegenerate") }))
+      !(await confirm({
+        title: t("shareRegenerateConfirmTitle"),
+        description: t("shareRegenerateConfirmDesc"),
+        confirmLabel: t("shareRegenerate"),
+        tone: "warning",
+      }))
     )
       return;
     const result = await run("regenerate", () => actions.regenerate(share.id));
@@ -189,7 +194,8 @@ export function ShareDialog({
     if (
       !share ||
       !(await confirm({
-        title: t("shareRevokeConfirm"),
+        title: t("shareRevokeConfirmTitle"),
+        description: t("shareRevokeConfirmDesc"),
         confirmLabel: t("confirmRevoke"),
         destructive: true,
       }))

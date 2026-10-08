@@ -23,9 +23,17 @@ export function SharesPanel() {
   const active = shares.filter((s) => isShareActive(s));
 
   async function revoke(id: string) {
+    const share = shares.find((s) => s.id === id);
+    const title =
+      share?.resource_type === "note"
+        ? notes.find((n) => n.id === share.resource_id)?.title
+        : projects.find((p) => p.id === share?.resource_id)?.name;
     if (
       !(await confirm({
-        title: t("shareRevokeConfirm"),
+        title: t("shareRevokeConfirmTitle"),
+        description: title
+          ? t("shareRevokeConfirmDescNamed", { title })
+          : t("shareRevokeConfirmDesc"),
         confirmLabel: t("confirmRevoke"),
         destructive: true,
       }))

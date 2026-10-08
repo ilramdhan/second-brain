@@ -224,7 +224,8 @@ export const id = {
   demoAiExamples: "Contoh",
   demoAiVoiceExample: "Pakai contoh suara",
   demoAiImageExample: "Pakai contoh foto",
-  demoAiFillNote: "Isi catatan dengan contoh ini?",
+  demoAiFillNoteConfirmTitle: "Ganti isi catatan?",
+  demoAiFillNoteConfirmDesc: "Isi catatan saat ini diganti dengan teks contoh “{example}”.",
   authForgotLink: "Lupa kata sandi?",
   authForgotTitle: "Atur ulang kata sandi",
   authForgotIntro: "Masukkan email akun Anda. Kami kirim tautan untuk membuat kata sandi baru.",
@@ -334,7 +335,9 @@ export const id = {
   teamResend: "Kirim ulang",
   teamResent: "Undangan dikirim ulang.",
   teamRevoke: "Batalkan undangan",
-  teamRevokeConfirm: "Batalkan undangan untuk email ini?",
+  teamRevokeConfirmTitle: "Batalkan undangan?",
+  teamRevokeConfirmDesc:
+    "Undangan untuk {email} tidak berlaku lagi. Anda bisa mengundangnya lagi kapan saja.",
   teamRevoked: "Undangan dibatalkan.",
   teamMemberNote: "Anda anggota proyek ini. Hanya pemilik yang bisa mengundang orang.",
   teamInviteHint:
@@ -412,11 +415,15 @@ export const id = {
   shareCopy: "Salin tautan",
   shareCopied: "Tautan disalin",
   shareRevoke: "Cabut",
-  shareRevokeConfirm:
-    "Cabut tautan ini? Siapa pun yang memilikinya tidak bisa membuka halaman lagi.",
+  shareRevokeConfirmTitle: "Cabut tautan publik?",
+  shareRevokeConfirmDesc: "Siapa pun yang memiliki tautan ini tidak bisa membuka halamannya lagi.",
+  shareRevokeConfirmDescNamed:
+    "Siapa pun yang memiliki tautan ke “{title}” tidak bisa membuka halamannya lagi.",
   shareRevoked: "Tautan dicabut",
   shareRegenerate: "Tautan baru",
-  shareRegenerateConfirm: "Buat tautan baru? Tautan saat ini berhenti berfungsi.",
+  shareRegenerateConfirmTitle: "Buat tautan baru?",
+  shareRegenerateConfirmDesc:
+    "Tautan saat ini langsung berhenti berfungsi. Bagikan tautan baru ke orang yang masih membutuhkannya.",
   shareRegenerated: "Tautan baru dibuat",
   shareLinkLabel: "Tautan publik",
   shareLinkOnce:
@@ -469,7 +476,6 @@ export const id = {
   confirmOk: "Konfirmasi",
   confirmCancel: "Batal",
   confirmDelete: "Hapus",
-  confirmClose: "Tutup",
   confirmContinue: "Lanjutkan",
   confirmRevoke: "Cabut",
   confirmRemove: "Keluarkan",
@@ -698,7 +704,8 @@ export const en = {
   demoAiExamples: "Examples",
   demoAiVoiceExample: "Use sample voice",
   demoAiImageExample: "Use sample photo",
-  demoAiFillNote: "Replace this note with the example?",
+  demoAiFillNoteConfirmTitle: "Replace note content?",
+  demoAiFillNoteConfirmDesc: "The current content is replaced with the “{example}” example text.",
   authForgotLink: "Forgot password?",
   authForgotTitle: "Reset your password",
   authForgotIntro: "Enter your account email. We will send a link to create a new password.",
@@ -808,7 +815,9 @@ export const en = {
   teamResend: "Resend",
   teamResent: "Invite sent again.",
   teamRevoke: "Revoke invite",
-  teamRevokeConfirm: "Revoke the invite for this email?",
+  teamRevokeConfirmTitle: "Revoke invite?",
+  teamRevokeConfirmDesc:
+    "The invite for {email} stops working. You can invite them again at any time.",
   teamRevoked: "Invite revoked.",
   teamMemberNote: "You are a member of this project. Only the owner can invite people.",
   teamInviteHint:
@@ -886,10 +895,14 @@ export const en = {
   shareCopy: "Copy link",
   shareCopied: "Link copied",
   shareRevoke: "Revoke",
-  shareRevokeConfirm: "Revoke this link? Anyone who has it can no longer open the page.",
+  shareRevokeConfirmTitle: "Revoke public link?",
+  shareRevokeConfirmDesc: "Anyone who has this link can no longer open the page.",
+  shareRevokeConfirmDescNamed: "Anyone who has the link to “{title}” can no longer open the page.",
   shareRevoked: "Link revoked",
   shareRegenerate: "New link",
-  shareRegenerateConfirm: "Create a new link? The current link stops working.",
+  shareRegenerateConfirmTitle: "Create a new link?",
+  shareRegenerateConfirmDesc:
+    "The current link stops working right away. Share the new link with anyone who still needs it.",
   shareRegenerated: "New link created",
   shareLinkLabel: "Public link",
   shareLinkOnce:
@@ -941,7 +954,6 @@ export const en = {
   confirmOk: "Confirm",
   confirmCancel: "Cancel",
   confirmDelete: "Delete",
-  confirmClose: "Close",
   confirmContinue: "Continue",
   confirmRevoke: "Revoke",
   confirmRemove: "Remove",

@@ -89,9 +89,11 @@ export const id = {
   admRestore: "Kembalikan",
   admPurge: "Hapus permanen",
   admRestored: "Dikembalikan",
-  admPurgeConfirm: 'Hapus permanen "{title}"? Ini tidak bisa dibatalkan.',
+  admPurgeConfirmTitle: "Hapus permanen?",
+  admPurgeConfirmDesc: "“{title}” dihapus selamanya. Ini tidak bisa dibatalkan.",
   admPurged: "Dihapus permanen",
-  admEmptyConfirm: "Kosongkan Tempat Sampah? Semua item dihapus permanen.",
+  admEmptyConfirmTitle: "Kosongkan Sampah?",
+  admEmptyConfirmDesc: "{count} item di Sampah dihapus permanen. Ini tidak bisa dibatalkan.",
   admEmptied: "Tempat Sampah dikosongkan",
 
   // Reports
@@ -287,9 +289,11 @@ export const en = {
   admRestore: "Restore",
   admPurge: "Delete permanently",
   admRestored: "Restored",
-  admPurgeConfirm: 'Delete "{title}" permanently? This cannot be undone.',
+  admPurgeConfirmTitle: "Delete permanently?",
+  admPurgeConfirmDesc: "“{title}” is deleted for good. This cannot be undone.",
   admPurged: "Deleted permanently",
-  admEmptyConfirm: "Empty the trash? Every item is deleted permanently.",
+  admEmptyConfirmTitle: "Empty the Trash?",
+  admEmptyConfirmDesc: "{count} items in the Trash are deleted permanently. This cannot be undone.",
   admEmptied: "Trash emptied",
 
   // Reports

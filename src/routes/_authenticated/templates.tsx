@@ -96,7 +96,14 @@ function TemplatesPage() {
     }
   }
   async function remove(id: string) {
-    if (!(await confirm({ title: tr("wsTplDeleteConfirm"), destructive: true }))) return;
+    const ok = await confirm({
+      title: tr("wsTplDeleteConfirmTitle"),
+      description: tr("wsTplDeleteConfirmDesc", {
+        name: data.find((x) => x.id === id)?.name ?? "",
+      }),
+      destructive: true,
+    });
+    if (!ok) return;
     await supabase.from("templates").delete().eq("id", id);
     void qc.invalidateQueries({ queryKey: ["templates"] });
   }

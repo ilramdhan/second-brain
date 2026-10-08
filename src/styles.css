@@ -331,3 +331,18 @@ html:has([data-public-page]) {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * DateInput / DateTimeInput (src/components/ui/date-input.tsx): Firefox draws its own calendar
+ * button at the right edge of date fields and doesn't let us hide it, so there we drop our lucide
+ * icon instead of showing two. (Firefox has no time-field button, so TimeInput keeps its icon.)
+ */
+@supports (-moz-appearance: none) {
+  [data-slot="date-input"]:has(> input[type="date"], > input[type="datetime-local"])
+    > [data-slot="date-input-icon"] {
+    display: none;
+  }
+  [data-slot="date-input"] > input:is([type="date"], [type="datetime-local"]) {
+    padding-right: 0.5rem;
+  }
+}

@@ -51,7 +51,9 @@ export const id = {
   mfaCodesRemaining: "Kode tersisa: {n}",
   mfaCodesGenerate: "Buat kode pemulihan",
   mfaCodesRegenerate: "Buat ulang kode pemulihan",
-  mfaCodesRegenerateConfirm: "Kode lama tidak akan berlaku lagi. Lanjutkan?",
+  mfaCodesRegenerateConfirmTitle: "Buat kode pemulihan baru?",
+  mfaCodesRegenerateConfirmDesc:
+    "{count} kode lama yang tersisa langsung tidak berlaku. Simpan kode baru di tempat yang aman.",
   mfaCodesShowOnce: "Simpan kode ini di tempat aman sekarang. Kode tidak akan ditampilkan lagi.",
   mfaCodesCopy: "Salin semua",
   mfaCodesDownload: "Unduh .txt",
@@ -109,7 +111,9 @@ export const en = {
   mfaCodesRemaining: "Codes left: {n}",
   mfaCodesGenerate: "Create recovery codes",
   mfaCodesRegenerate: "Regenerate recovery codes",
-  mfaCodesRegenerateConfirm: "Your old codes will stop working. Continue?",
+  mfaCodesRegenerateConfirmTitle: "Generate new recovery codes?",
+  mfaCodesRegenerateConfirmDesc:
+    "Your {count} remaining old codes stop working right away. Keep the new codes somewhere safe.",
   mfaCodesShowOnce: "Store these codes somewhere safe now. They will not be shown again.",
   mfaCodesCopy: "Copy all",
   mfaCodesDownload: "Download .txt",

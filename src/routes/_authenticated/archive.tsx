@@ -141,15 +141,26 @@ function ArchivePage() {
     refresh();
   }
   async function purge(it: Item) {
-    if (!(await confirm({ title: tt("admPurgeConfirm", { title: it.title }), destructive: true })))
-      return;
+    const ok = await confirm({
+      title: tt("admPurgeConfirmTitle"),
+      description: tt("admPurgeConfirmDesc", { title: it.title }),
+      confirmLabel: tt("admPurge"),
+      destructive: true,
+    });
+    if (!ok) return;
     const { error } = await supabase.from(it.kind).delete().eq("id", it.id);
     if (error) toastError(error);
     else toast.success(tt("admPurged"));
     refresh();
   }
   async function emptyTrash() {
-    if (!(await confirm({ title: tt("admEmptyConfirm"), destructive: true }))) return;
+    const ok = await confirm({
+      title: tt("admEmptyConfirmTitle"),
+      description: tt("admEmptyConfirmDesc", { count: data.length }),
+      confirmLabel: tt("admEmptyTrash"),
+      destructive: true,
+    });
+    if (!ok) return;
     await Promise.all(data.map((it) => supabase.from(it.kind).delete().eq("id", it.id)));
     toast.success(tt("admEmptied"));
     refresh();
