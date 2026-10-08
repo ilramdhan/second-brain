@@ -7,6 +7,7 @@ import { usePreferences } from "@/lib/preferences";
 import {
   bindingKeys,
   getShortcutOverrides,
+  isAllowedShortcutKey,
   isMacPlatform,
   remappableBinding,
   resetAllShortcuts,
@@ -64,13 +65,21 @@ export function ShortcutSettings() {
     const onKey = (e: KeyboardEvent) => {
       // Lone modifiers: keep waiting for the real key (Shift+/ gives "?").
       if (["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"].includes(e.key)) return;
+      // Tab is never a shortcut; it leaves record mode and moves focus as usual (no keyboard trap).
+      if (e.key === "Tab") {
+        setRecording(null);
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       if (e.key === "Escape") {
         setRecording(null);
         return;
       }
-      const r = setShortcutKey(id, e.key);
+      // Ctrl/⌘/Alt combos are refused here: setShortcutKey only sees the key itself.
+      const r = isAllowedShortcutKey(e)
+        ? setShortcutKey(id, e.key)
+        : ({ ok: false, reason: "forbidden" } as const);
       if (r.ok) {
         setRecording(null);
         setMessage({
