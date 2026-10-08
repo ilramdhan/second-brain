@@ -190,6 +190,26 @@
 }
 
 /*
+ * The window is the scroll container. With classic (non-overlay) scrollbars — Windows, Linux,
+ * macOS "always show scroll bars" — a long page used to lose ~15px of width to the scrollbar while
+ * a short one did not, so the centred `max-w-6xl` page frame moved 7.5px left and its right edge
+ * 15px left between pages. Always reserving the track keeps every page's frame identical.
+ * (`scrollbar-gutter: stable` on the root does not reserve it in Chromium, measured.) Overlay
+ * scrollbars (phones, the PWA, default macOS) take no width, so this changes nothing there.
+ */
+html {
+  overflow-y: scroll;
+}
+/*
+ * Radix dialogs lock scrolling with react-remove-scroll, which adds a body margin equal to the
+ * scrollbar width to compensate for the scrollbar it expects to disappear. The root track above
+ * stays, so that margin would shift the page instead; drop it.
+ */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+}
+
+/*
  * Public pages (landing, privacy, terms) mark their root with `data-public-page`. Anchor jumps
  * (header menu, footer, skip link, legal table of contents) land below the sticky 4rem header,
  * and scroll smoothly unless the visitor prefers reduced motion (see the media query below).
