@@ -171,7 +171,7 @@ function CanvasPage() {
   );
 
   return (
-    <PageContainer size="wide">
+    <PageContainer>
       <PageHeader
         title={t("canvas")}
         subtitle={t("noteCanvasSubtitle")}
