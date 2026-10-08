@@ -49,6 +49,20 @@ describe("buttonVariants", () => {
     expect(buttonVariants({ size: "icon-sm" })).toContain("tap-area");
   });
 
+  it("link buttons drop side padding but keep their height", () => {
+    const cls = buttonVariants({ variant: "link", size: "sm" });
+    expect(cls).toContain("px-0");
+    expect(cls).toContain("h-8");
+    expect(cls).toContain("tap-area");
+  });
+
+  it("icon-xs is a tiny round button that keeps a 44px hit area", () => {
+    const cls = buttonVariants({ size: "icon-xs" });
+    expect(cls).toContain("size-4");
+    expect(cls).toContain("rounded-full");
+    expect(cls).toContain("tap-area");
+  });
+
   it("fluid makes a button full width on phones only", () => {
     expect(buttonVariants({ fluid: true })).toContain("w-full sm:w-auto");
   });

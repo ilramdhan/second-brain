@@ -58,7 +58,7 @@ export function FillFromText<R extends FillResult>({
         size="sm"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="w-full justify-start gap-1.5 px-1"
+        className="w-full justify-start gap-1.5"
       >
         <Sparkles className="text-primary" aria-hidden />
         {t("noteFillToggle")}

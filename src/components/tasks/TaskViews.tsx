@@ -145,7 +145,7 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
           <Button
             variant="link"
             size="sm"
-            className="px-0 text-muted-foreground"
+            className="text-muted-foreground"
             onClick={() => setShowDone(!showDone)}
           >
             {showDone

@@ -60,10 +60,10 @@ export function QuickTask({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={t("taskQuickPlaceholder")}
-          className="h-11"
+          className="h-10 coarse:h-11"
           aria-label={t("taskQuickLabel")}
         />
-        <Button type="submit" className="h-11" disabled={!text.trim()}>
+        <Button type="submit" size="lg" disabled={!text.trim()}>
           <Zap /> {t("taskQuickCreate")}
         </Button>
       </div>

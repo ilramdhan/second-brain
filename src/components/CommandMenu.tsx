@@ -219,7 +219,7 @@ export default function CommandMenu({
               disabled={disabled}
               title={disabled ? t("searchModeSemanticUnavailable") : undefined}
               onClick={() => setMode(m)}
-              className={cn("gap-1 px-2", mode !== m && "text-muted-foreground")}
+              className={cn("gap-1", mode !== m && "text-muted-foreground")}
             >
               {m === "semantic" && <Sparkles aria-hidden />}
               {m === "keyword" ? t("searchModeKeyword") : t("searchModeSemantic")}

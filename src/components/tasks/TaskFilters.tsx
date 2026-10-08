@@ -141,7 +141,7 @@ export function TaskFilters({
         <Button
           variant="tertiary"
           size="sm"
-          className="px-2 text-muted-foreground"
+          className="text-muted-foreground"
           onClick={() => onChange(EMPTY_FILTER)}
         >
           <X /> {t("taskFilterReset")}
