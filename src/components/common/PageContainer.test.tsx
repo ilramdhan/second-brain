@@ -10,27 +10,24 @@ function frameOf(container: HTMLElement) {
 }
 
 describe("PageContainer", () => {
-  it("uses the same centered standard frame for full and readable content", () => {
-    const full = frameOf(render(<PageContainer>x</PageContainer>).container);
-    const readable = frameOf(
-      render(<PageContainer contentWidth="readable">x</PageContainer>).container,
-    );
-    expect(full.className).toBe(readable.className);
-    expect(full.classList).toContain("max-w-6xl");
-    expect(full.classList).toContain("mx-auto");
-    expect(full.querySelector("[data-page-column]")).toBeNull();
+  it("gives every page the same centered max-w-6xl frame", () => {
+    const a = frameOf(render(<PageContainer>a</PageContainer>).container);
+    const b = frameOf(render(<PageContainer>b</PageContainer>).container);
+    expect(a.className).toBe(b.className);
+    expect(a.classList).toContain("max-w-6xl");
+    expect(a.classList).toContain("mx-auto");
+    expect(a.classList).toContain("w-full");
   });
 
-  it("wraps readable content in a left-aligned max-w-3xl column", () => {
+  it("renders children directly in the frame without an inner width column", () => {
     const { container, getByText } = render(
-      <PageContainer contentWidth="readable">
+      <PageContainer>
         <span>body</span>
       </PageContainer>,
     );
-    const column = container.querySelector('[data-page-column="readable"]');
-    expect(column).not.toBeNull();
-    expect(column?.classList).toContain("max-w-3xl");
-    expect(column?.className).not.toMatch(/mx-auto|ml-auto|mr-auto/);
-    expect(column?.contains(getByText("body"))).toBe(true);
+    const frame = frameOf(container);
+    expect(getByText("body").parentElement).toBe(frame);
+    expect(frame.querySelector("[data-page-column]")).toBeNull();
+    expect(frame.querySelector('[class*="max-w-"]')).toBeNull();
   });
 });

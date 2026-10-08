@@ -170,7 +170,7 @@ function AutomationsPage() {
   });
 
   return (
-    <PageContainer contentWidth="readable">
+    <PageContainer>
       <PageHeader title={t("automations")} subtitle={t("autoSubtitle")} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
