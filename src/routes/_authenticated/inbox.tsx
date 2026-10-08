@@ -235,7 +235,7 @@ function InboxPage() {
 
   const paged = usePaged(items, 15);
   return (
-    <PageContainer size="narrow">
+    <PageContainer contentWidth="readable">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("inbox")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{tr("wsInboxSubtitle")}</p>

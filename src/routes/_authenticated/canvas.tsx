@@ -340,7 +340,7 @@ function CanvasPage() {
   const linkFrom = link?.moved ? positions.get(link.from) : undefined;
 
   return (
-    <PageContainer size="wide">
+    <PageContainer>
       <PageHeader
         title={t("canvas")}
         subtitle={t("noteCanvasSubtitle")}
