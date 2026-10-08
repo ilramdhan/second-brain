@@ -14,7 +14,7 @@ import { Minus, Plus, RotateCcw } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { NoteFromTextButton } from "@/components/notes/NoteFromTextDialog";
 import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
-import { Button } from "@/components/ui/button";
+import { ButtonGroup, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -314,32 +314,21 @@ function GraphPage() {
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <Switch checked={orphans} onCheckedChange={setOrphans} /> {t("noteGraphShowOrphans")}
         </label>
-        <div className="ml-auto flex gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => zoomBy(1.25)}
-            aria-label={t("noteZoomIn")}
-          >
+        <ButtonGroup className="ml-auto gap-1">
+          <IconButton variant="secondary" onClick={() => zoomBy(1.25)} label={t("noteZoomIn")}>
             <Plus />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => zoomBy(0.8)}
-            aria-label={t("noteZoomOut")}
-          >
+          </IconButton>
+          <IconButton variant="secondary" onClick={() => zoomBy(0.8)} label={t("noteZoomOut")}>
             <Minus />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
+          </IconButton>
+          <IconButton
+            variant="secondary"
             onClick={() => setView({ x: 0, y: 0, k: 1 })}
-            aria-label={t("noteZoomReset")}
+            label={t("noteZoomReset")}
           >
             <RotateCcw />
-          </Button>
-        </div>
+          </IconButton>
+        </ButtonGroup>
       </div>
       <div className="overflow-hidden rounded-2xl border bg-card">
         <svg

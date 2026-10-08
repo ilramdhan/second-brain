@@ -37,6 +37,7 @@ import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
+import { Button, ButtonGroup } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   head: (ctx) => pageHead(ctx, { title: "metaInboxTitle", desc: "metaInboxDesc" }),
@@ -268,63 +269,52 @@ function InboxPage() {
                 {tr("wsInboxOriginalPoint", { text: item.ai_summary })}
               </p>
             )}
-            <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
-              <button
+            <ButtonGroup className="mt-3 border-t pt-3">
+              <Button
+                size="sm"
                 onClick={() => handleAiParse(item)}
                 disabled={processingId === item.id}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {processingId === item.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
+                {processingId === item.id ? <Loader2 className="animate-spin" /> : <Sparkles />}
                 {tr("wsInboxProcessAi")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => handleToTask(item)}
                 disabled={taskingId === item.id}
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
               >
-                {taskingId === item.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ListTodo className="h-3.5 w-3.5" />
-                )}
+                {taskingId === item.id ? <Loader2 className="animate-spin" /> : <ListTodo />}
                 {tr("wsInboxToTask")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => handleToNote(item)}
                 disabled={notingId === item.id}
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
               >
-                {notingId === item.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <NotebookPen className="h-3.5 w-3.5" />
-                )}
+                {notingId === item.id ? <Loader2 className="animate-spin" /> : <NotebookPen />}
                 {tr("wsInboxToNote")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => handleParaphrase(item)}
                 disabled={expandingId === item.id}
-                className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
               >
-                {expandingId === item.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FileText className="h-3.5 w-3.5" />
-                )}
+                {expandingId === item.id ? <Loader2 className="animate-spin" /> : <FileText />}
                 {tr("wsInboxParaphrase")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="tertiary"
+                size="sm"
+                className="text-muted-foreground"
                 onClick={() => handleArchive(item)}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
               >
-                <Archive className="h-3.5 w-3.5" />
+                <Archive />
                 {tr("wsInboxArchive")}
-              </button>
-            </div>
+              </Button>
+            </ButtonGroup>
           </div>
         )}
       />

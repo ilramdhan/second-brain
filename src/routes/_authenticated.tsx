@@ -43,7 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Button, pressableFocus } from "@/components/ui/button";
 import { usePreferences } from "@/lib/preferences";
 import { logActivity } from "@/lib/activity";
 import { LOGIN_PATH, requireSession } from "@/lib/auth";
@@ -222,7 +222,7 @@ function Shell() {
             <Plus /> {t("quickCapture")}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             className="w-full justify-start"
             size="sm"
             onClick={() => setQuick(true)}
@@ -232,22 +232,25 @@ function Shell() {
               Q
             </kbd>
           </Button>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full justify-start font-normal text-muted-foreground"
             onClick={() => setCmd(true)}
-            className="flex w-full items-center gap-2 rounded-lg border bg-background px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent"
           >
-            <Search className="h-4 w-4" /> {t("search")}{" "}
+            <Search /> {t("search")}{" "}
             <kbd className="ml-auto rounded border px-1.5 text-[10px]">Ctrl K</kbd>
-          </button>
+          </Button>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">{navLinks}</nav>
         <div className="border-t p-3">
-          <button
+          <Button
+            variant="tertiary"
             onClick={signOut}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
           >
-            <LogOut className="h-4 w-4" /> {t("signOut")}
-          </button>
+            <LogOut /> {t("signOut")}
+          </Button>
         </div>
       </aside>
 
@@ -266,7 +269,7 @@ function Shell() {
           </div>
           <div className="flex items-center">
             <Button
-              variant="ghost"
+              variant="tertiary"
               size="icon"
               onClick={() => setCmd(true)}
               aria-label={t("wsSearchLabel")}
@@ -274,7 +277,7 @@ function Shell() {
               <Search />
             </Button>
             <Button
-              variant="ghost"
+              variant="tertiary"
               size="icon"
               onClick={() => setMore(true)}
               aria-label={t("wsMoreMenu")}
@@ -307,9 +310,11 @@ function Shell() {
               active={isActive(n.to)}
             />
           ))}
+        {/* eslint-disable-next-line no-restricted-syntax -- exception: bottom-nav FAB cell, the whole grid cell is the target */}
         <button
+          type="button"
           onClick={() => setCapture(true)}
-          className="flex items-center justify-center"
+          className={cn("flex items-center justify-center", pressableFocus)}
           aria-label={t("quickCapture")}
         >
           <span className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
@@ -335,7 +340,7 @@ function Shell() {
           </SheetHeader>
           <nav className="grid gap-0.5 py-2">{navLinks}</nav>
           <Button
-            variant="ghost"
+            variant="tertiary"
             onClick={signOut}
             className="w-full justify-start text-muted-foreground"
           >
@@ -353,24 +358,28 @@ function Shell() {
           <Suspense fallback={<DialogFallback />}>
             {capture && <QuickCapture onCaptured={() => setCapture(false)} />}
           </Suspense>
-          <button
+          <Button
+            variant="link"
+            size="sm"
+            className="justify-start px-0 font-normal text-muted-foreground"
             onClick={() => {
               setCapture(false);
               setQuick(true);
             }}
-            className="text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
             {t("wsCaptureToQuickTask")}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="link"
+            size="sm"
+            className="justify-start px-0 font-normal text-muted-foreground"
             onClick={() => {
               setCapture(false);
               newTask();
             }}
-            className="text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
             {t("wsCaptureToFullTask")}
-          </button>
+          </Button>
         </DialogContent>
       </Dialog>
 

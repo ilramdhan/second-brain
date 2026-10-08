@@ -24,7 +24,7 @@ import { ShareButton } from "@/components/share/ShareDialog";
 import { CheckCircle } from "@/components/tasks/CheckCircle";
 import { TaskViews } from "@/components/tasks/TaskViews";
 import { Timeline } from "@/components/Timeline";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -140,7 +140,7 @@ function ProjectDetail() {
         {project.user_id === me?.id && (
           <div className="flex items-center gap-1">
             <ShareButton resourceType="project" resourceId={project.id} />
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
               <Pencil /> {t("wsEdit")}
             </Button>
           </div>
@@ -397,15 +397,16 @@ function Milestones({ project }: { project: Project }) {
                   className="h-8"
                   wrapperClassName="hidden w-40 sm:block"
                 />
-                <button
+                <IconButton
+                  label={tr("wsDeleteMilestone")}
+                  variant="danger-ghost"
+                  size="icon-sm"
                   onClick={async () => {
                     if (await confirmDeleteMilestone(m.title)) actions.remove(m.id);
                   }}
-                  className="rounded p-1 text-muted-foreground hover:text-destructive"
-                  aria-label={tr("wsDeleteMilestone")}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                  <Trash2 />
+                </IconButton>
               </div>
             </li>
           );
@@ -542,13 +543,14 @@ function Team({ project }: { project: Project }) {
               {p.role === "owner" ? t("wsRoleOwner") : t("wsRoleMember")}
             </span>
             {isOwner && p.role !== "owner" && (
-              <button
+              <IconButton
+                label={t("wsRemoveMember")}
+                variant="danger-ghost"
+                size="icon-sm"
                 onClick={() => removeMember(p.user_id)}
-                className="rounded p-1 text-muted-foreground hover:text-destructive"
-                aria-label={t("wsRemoveMember")}
               >
-                <UserMinus className="h-4 w-4" />
-              </button>
+                <UserMinus />
+              </IconButton>
             )}
           </li>
         ))}
@@ -573,7 +575,7 @@ function Team({ project }: { project: Project }) {
                     <DemoDisabled>
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="tertiary"
                         size="sm"
                         disabled={invite.isPending}
                         onClick={() => void send(inv.email, true)}
@@ -581,16 +583,16 @@ function Team({ project }: { project: Project }) {
                         <RefreshCw /> {t("teamResend")}
                       </Button>
                     </DemoDisabled>
-                    <button
-                      type="button"
+                    <IconButton
+                      label={`${t("teamRevoke")}: ${inv.email}`}
+                      variant="danger-ghost"
+                      size="icon-sm"
                       onClick={() => void revokeInvite(inv.id)}
                       disabled={revoke.isPending}
-                      className="rounded p-1 text-muted-foreground hover:text-destructive"
-                      aria-label={`${t("teamRevoke")}: ${inv.email}`}
                       title={t("teamRevoke")}
                     >
-                      <X className="h-4 w-4" />
-                    </button>
+                      <X />
+                    </IconButton>
                   </span>
                 )}
               </li>

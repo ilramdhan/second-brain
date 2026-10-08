@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { Field, TagInput } from "@/components/common/TagInput";
 import { DemoExamples } from "@/components/demo/DemoExamples";
-import { Button } from "@/components/ui/button";
+import { Button, ResponsiveButton } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -267,9 +267,12 @@ export function NoteFromTextButton({ projectId = null }: { projectId?: string | 
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
-        <Sparkles /> {t("noteFromTextTitle")}
-      </Button>
+      <ResponsiveButton
+        variant="secondary"
+        onClick={() => setOpen(true)}
+        icon={<Sparkles />}
+        label={t("noteFromTextTitle")}
+      />
       <NoteFromTextDialog open={open} onOpenChange={setOpen} projectId={projectId} />
     </>
   );

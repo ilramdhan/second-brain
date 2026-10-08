@@ -8,7 +8,7 @@ import { NoteFromTextDialog } from "@/components/notes/NoteFromTextDialog";
 import { LoadMore, usePaged } from "@/components/common/LoadMore";
 import { VirtualList } from "@/components/common/VirtualList";
 import { chunk, shouldVirtualize } from "@/components/common/virtual";
-import { Button, pressableFocus } from "@/components/ui/button";
+import { ButtonGroup, ResponsiveButton, pressableFocus } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -115,14 +115,15 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setFromText(true)}>
-            <Sparkles /> {t("noteFromTextShort")}
-          </Button>
-          <Button size="sm" onClick={() => newNote()}>
-            <Plus /> {t("noteNewButton")}
-          </Button>
-        </div>
+        <ButtonGroup>
+          <ResponsiveButton
+            variant="secondary"
+            onClick={() => setFromText(true)}
+            icon={<Sparkles />}
+            label={t("noteFromTextShort")}
+          />
+          <ResponsiveButton onClick={() => newNote()} icon={<Plus />} label={t("noteNewButton")} />
+        </ButtonGroup>
         <NoteFromTextDialog open={fromText} onOpenChange={setFromText} projectId={projectId} />
       </div>
       <div className="flex flex-wrap gap-2">

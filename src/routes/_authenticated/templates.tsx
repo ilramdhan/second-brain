@@ -9,7 +9,7 @@ import { FillFromText } from "@/components/common/FillFromText";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton, ResponsiveButton } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -114,9 +114,7 @@ function TemplatesPage() {
         title={tr("templates")}
         subtitle={tr("wsTplSubtitle")}
         actions={
-          <Button size="sm" onClick={() => setOpen(true)}>
-            <Plus /> {tr("templates")}
-          </Button>
+          <ResponsiveButton onClick={() => setOpen(true)} icon={<Plus />} label={tr("templates")} />
         }
       />
       {data.length === 0 ? (
@@ -125,7 +123,7 @@ function TemplatesPage() {
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             <Button
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={() =>
                 void seed("note", tr("wsTplSeedMeetingName"), {
                   title: tr("wsTplSeedMeetingTitle"),
@@ -138,7 +136,7 @@ function TemplatesPage() {
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={() =>
                 void seed("task", tr("wsTplSeedBugName"), {
                   title: "Fix: ",
@@ -169,15 +167,14 @@ function TemplatesPage() {
                       {p.tags?.length ? ` · ${p.tags.map((x) => `#${x}`).join(" ")}` : ""}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="tap-target h-7 w-7 text-muted-foreground hover:text-destructive"
+                  <IconButton
+                    variant="danger-ghost"
+                    size="icon-sm"
                     onClick={() => remove(t.id)}
-                    aria-label={tr("wsTplDelete")}
+                    label={tr("wsTplDelete")}
                   >
                     <Trash2 />
-                  </Button>
+                  </IconButton>
                 </div>
                 {p.body && (
                   <p className="mt-2 line-clamp-4 whitespace-pre-line text-xs text-muted-foreground">
@@ -186,7 +183,7 @@ function TemplatesPage() {
                 )}
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   className="mt-auto self-start pt-0"
                   style={{ marginTop: 12 }}
                   onClick={() => use(t)}
@@ -341,7 +338,7 @@ function TemplateDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
             {tr("wsCancel")}
           </Button>
           <Button onClick={save}>{tr("wsSave")}</Button>

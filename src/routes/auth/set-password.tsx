@@ -19,6 +19,7 @@ import {
 import { headT, pageTitle } from "@/lib/page-head";
 import { usePreferences, type MessageKey } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/auth/set-password")({
   head: (ctx) => ({
@@ -309,13 +310,13 @@ function PasswordForm({ state }: { state: Extract<State, { step: "ready" }> }) {
         <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
         {t("setPwShow")}
       </label>
-      <button
+      <Button
+        className="w-full"
         type="submit"
         disabled={loading || !strength.acceptable || password !== confirm}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {loading ? t("authSending") : t("setPwSubmit")}
-      </button>
+      </Button>
     </form>
   );
 }
