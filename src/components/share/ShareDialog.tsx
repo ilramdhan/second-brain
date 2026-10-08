@@ -31,6 +31,7 @@ import {
   type ShareResourceType,
   type ShareRow,
 } from "@/lib/share";
+import { useConfirm } from "@/components/common/confirm-context";
 
 const EXPIRY_LABEL: Record<ShareExpiry, MessageKey> = {
   never: "shareExpiryNever",
@@ -118,6 +119,7 @@ export function ShareDialog({
   resourceId: string;
 }) {
   const { t, locale } = usePreferences();
+  const confirm = useConfirm();
   const { share, isLoading } = useShareFor(resourceType, resourceId);
   const actions = useShareActions();
   const canShare = useCanShare(resourceType, resourceId, !isLoading && !share);
@@ -171,7 +173,11 @@ export function ShareDialog({
   }
 
   async function regenerate() {
-    if (!share || !confirm(t("shareRegenerateConfirm"))) return;
+    if (
+      !share ||
+      !(await confirm({ title: t("shareRegenerateConfirm"), confirmLabel: t("shareRegenerate") }))
+    )
+      return;
     const result = await run("regenerate", () => actions.regenerate(share.id));
     if (result) {
       setToken(result.token);
@@ -180,7 +186,15 @@ export function ShareDialog({
   }
 
   async function revoke() {
-    if (!share || !confirm(t("shareRevokeConfirm"))) return;
+    if (
+      !share ||
+      !(await confirm({
+        title: t("shareRevokeConfirm"),
+        confirmLabel: t("confirmRevoke"),
+        destructive: true,
+      }))
+    )
+      return;
     const done = await run("revoke", async () => {
       await actions.revoke(share.id);
       return true;

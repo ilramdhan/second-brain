@@ -31,6 +31,7 @@ import { useProjectActions, useProjects, type Project } from "@/lib/data";
 import { useI18n } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
 import { optionLabel } from "@/lib/option-labels";
+import { useConfirm } from "@/components/common/confirm-context";
 
 const NONE = "none";
 
@@ -88,6 +89,7 @@ function ProjectForm({
   const [launch, setLaunch] = useState(project?.launch_date ?? "");
   const draftProject = useServerFn(draftProjectFromText);
   const { t } = useI18n();
+  const confirm = useConfirm();
 
   async function save() {
     if (!name.trim()) {
@@ -112,7 +114,14 @@ function ProjectForm({
   }
 
   async function remove() {
-    if (!project || !confirm(t("wsProjectDeleteConfirm", { name: project.name }))) return;
+    if (
+      !project ||
+      !(await confirm({
+        title: t("wsProjectDeleteConfirm", { name: project.name }),
+        destructive: true,
+      }))
+    )
+      return;
     await actions.remove(project.id);
     toast.success(t("wsProjectDeleted"));
     onClose();

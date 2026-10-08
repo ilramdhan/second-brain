@@ -25,6 +25,7 @@ import { RouteError } from "@/components/common/RouteError";
 import { toastError } from "@/lib/errors";
 import { usePreferences } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
+import { useConfirm } from "@/components/common/confirm-context";
 
 export const Route = createFileRoute("/_authenticated/archive")({
   head: (ctx) => pageHead(ctx, { title: "metaArchiveTitle", desc: "metaArchiveDesc" }),
@@ -40,6 +41,7 @@ const RETENTION_DAYS = 30;
 
 function ArchivePage() {
   const { t: tt, dateFns } = usePreferences();
+  const confirm = useConfirm();
   const qc = useQueryClient();
   const [tab, setTab] = useState<"archive" | "trash">("trash");
   const { data = [], isLoading } = useQuery({
@@ -139,14 +141,15 @@ function ArchivePage() {
     refresh();
   }
   async function purge(it: Item) {
-    if (!confirm(tt("admPurgeConfirm", { title: it.title }))) return;
+    if (!(await confirm({ title: tt("admPurgeConfirm", { title: it.title }), destructive: true })))
+      return;
     const { error } = await supabase.from(it.kind).delete().eq("id", it.id);
     if (error) toastError(error);
     else toast.success(tt("admPurged"));
     refresh();
   }
   async function emptyTrash() {
-    if (!confirm(tt("admEmptyConfirm"))) return;
+    if (!(await confirm({ title: tt("admEmptyConfirm"), destructive: true }))) return;
     await Promise.all(data.map((it) => supabase.from(it.kind).delete().eq("id", it.id)));
     toast.success(tt("admEmptied"));
     refresh();

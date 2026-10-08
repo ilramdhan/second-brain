@@ -9,10 +9,12 @@ import { useNotes, useProjects, useShareActions, useShares } from "@/lib/data";
 import { toastError } from "@/lib/errors";
 import { usePreferences } from "@/lib/preferences";
 import { isShareActive } from "@/lib/share";
+import { useConfirm } from "@/components/common/confirm-context";
 
 /** Settings: every active public link of the caller, with views and revoke. */
 export function SharesPanel() {
   const { t, locale } = usePreferences();
+  const confirm = useConfirm();
   const { data: shares = [], isLoading } = useShares();
   const { data: notes = [] } = useNotes();
   const { data: projects = [] } = useProjects();
@@ -21,7 +23,14 @@ export function SharesPanel() {
   const active = shares.filter((s) => isShareActive(s));
 
   async function revoke(id: string) {
-    if (!confirm(t("shareRevokeConfirm"))) return;
+    if (
+      !(await confirm({
+        title: t("shareRevokeConfirm"),
+        confirmLabel: t("confirmRevoke"),
+        destructive: true,
+      }))
+    )
+      return;
     setBusy(id);
     try {
       await actions.revoke(id);

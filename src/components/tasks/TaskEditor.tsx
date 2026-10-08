@@ -42,6 +42,7 @@ import type { TaskDefaults } from "@/components/tasks/TaskDialogProvider";
 import { toastError } from "@/lib/errors";
 import { useI18n } from "@/lib/preferences";
 import { enumLabel } from "@/components/tasks/labels";
+import { useConfirm } from "@/components/common/confirm-context";
 
 const NONE = "none";
 
@@ -61,6 +62,7 @@ export default function TaskEditor({
   const { data: milestones = [] } = useMilestones();
   const actions = useTaskActions();
   const { t, dateFns } = useI18n();
+  const confirm = useConfirm();
   const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
 
   const [title, setTitle] = useState(task?.title ?? defaults.title ?? "");
@@ -144,7 +146,15 @@ export default function TaskEditor({
   }
 
   async function remove() {
-    if (!task || !confirm(t("taskConfirmTrash"))) return;
+    if (
+      !task ||
+      !(await confirm({
+        title: t("taskConfirmTrash"),
+        confirmLabel: t("confirmTrash"),
+        destructive: true,
+      }))
+    )
+      return;
     await actions.remove(task.id);
     toast.success(t("taskDeleted"));
     onClose();

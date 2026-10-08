@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { ConfirmProvider } from "@/components/common/ConfirmDialog";
 import { TaskDialogProvider, useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { BackToTop } from "@/components/common/BackToTop";
 import { DemoNotice } from "@/components/demo/DemoBanner";
@@ -125,9 +126,11 @@ function AuthenticatedLayout() {
   }, [navigate]);
 
   return (
-    <TaskDialogProvider>
-      <Shell />
-    </TaskDialogProvider>
+    <ConfirmProvider>
+      <TaskDialogProvider>
+        <Shell />
+      </TaskDialogProvider>
+    </ConfirmProvider>
   );
 }
 

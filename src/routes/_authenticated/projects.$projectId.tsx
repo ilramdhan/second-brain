@@ -51,6 +51,7 @@ import { normalizeEmail } from "@/lib/password";
 import { useI18n, usePreferences } from "@/lib/preferences";
 import { pageHead } from "@/lib/page-head";
 import { optionLabel } from "@/lib/option-labels";
+import { useConfirm } from "@/components/common/confirm-context";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: (ctx) =>
@@ -313,6 +314,7 @@ function Milestones({ project }: { project: Project }) {
   const { data: tasks = [] } = useTasks();
   const actions = useMilestoneActions();
   const { t: tr } = usePreferences();
+  const confirm = useConfirm();
   const fmt = useFmt();
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
@@ -390,7 +392,10 @@ function Milestones({ project }: { project: Project }) {
                   className="hidden h-8 w-40 sm:block"
                 />
                 <button
-                  onClick={() => confirm(tr("wsDeleteMilestoneConfirm")) && actions.remove(m.id)}
+                  onClick={async () => {
+                    if (await confirm({ title: tr("wsDeleteMilestoneConfirm"), destructive: true }))
+                      actions.remove(m.id);
+                  }}
                   className="rounded p-1 text-muted-foreground hover:text-destructive"
                   aria-label={tr("wsDeleteMilestone")}
                 >
@@ -411,6 +416,7 @@ function Milestones({ project }: { project: Project }) {
 function Team({ project }: { project: Project }) {
   const qc = useQueryClient();
   const { t } = usePreferences();
+  const confirm = useConfirm();
   const { data: me } = useMe();
   const { data: people = [] } = usePeople(project.id);
   const { data: invites = [] } = useProjectInvites(project.id);
@@ -442,7 +448,14 @@ function Team({ project }: { project: Project }) {
   }
 
   async function revokeInvite(id: string) {
-    if (!confirm(t("teamRevokeConfirm"))) return;
+    if (
+      !(await confirm({
+        title: t("teamRevokeConfirm"),
+        confirmLabel: t("confirmRevoke"),
+        destructive: true,
+      }))
+    )
+      return;
     try {
       await revoke.mutateAsync(id);
       toast.success(t("teamRevoked"));
@@ -452,7 +465,14 @@ function Team({ project }: { project: Project }) {
   }
 
   async function removeMember(userId: string) {
-    if (!confirm(t("wsRemoveMemberConfirm"))) return;
+    if (
+      !(await confirm({
+        title: t("wsRemoveMemberConfirm"),
+        confirmLabel: t("confirmRemove"),
+        destructive: true,
+      }))
+    )
+      return;
     const { error } = await supabase
       .from("project_members")
       .delete()

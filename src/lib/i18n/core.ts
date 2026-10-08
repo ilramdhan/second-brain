@@ -466,6 +466,14 @@ export const id = {
   kbSingleKeyBody:
     "Pintasan satu huruf atau tanda seperti Q, ?, j/k, x dan t. Matikan jika Anda memakai input suara atau sering menekan tombol tanpa sengaja; Ctrl/⌘+K dan tombol panah di daftar tetap berfungsi.",
   kbSingleKeyOff: "Pintasan satu tombol dimatikan di Pengaturan.",
+  confirmOk: "Konfirmasi",
+  confirmCancel: "Batal",
+  confirmDelete: "Hapus",
+  confirmClose: "Tutup",
+  confirmContinue: "Lanjutkan",
+  confirmRevoke: "Cabut",
+  confirmRemove: "Keluarkan",
+  confirmTrash: "Pindahkan ke Sampah",
 } as const;
 
 export const en = {
@@ -930,4 +938,12 @@ export const en = {
   kbSingleKeyBody:
     "Shortcuts of one letter or symbol such as Q, ?, j/k, x and t. Turn them off if you use speech input or often press keys by accident; Ctrl/⌘+K and the arrow keys in lists keep working.",
   kbSingleKeyOff: "Single-key shortcuts are turned off in Settings.",
+  confirmOk: "Confirm",
+  confirmCancel: "Cancel",
+  confirmDelete: "Delete",
+  confirmClose: "Close",
+  confirmContinue: "Continue",
+  confirmRevoke: "Revoke",
+  confirmRemove: "Remove",
+  confirmTrash: "Move to Trash",
 } satisfies Record<keyof typeof id, string>;

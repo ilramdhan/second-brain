@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toastError } from "@/lib/errors";
 import { generateRecoveryCodes, recoveryCodesStatus } from "@/lib/mfa.functions";
 import { usePreferences } from "@/lib/preferences";
+import { useConfirm } from "@/components/common/confirm-context";
 
 /**
  * Settings → Keamanan, shown while TOTP is on: number of unused recovery codes and a button to
@@ -15,6 +16,7 @@ import { usePreferences } from "@/lib/preferences";
  */
 export function RecoveryCodes({ autoGenerate = false }: { autoGenerate?: boolean }) {
   const { t } = usePreferences();
+  const confirm = useConfirm();
   const [remaining, setRemaining] = useState<number | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,8 +48,16 @@ export function RecoveryCodes({ autoGenerate = false }: { autoGenerate?: boolean
       .catch(() => setRemaining(null));
   }, [autoGenerate, generate]);
 
-  function confirmRegenerate() {
-    if (remaining && !window.confirm(t("mfaCodesRegenerateConfirm"))) return;
+  async function confirmRegenerate() {
+    if (
+      remaining &&
+      !(await confirm({
+        title: t("mfaCodesRegenerateConfirm"),
+        confirmLabel: t("confirmContinue"),
+        destructive: true,
+      }))
+    )
+      return;
     void generate();
   }
 
