@@ -10,6 +10,24 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.6.0](https://github.com/ilramdhan/second-brain/compare/v0.5.0...v0.6.0) (2026-10-08)
+
+
+### Features
+
+* **ui:** migrate route buttons to the button system (phase B) ([#88](https://github.com/ilramdhan/second-brain/issues/88)) ([bc104b2](https://github.com/ilramdhan/second-brain/commit/bc104b2616e557ad373d0a0c77450803e8730b2e))
+* **ui:** replace native confirm() with accessible ConfirmDialog ([#81](https://github.com/ilramdhan/second-brain/issues/81)) ([12c86bb](https://github.com/ilramdhan/second-brain/commit/12c86bb748df3068909fb181429098176d64593b))
+* **ui:** semantic button system with touch-sized targets (phase A) ([#87](https://github.com/ilramdhan/second-brain/issues/87)) ([59a8537](https://github.com/ilramdhan/second-brain/commit/59a853752a7dd20542036c57866100753a41292f))
+
+
+### Bug Fixes
+
+* **canvas:** make connecting and unlinking cards reliable ([#84](https://github.com/ilramdhan/second-brain/issues/84)) ([fbaf84b](https://github.com/ilramdhan/second-brain/commit/fbaf84b797d4ef6e34afc6784d45cca13953a56d))
+* **layout:** align page frames and left-align readable columns ([#83](https://github.com/ilramdhan/second-brain/issues/83)) ([959f326](https://github.com/ilramdhan/second-brain/commit/959f326b21e608088f83d0c8d5971ddf65be30dd))
+* **layout:** reserve the root scrollbar track so page frames line up ([#86](https://github.com/ilramdhan/second-brain/issues/86)) ([4937287](https://github.com/ilramdhan/second-brain/commit/49372871a13e73ec394c7006d2289c8ff93a31bf))
+* **layout:** use the full page frame on settings, inbox, automations and error pages ([#85](https://github.com/ilramdhan/second-brain/issues/85)) ([320f0de](https://github.com/ilramdhan/second-brain/commit/320f0de90dbff95972348cde4d8a99d19c13ad65))
+* **ui:** descriptive confirm dialogs and consistent date/time inputs ([#89](https://github.com/ilramdhan/second-brain/issues/89)) ([9d2a1ba](https://github.com/ilramdhan/second-brain/commit/9d2a1ba9e79bba39a7a136b2b1f463f95a21cd07))
+
 ## [0.5.0](https://github.com/ilramdhan/second-brain/compare/v0.4.0...v0.5.0) (2026-10-08)
 
 
