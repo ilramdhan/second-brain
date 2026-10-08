@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import {
   addDays,
   differenceInCalendarDays,
@@ -14,6 +15,7 @@ import { ArrowRight, Diamond, Inbox as InboxIcon, Plus, Rocket } from "lucide-re
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { TaskRows, useTaskRowLookups, type TaskRowLookups } from "@/components/tasks/TaskItem";
 import { Button } from "@/components/ui/button";
+import { useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { supabase } from "@/integrations/supabase/client";
 import { color } from "@/lib/constants";
 import { taskRange, useMe, useMilestones, useProjects, useTasks, type Task } from "@/lib/data";
@@ -49,7 +51,7 @@ function Dashboard() {
   const { data: projects = [] } = useProjects();
   const { data: milestones = [] } = useMilestones();
   const { data: me } = useMe();
-  const { newTask } = useTaskDialog();
+  const { newTask, openTask } = useTaskDialog();
   const { t, dateFns } = useI18n();
   const { data: inboxCount = 0 } = useQuery({
     queryKey: ["inbox-count"],
@@ -81,6 +83,19 @@ function Dashboard() {
   const doneWeek = top.filter(
     (t) => t.completed_at && new Date(t.completed_at) >= subDays(today, 7),
   ).length;
+  // j/k walk overdue → today → next 7 days as one list; Enter/o open, x toggles done.
+  // Keyed on the joined ids: the lists above are rebuilt every render.
+  const navKey = [...overdue, ...todayList, ...week].map((x) => x.id).join(",");
+  const navColumns = useMemo(() => [navKey ? navKey.split(",") : []], [navKey]);
+  const { containerProps, nav } = useKeyboardNav({
+    columns: navColumns,
+    kind: "task",
+    onOpen: openTask,
+    onToggle: (id) => {
+      const task = tasks.find((x) => x.id === id);
+      if (task) lookups.toggle(task);
+    },
+  });
   const inProgress = open.filter((t) => t.status === "in_progress" || t.status === "review");
 
   const upcomingMarks = [
@@ -155,20 +170,27 @@ function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div
+          {...containerProps}
+          role="group"
+          aria-label={t("kbTaskListLabel")}
+          className="space-y-6 lg:col-span-2"
+        >
           <Section
             title={t("taskGroupOverdue")}
             tasks={overdue}
             tone="text-priority-high"
             lookups={lookups}
+            nav={nav}
           />
           <Section
             title={t("taskGroupToday")}
             tasks={todayList}
             lookups={lookups}
             empty={t("taskTodayEmpty")}
+            nav={nav}
           />
-          <Section title={t("taskTodayNext7")} tasks={week} lookups={lookups} />
+          <Section title={t("taskTodayNext7")} tasks={week} lookups={lookups} nav={nav} />
         </div>
         <aside className="space-y-4">
           <section className="rounded-2xl border bg-card p-4">
@@ -259,12 +281,14 @@ function Section({
   tone,
   lookups,
   empty,
+  nav,
 }: {
   title: string;
   tasks: Task[];
   tone?: string | undefined;
   lookups: TaskRowLookups;
   empty?: string | undefined;
+  nav: NavState;
 }) {
   if (tasks.length === 0 && !empty) return null;
   return (
@@ -277,7 +301,7 @@ function Section({
           {empty}
         </p>
       ) : (
-        <TaskRows tasks={tasks} lookups={lookups} />
+        <TaskRows tasks={tasks} lookups={lookups} nav={nav} />
       )}
     </section>
   );

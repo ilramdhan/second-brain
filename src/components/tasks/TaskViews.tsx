@@ -19,7 +19,7 @@ import {
 } from "@/components/tasks/TaskFilters";
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { Button } from "@/components/ui/button";
-import { useKeyboardNav } from "@/hooks/use-keyboard-nav";
+import { useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TASK_STATUS } from "@/lib/constants";
 import { useI18n, usePreferences } from "@/lib/preferences";
@@ -64,6 +64,21 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
 
   const paged = usePaged(listItems, 25, `${JSON.stringify(filter)}-${showDone}`);
 
+  // Upcoming buckets live here (not in <Upcoming>) so j/k walk them in display order.
+  const todayKey = dayKeyOf(new Date());
+  const upcoming = useMemo(() => {
+    const today = new Date(`${todayKey}T00:00:00`);
+    const buckets = upcomingBuckets(open, today);
+    const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
+    const order = [
+      ...buckets.overdue,
+      ...days.flatMap((d) => buckets.days.get(dayKeyOf(d)) ?? []),
+      ...buckets.later,
+      ...buckets.noDate,
+    ].map((t) => t.id);
+    return { buckets, days, order };
+  }, [open, todayKey]);
+
   // Keyboard navigation (j/k, h/l on the board, Enter/o, e, x) over what is on screen.
   const navColumns = useMemo(
     () =>
@@ -71,13 +86,12 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
         ? TASK_STATUS.map((c) => filtered.filter((t) => t.status === c.id).map((t) => t.id))
         : view === "list"
           ? [paged.visible.map((t) => t.id)]
-          : [],
-    [view, filtered, paged.visible],
+          : [upcoming.order],
+    [view, filtered, paged.visible, upcoming.order],
   );
   const { containerProps, nav } = useKeyboardNav({
     columns: navColumns,
     kind: "task",
-    enabled: view !== "upcoming",
     onOpen: openTask,
     onToggle: (id) => {
       const task = filtered.find((t) => t.id === id);
@@ -153,25 +167,30 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
         </div>
       )}
 
-      {view === "upcoming" && <Upcoming tasks={open} lookups={lookups} />}
+      {view === "upcoming" && (
+        <div {...containerProps} role="group" aria-label={t("kbTaskListLabel")}>
+          <Upcoming buckets={upcoming.buckets} days={upcoming.days} lookups={lookups} nav={nav} />
+        </div>
+      )}
     </div>
   );
 }
 
-function Upcoming({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }) {
+function Upcoming({
+  buckets,
+  days,
+  lookups,
+  nav,
+}: {
+  buckets: ReturnType<typeof upcomingBuckets<Task>>;
+  days: Date[];
+  lookups: TaskRowLookups;
+  nav: NavState;
+}) {
   const { t, dateFns } = useI18n();
-  const todayKey = dayKeyOf(new Date());
-  // One pass instead of 14 `tasks.filter` calls per render.
-  const buckets = useMemo(
-    () => upcomingBuckets(tasks, new Date(`${todayKey}T00:00:00`)),
-    [tasks, todayKey],
-  );
-  const today = new Date(`${todayKey}T00:00:00`);
-  const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
-
   return (
     <div className="space-y-6">
-      <Group title={t("taskGroupOverdue")} items={buckets.overdue} lookups={lookups} />
+      <Group title={t("taskGroupOverdue")} items={buckets.overdue} lookups={lookups} nav={nav} />
       {days.map((d) => {
         const items = buckets.days.get(dayKeyOf(d)) ?? [];
         const label = isToday(d)
@@ -180,11 +199,18 @@ function Upcoming({ tasks, lookups }: { tasks: Task[]; lookups: TaskRowLookups }
             ? t("taskGroupTomorrow")
             : format(d, "EEEE, d MMM", { locale: dateFns });
         return items.length || isToday(d) ? (
-          <Group key={d.toISOString()} title={label} items={items} date={d} lookups={lookups} />
+          <Group
+            key={d.toISOString()}
+            title={label}
+            items={items}
+            date={d}
+            lookups={lookups}
+            nav={nav}
+          />
         ) : null;
       })}
-      <Group title={t("taskGroupLater")} items={buckets.later} lookups={lookups} />
-      <Group title={t("taskGroupNoDate")} items={buckets.noDate} lookups={lookups} />
+      <Group title={t("taskGroupLater")} items={buckets.later} lookups={lookups} nav={nav} />
+      <Group title={t("taskGroupNoDate")} items={buckets.noDate} lookups={lookups} nav={nav} />
     </div>
   );
 }
@@ -195,11 +221,13 @@ function Group({
   items,
   date,
   lookups,
+  nav,
 }: {
   title: string;
   items: Task[];
   date?: Date | undefined;
   lookups: TaskRowLookups;
+  nav?: NavState | undefined;
 }) {
   const { newTask } = useTaskDialog();
   const { t } = useI18n();
@@ -220,7 +248,7 @@ function Group({
           </button>
         )}
       </div>
-      <TaskRows tasks={items} lookups={lookups} />
+      <TaskRows tasks={items} lookups={lookups} nav={nav} />
     </section>
   );
 }

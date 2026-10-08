@@ -93,7 +93,8 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 function SettingsPage() {
-  const { theme, setTheme, locale, setLocale, t } = usePreferences();
+  const { theme, setTheme, locale, setLocale, singleKeyShortcuts, setSingleKeyShortcuts, t } =
+    usePreferences();
   const [telegramChatId, setTelegramChatId] = useState<string | null>(null);
   const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -179,6 +180,19 @@ function SettingsPage() {
             </Tabs>
             <p className="mt-2 text-xs text-muted-foreground">{t("admLanguageNote")}</p>
           </div>
+        </div>
+        <div className="mt-4 space-y-1 border-t pt-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Switch
+              checked={singleKeyShortcuts}
+              onCheckedChange={setSingleKeyShortcuts}
+              aria-describedby="single-key-shortcuts-body"
+            />
+            {t("kbSingleKeyTitle")}
+          </label>
+          <p id="single-key-shortcuts-body" className="text-xs text-muted-foreground">
+            {t("kbSingleKeyBody")}
+          </p>
         </div>
       </section>
 
