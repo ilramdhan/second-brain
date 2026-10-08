@@ -25,7 +25,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
   const key = errorKey(error);
 
   return (
-    <PageContainer size="narrow">
+    <PageContainer contentWidth="readable">
       <div
         role="alert"
         className="mx-auto mt-10 max-w-md rounded-lg border bg-card p-6 text-center shadow-sm"
