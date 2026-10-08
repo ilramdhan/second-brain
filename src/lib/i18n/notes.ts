@@ -151,7 +151,21 @@ export const id = {
     "{nodes} catatan · {edges} tautan · gulir untuk zoom, tarik latar untuk geser, klik titik untuk membuka.",
 
   // Canvas
-  noteCanvasSubtitle: "Seret kartu lewat pegangannya; pilih dua kartu untuk menghubungkan.",
+  noteCanvasSubtitle:
+    "Seret kartu untuk memindahkan. Hubungkan dengan menyeret titik di tepi kartu ke kartu lain, atau pilih dua kartu (Shift-klik, atau Tab lalu Shift+Spasi) dan tekan Hubungkan. Untuk memutus, pilih garis atau dua kartu yang terhubung lalu tekan Putuskan (atau Delete).",
+  noteCanvasUnlink: "Putuskan",
+  noteCanvasPickOneMore: "Pilih 1 kartu lagi untuk menghubungkan",
+  noteCanvasSelectedCount: "{count} kartu dipilih",
+  noteCanvasPairLinked: "2 kartu dipilih, sudah terhubung",
+  noteCanvasEdgeSelected: "Garis dipilih. Tekan Putuskan atau Delete untuk menghapus.",
+  noteCanvasAlreadyLinked: "Sudah terhubung",
+  noteCanvasConnected: "Kartu terhubung.",
+  noteCanvasEdgeRemoved: "Garis dihapus.",
+  noteCanvasCardLabel: "Kartu {title}",
+  noteCanvasCardSelected: "Kartu {title}, dipilih",
+  noteCanvasConnectHandle:
+    "Hubungkan {title}: seret ke kartu lain, atau tekan untuk menambah ke pilihan",
+  noteCanvasEdgeLabel: "Garis {from} – {to}",
   noteCanvasConnect: "Hubungkan",
   noteCanvasCard: "Kartu",
   noteCanvasDeleteCard: "Hapus kartu",
@@ -305,7 +319,21 @@ export const en = {
   noteGraphStats:
     "{nodes} notes · {edges} links · scroll to zoom, drag the background to pan, click a dot to open it.",
 
-  noteCanvasSubtitle: "Drag cards by their handle; select two cards to connect them.",
+  noteCanvasSubtitle:
+    "Drag a card to move it. Connect cards by dragging the dot on a card's edge onto another card, or select two cards (Shift-click, or Tab then Shift+Space) and press Connect. To unlink, select a line or two linked cards and press Unlink (or Delete).",
+  noteCanvasUnlink: "Unlink",
+  noteCanvasPickOneMore: "Select 1 more card to connect",
+  noteCanvasSelectedCount: "{count} cards selected",
+  noteCanvasPairLinked: "2 cards selected, already connected",
+  noteCanvasEdgeSelected: "Line selected. Press Unlink or Delete to remove it.",
+  noteCanvasAlreadyLinked: "Already connected",
+  noteCanvasConnected: "Cards connected.",
+  noteCanvasEdgeRemoved: "Line deleted.",
+  noteCanvasCardLabel: "Card {title}",
+  noteCanvasCardSelected: "Card {title}, selected",
+  noteCanvasConnectHandle:
+    "Connect {title}: drag onto another card, or press to add to the selection",
+  noteCanvasEdgeLabel: "Line {from} – {to}",
   noteCanvasConnect: "Connect",
   noteCanvasCard: "Card",
   noteCanvasDeleteCard: "Delete card",
