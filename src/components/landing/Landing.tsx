@@ -376,7 +376,7 @@ export function Landing() {
                 </Link>
               </Button>
             )}
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="secondary">
               <a href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <GithubMark />
                 {t("landingGithub")}
@@ -513,7 +513,7 @@ export function Landing() {
             ))}
           </ol>
           <div className="mt-6 flex justify-center">
-            <Button asChild variant="outline">
+            <Button asChild variant="secondary">
               <a href={SELF_HOST_DOCS_URL} target="_blank" rel="noreferrer">
                 {t("landingHostGuide")}
                 <ArrowRight aria-hidden />

@@ -3,7 +3,7 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { DemoDisabled } from "@/components/demo/DemoDisabled";
-import { Button } from "@/components/ui/button";
+import { Button, ResponsiveButton } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -84,7 +84,7 @@ export function ShareButton({
   return (
     <>
       <Button
-        variant="ghost"
+        variant="tertiary"
         size="sm"
         onClick={() => setOpen(true)}
         disabled={disabled}
@@ -298,15 +298,12 @@ export function ShareDialog({
                     onFocus={(e) => e.currentTarget.select()}
                     className="font-mono text-xs"
                   />
-                  <Button
-                    type="button"
+                  <ResponsiveButton
                     onClick={copy}
-                    aria-label={t("shareCopy")}
+                    icon={copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+                    label={t("shareCopy")}
                     className="shrink-0"
-                  >
-                    {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
-                    <span className="hidden sm:inline">{t("shareCopy")}</span>
-                  </Button>
+                  />
                 </div>
                 <p className="text-xs text-muted-foreground">{t("shareLinkOnce")}</p>
               </div>
@@ -338,12 +335,7 @@ export function ShareDialog({
           {share ? (
             <>
               <div className="flex flex-col-reverse gap-2 sm:mr-auto sm:flex-row [&>button]:h-11 sm:[&>button]:h-9">
-                <Button
-                  variant="ghost"
-                  onClick={revoke}
-                  disabled={busy !== null}
-                  className="text-destructive hover:text-destructive"
-                >
+                <Button variant="danger-ghost" onClick={revoke} disabled={busy !== null}>
                   {busy === "revoke" ? (
                     <Loader2 className="animate-spin" />
                   ) : (
@@ -352,7 +344,7 @@ export function ShareDialog({
                   {t("shareRevoke")}
                 </Button>
               </div>
-              <Button variant="outline" onClick={regenerate} disabled={busy !== null}>
+              <Button variant="secondary" onClick={regenerate} disabled={busy !== null}>
                 {busy === "regenerate" ? (
                   <Loader2 className="animate-spin" />
                 ) : (

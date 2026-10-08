@@ -49,9 +49,9 @@ export function ChartCard({
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
         <Button
-          variant="ghost"
+          variant="tertiary"
           size="sm"
-          className="h-11 shrink-0 text-muted-foreground sm:h-8"
+          className="shrink-0 text-muted-foreground"
           aria-pressed={showTable}
           aria-controls={`${id}-table`}
           onClick={() => setShowTable((v) => !v)}

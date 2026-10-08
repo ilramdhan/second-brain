@@ -61,6 +61,7 @@ export function HabitCard({
   return (
     <li className="min-w-0 rounded-2xl border bg-card p-4">
       <div className="flex items-start gap-3">
+        {/* eslint-disable-next-line no-restricted-syntax -- exception: round check-in toggle */}
         <button
           type="button"
           onClick={() => onToggle(today)}
@@ -113,9 +114,9 @@ export function HabitCard({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="ghost"
+              variant="tertiary"
               size="icon"
-              className="h-11 w-11 shrink-0"
+              className="shrink-0"
               aria-label={t("admActionsFor", { name: habit.name })}
             >
               <MoreHorizontal aria-hidden />
@@ -143,6 +144,7 @@ export function HabitCard({
           const off = !isScheduled(habit, d);
           return (
             <li key={d}>
+              {/* eslint-disable-next-line no-restricted-syntax -- exception: calendar day cell */}
               <button
                 type="button"
                 disabled={future || before}

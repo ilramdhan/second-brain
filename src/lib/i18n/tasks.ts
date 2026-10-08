@@ -72,10 +72,12 @@ export const id = {
   taskSubtasksTitle: "Sub-tugas / checklist",
   taskSubtaskDelete: "Hapus sub-tugas",
   taskSubtaskAddPlaceholder: "Tambah sub-tugas…",
+  taskSubtaskAdd: "Tambah sub-tugas",
   taskCommentsTitle: "Komentar & log",
   taskCommentYou: "Anda",
   taskCommentMember: "Anggota",
   taskCommentPlaceholder: "Tulis komentar atau update progres…",
+  taskCommentSend: "Kirim komentar",
 
   // Focus timer
   taskFocusSaved: "Sesi fokus tersimpan",
@@ -274,10 +276,12 @@ export const en = {
   taskSubtasksTitle: "Subtasks / checklist",
   taskSubtaskDelete: "Delete subtask",
   taskSubtaskAddPlaceholder: "Add a subtask…",
+  taskSubtaskAdd: "Add subtask",
   taskCommentsTitle: "Comments & log",
   taskCommentYou: "You",
   taskCommentMember: "Member",
   taskCommentPlaceholder: "Write a comment or progress update…",
+  taskCommentSend: "Send comment",
 
   taskFocusSaved: "Focus session saved",
   taskFocusPomodoro: "Pomodoro",

@@ -48,7 +48,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
             <RotateCw className="mr-1 h-4 w-4" />
             {t("retry")}
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="secondary" asChild>
             <Link to="/today" onClick={() => reset()}>
               <Sun className="mr-1 h-4 w-4" />
               {t("backToToday")}

@@ -6,7 +6,7 @@ import { Archive, Trash2, Plus, Send, Lock, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton, pressableFocus } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -166,12 +166,14 @@ export default function TaskEditor({
         <DialogTitle>{task ? t("taskDetailTitle") : t("taskNewTitle")}</DialogTitle>
         <DialogDescription>
           {parent ? (
-            <button
-              className="underline-offset-2 hover:underline"
+            <Button
+              variant="link"
+              size="inline"
+              className="font-normal text-muted-foreground"
               onClick={() => onOpen(parent.id)}
             >
               {t("taskSubtaskOf", { title: parent.title })}
-            </button>
+            </Button>
           ) : task ? (
             t("taskCreatedAgo", {
               ago: formatDistanceToNow(new Date(task.created_at), {
@@ -347,7 +349,7 @@ export default function TaskEditor({
           <div className="flex justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={async () => {
                 try {
@@ -372,16 +374,11 @@ export default function TaskEditor({
       <DialogFooter>
         {task && (
           <div className="grid grid-cols-2 gap-2 sm:mr-auto sm:flex">
-            <Button
-              variant="ghost"
-              onClick={remove}
-              className="h-11 text-destructive hover:text-destructive sm:h-9"
-            >
+            <Button variant="danger-ghost" onClick={remove}>
               <Trash2 /> {t("taskDelete")}
             </Button>
             <Button
-              variant="ghost"
-              className="h-11 sm:h-9"
+              variant="tertiary"
               onClick={async () => {
                 await actions.archive(task.id);
                 onClose();
@@ -391,7 +388,7 @@ export default function TaskEditor({
             </Button>
           </div>
         )}
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="secondary" onClick={onClose}>
           {t("taskCancel")}
         </Button>
         <Button onClick={save} disabled={saving}>
@@ -431,22 +428,26 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
             dep.status === "done" ? "bg-success" : "bg-priority-medium",
           )}
         />
+        {/* eslint-disable-next-line no-restricted-syntax -- exception: list row title opens the task */}
         <button
+          type="button"
           onClick={() => onOpen(dep.id)}
           className={cn(
-            "flex-1 truncate text-left",
+            "flex-1 truncate rounded-sm text-left",
+            pressableFocus,
             dep.status === "done" && "text-muted-foreground line-through",
           )}
         >
           {dep.title}
         </button>
-        <button
+        <IconButton
+          label={t("taskDepRemove")}
+          variant="danger-ghost"
+          size="icon-sm"
           onClick={() => remove(depId)}
-          aria-label={t("taskDepRemove")}
-          className="opacity-60 hover:opacity-100"
         >
-          <X className="h-3.5 w-3.5" />
-        </button>
+          <X />
+        </IconButton>
       </li>
     );
   };
@@ -545,22 +546,27 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
               done={s.status === "done"}
               onClick={() => actions.setStatus(s, s.status === "done" ? "todo" : "done")}
             />
+            {/* eslint-disable-next-line no-restricted-syntax -- exception: list row title opens the task */}
             <button
+              type="button"
               onClick={() => onOpen(s.id)}
               className={cn(
-                "flex-1 truncate text-left text-sm",
+                "flex-1 truncate rounded-sm text-left text-sm",
+                pressableFocus,
                 s.status === "done" && "text-muted-foreground line-through",
               )}
             >
               {s.title}
             </button>
-            <button
+            <IconButton
+              label={t("taskSubtaskDelete")}
+              variant="danger-ghost"
+              size="icon-sm"
+              className="opacity-100 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-coarse:md:opacity-100"
               onClick={() => actions.remove(s.id)}
-              className="opacity-0 group-hover:opacity-100"
-              aria-label={t("taskSubtaskDelete")}
             >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
+              <Trash2 />
+            </IconButton>
           </li>
         ))}
       </ul>
@@ -571,9 +577,9 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
           placeholder={t("taskSubtaskAddPlaceholder")}
           className="h-8"
         />
-        <Button type="submit" size="sm" variant="secondary">
+        <IconButton type="submit" label={t("taskSubtaskAdd")} variant="secondary" size="icon-sm">
           <Plus />
-        </Button>
+        </IconButton>
       </form>
     </div>
   );
@@ -634,9 +640,9 @@ function Comments({ taskId }: { taskId: string }) {
           placeholder={t("taskCommentPlaceholder")}
           className="h-8"
         />
-        <Button type="submit" size="sm" variant="secondary">
+        <IconButton type="submit" label={t("taskCommentSend")} variant="secondary" size="icon-sm">
           <Send />
-        </Button>
+        </IconButton>
       </form>
     </div>
   );

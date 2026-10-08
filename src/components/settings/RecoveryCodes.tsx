@@ -103,10 +103,10 @@ export function RecoveryCodes({ autoGenerate = false }: { autoGenerate?: boolean
             ))}
           </ul>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => void copyAll()}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => void copyAll()}>
               {t("mfaCodesCopy")}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={download}>
+            <Button type="button" variant="secondary" size="sm" onClick={download}>
               {t("mfaCodesDownload")}
             </Button>
             <Button type="button" size="sm" onClick={() => setCodes(null)}>
@@ -123,7 +123,7 @@ export function RecoveryCodes({ autoGenerate = false }: { autoGenerate?: boolean
           ) : null}
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
             disabled={loading}
             onClick={confirmRegenerate}

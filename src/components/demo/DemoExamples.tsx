@@ -44,13 +44,14 @@ export function DemoExamples({
         >
           <span className="text-muted-foreground">{t("demoAiExamples")}:</span>
           {examples.map((example) => (
+            // eslint-disable-next-line no-restricted-syntax -- exception: example chip (pill toggle, tap-target)
             <button
               key={example.key}
               type="button"
               onClick={() => onPick?.(example)}
               aria-pressed={selected === example.key}
               className={cn(
-                "rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                "tap-target rounded-full border px-2.5 py-0.5 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                 selected === example.key && "border-primary bg-primary/10 text-primary",
               )}
             >

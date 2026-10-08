@@ -134,13 +134,12 @@ export function SecurityPanel() {
                     </p>
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="danger-ghost"
                     size="sm"
                     onClick={() => setRemoving(f)}
-                    className="text-destructive hover:text-destructive"
                     aria-label={`${t("mfaRemove")}: ${f.friendly_name || "TOTP"}`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden /> {t("mfaRemove")}
+                    <Trash2 aria-hidden /> {t("mfaRemove")}
                   </Button>
                 </li>
               ))}
@@ -250,7 +249,7 @@ function EnrollForm({
           >
             {enrollment.secret}
           </code>
-          <Button type="button" variant="outline" size="sm" onClick={() => void copySecret()}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => void copySecret()}>
             {t("mfaCopySecret")}
           </Button>
         </div>
@@ -269,7 +268,7 @@ function EnrollForm({
         <Button type="submit" disabled={loading}>
           {loading ? t("authSending") : t("mfaConfirm")}
         </Button>
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={loading}>
+        <Button type="button" variant="tertiary" onClick={onCancel} disabled={loading}>
           {t("mfaCancelEnroll")}
         </Button>
       </div>
@@ -349,7 +348,7 @@ function RemoveFactorDialog({
             autoFocus
             disabled={loading}
           />
-          <Button type="submit" variant="destructive" disabled={loading} className="w-full">
+          <Button type="submit" variant="danger" disabled={loading} className="w-full">
             {loading ? t("authSending") : t("mfaRemoveConfirm")}
           </Button>
         </form>

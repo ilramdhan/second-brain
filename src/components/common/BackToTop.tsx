@@ -64,6 +64,7 @@ export function BackToTop({
   }, [focusId, threshold]);
 
   return (
+    // eslint-disable-next-line no-restricted-syntax -- exception: floating round FAB with visibility transition
     <button
       type="button"
       onClick={() => {

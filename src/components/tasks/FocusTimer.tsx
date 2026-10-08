@@ -81,7 +81,7 @@ export function FocusTimer({ task }: { task: Task }) {
       <div className="flex shrink-0 gap-1">
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="icon"
           onClick={toggle}
           aria-label={running ? t("taskFocusPause") : t("taskFocusStart")}
@@ -90,7 +90,7 @@ export function FocusTimer({ task }: { task: Task }) {
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant="tertiary"
           size="icon"
           onClick={reset}
           aria-label={t("taskFocusSaveReset")}

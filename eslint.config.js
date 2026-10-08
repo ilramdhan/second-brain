@@ -58,5 +58,22 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
     },
   },
+  {
+    // Button system (src/components/ui/button.tsx). Warn for now: src/routes is migrated in phase B,
+    // which raises this to "error". Real exceptions (clickable cards/rows, drag handles, calendar
+    // cells) disable it inline with a reason.
+    files: ["src/**/*.tsx"],
+    ignores: ["src/components/ui/**", "**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message:
+            "Use <Button>/<IconButton>/<ResponsiveButton> from @/components/ui/button instead of a raw <button>. For clickable cards/rows/cells use `pressableFocus` and disable this rule with a reason.",
+        },
+      ],
+    },
+  },
   eslintPluginPrettier,
 );

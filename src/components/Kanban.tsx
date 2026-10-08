@@ -12,6 +12,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
+import { IconButton } from "@/components/ui/button";
 
 import {
   KEYBOARD_CODES,
@@ -153,13 +154,14 @@ function KanbanColumn({
           {column.label} <span className="ml-1 font-normal text-muted-foreground">{count}</span>
         </h3>
         {onAdd && (
-          <button
+          <IconButton
+            label={t("taskKanbanAddIn", { name: column.label })}
+            size="icon-sm"
+            className="text-muted-foreground hover:bg-background"
             onClick={onAdd}
-            className="rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-            aria-label={t("taskKanbanAddIn", { name: column.label })}
           >
-            <Plus className="h-4 w-4" />
-          </button>
+            <Plus />
+          </IconButton>
         )}
       </header>
       <div className="flex min-h-24 flex-1 flex-col gap-2 p-1">{children}</div>

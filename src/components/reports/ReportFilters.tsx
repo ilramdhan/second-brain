@@ -108,6 +108,7 @@ export function Segmented({
   return (
     <div role="group" aria-label={label} className="inline-flex rounded-lg border bg-card p-0.5">
       {options.map((o) => (
+        // eslint-disable-next-line no-restricted-syntax -- exception: segmented control segment
         <button
           key={o.value}
           type="button"
