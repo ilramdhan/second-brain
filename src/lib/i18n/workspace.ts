@@ -69,18 +69,24 @@ export const id = {
   wsMilestonePlaceholder: "Nama milestone, mis. Beta release",
   wsAdd: "Tambah",
   wsNoDate: "Tanpa tanggal",
-  wsDeleteMilestoneConfirm: "Hapus milestone?",
+  wsDeleteMilestoneConfirmTitle: "Hapus milestone?",
+  wsDeleteMilestoneConfirmDesc:
+    "Milestone “{title}” dihapus permanen. Tugasnya tetap ada, hanya tidak lagi terhubung ke milestone ini.",
   wsDeleteMilestone: "Hapus milestone",
   wsMilestonesEmpty:
     "Belum ada milestone. Pecah proyek menjadi tahapan, lalu hubungkan tugas ke milestone.",
-  wsRemoveMemberConfirm: "Keluarkan anggota ini dari proyek?",
+  wsRemoveMemberConfirmTitle: "Keluarkan anggota?",
+  wsRemoveMemberConfirmDesc:
+    "{name} tidak bisa lagi membuka proyek ini beserta tugas dan catatannya. Anda bisa mengundangnya lagi.",
   wsYouSuffix: "(Anda)",
   wsRoleOwner: "Pemilik",
   wsRoleMember: "Anggota",
   wsRemoveMember: "Keluarkan",
   wsTeamNote:
     "Anggota bisa melihat dan mengubah tugas, milestone, dan catatan di proyek ini, serta bisa ditugaskan ke tugas.",
-  wsTplDeleteConfirm: "Hapus template ini?",
+  wsTplDeleteConfirmTitle: "Hapus template?",
+  wsTplDeleteConfirmDesc:
+    "Template “{name}” dihapus permanen. Catatan dan tugas yang sudah dibuat darinya tidak berubah.",
   wsTplSubtitle:
     "Simpan pola tugas dan catatan yang sering dipakai, seperti notulen meeting atau daftar belanja.",
   wsTplEmpty: "Belum ada template.",
@@ -153,8 +159,8 @@ export const id = {
   wsProjectNameRequired: "Nama proyek wajib diisi",
   wsProjectSaved: "Proyek disimpan",
   wsProjectCreated: "Proyek dibuat",
-  wsProjectDeleteConfirm:
-    'Hapus proyek "{name}"? Proyek masuk Tempat Sampah dan bisa dikembalikan.',
+  wsProjectDeleteConfirmTitle: "Hapus proyek?",
+  wsProjectDeleteConfirmDesc: "Proyek “{name}” dipindah ke Sampah. Bisa dipulihkan selama 30 hari.",
   wsProjectDeleted: "Proyek dihapus",
   wsNewProject: "Proyek baru",
   wsProjectDialogDescription:
@@ -287,18 +293,24 @@ export const en = {
   wsMilestonePlaceholder: "Milestone name, e.g. Beta release",
   wsAdd: "Add",
   wsNoDate: "No date",
-  wsDeleteMilestoneConfirm: "Delete this milestone?",
+  wsDeleteMilestoneConfirmTitle: "Delete milestone?",
+  wsDeleteMilestoneConfirmDesc:
+    "The milestone “{title}” is deleted permanently. Its tasks stay, they're just no longer linked to it.",
   wsDeleteMilestone: "Delete milestone",
   wsMilestonesEmpty:
     "No milestones yet. Split the project into stages, then link tasks to a milestone.",
-  wsRemoveMemberConfirm: "Remove this member from the project?",
+  wsRemoveMemberConfirmTitle: "Remove member?",
+  wsRemoveMemberConfirmDesc:
+    "{name} can no longer open this project or its tasks and notes. You can invite them again.",
   wsYouSuffix: "(you)",
   wsRoleOwner: "Owner",
   wsRoleMember: "Member",
   wsRemoveMember: "Remove",
   wsTeamNote:
     "Members can view and edit tasks, milestones and notes in this project, and can be assigned to tasks.",
-  wsTplDeleteConfirm: "Delete this template?",
+  wsTplDeleteConfirmTitle: "Delete template?",
+  wsTplDeleteConfirmDesc:
+    "The template “{name}” is deleted permanently. Notes and tasks created from it don't change.",
   wsTplSubtitle:
     "Save task and note patterns you use often, like meeting minutes or a shopping list.",
   wsTplEmpty: "No templates yet.",
@@ -370,7 +382,9 @@ export const en = {
   wsProjectNameRequired: "A project name is required",
   wsProjectSaved: "Project saved",
   wsProjectCreated: "Project created",
-  wsProjectDeleteConfirm: 'Delete project "{name}"? It goes to the Trash and can be restored.',
+  wsProjectDeleteConfirmTitle: "Delete project?",
+  wsProjectDeleteConfirmDesc:
+    "The project “{name}” moves to the Trash. You can restore it within 30 days.",
   wsProjectDeleted: "Project deleted",
   wsNewProject: "New project",
   wsProjectDialogDescription:

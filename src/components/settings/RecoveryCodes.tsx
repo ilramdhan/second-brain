@@ -52,9 +52,11 @@ export function RecoveryCodes({ autoGenerate = false }: { autoGenerate?: boolean
     if (
       remaining &&
       !(await confirm({
-        title: t("mfaCodesRegenerateConfirm"),
+        title: t("mfaCodesRegenerateConfirmTitle"),
+        description: t("mfaCodesRegenerateConfirmDesc", { count: remaining }),
         confirmLabel: t("confirmContinue"),
         destructive: true,
+        tone: "warning",
       }))
     )
       return;

@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button, IconButton, pressableFocus } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput, TimeInput } from "@/components/ui/date-input";
+import { StartField } from "@/components/tasks/StartField";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -85,6 +87,11 @@ export default function TaskEditor({
   const [startTime, setStartTime] = useState(
     task?.start_date ? new Date(task.start_date).toTimeString().slice(0, 5) : "09:00",
   );
+  // "Pakai jam" off = all-day start, stored at local 00:00 (no time block). New tasks keep the
+  // 09:00 default; an existing start at exactly 00:00 opens as all-day.
+  const [useTime, setUseTime] = useState(
+    task?.start_date ? new Date(task.start_date).toTimeString().slice(0, 5) !== "00:00" : true,
+  );
   const [endTime, setEndTime] = useState(
     task?.time_block_end ? new Date(task.time_block_end).toTimeString().slice(0, 5) : "09:25",
   );
@@ -120,14 +127,17 @@ export default function TaskEditor({
       priority,
       project_id: pid,
       milestone_id: pid && milestoneId !== NONE ? milestoneId : null,
-      start_date: start ? new Date(`${start}T${startTime}:00`).toISOString() : null,
+      start_date: start
+        ? new Date(`${start}T${useTime ? startTime : "00:00"}:00`).toISOString()
+        : null,
       due_date: dateToIso(due),
       assignee_id: assigneeId === NONE ? null : assigneeId,
       assignee_name: assigneeId === NONE ? assigneeName.trim() || null : null,
       tags,
       recurrence: recurrence === NONE ? null : recurrence,
       estimate_minutes: estimate,
-      time_block_end: start && endTime ? new Date(`${start}T${endTime}:00`).toISOString() : null,
+      time_block_end:
+        start && useTime && endTime ? new Date(`${start}T${endTime}:00`).toISOString() : null,
       completed_at: status === "done" ? (task?.completed_at ?? new Date().toISOString()) : null,
     };
     if (task) {
@@ -146,10 +156,14 @@ export default function TaskEditor({
   }
 
   async function remove() {
+    if (!task) return;
+    const subtasks = tasks.filter((x) => x.parent_id === task.id).length;
     if (
-      !task ||
       !(await confirm({
-        title: t("taskConfirmTrash"),
+        title: t("taskTrashConfirmTitle"),
+        description: subtasks
+          ? t("taskTrashConfirmDescSubtasks", { title: task.title, count: subtasks })
+          : t("taskTrashConfirmDesc", { title: task.title }),
         confirmLabel: t("confirmTrash"),
         destructive: true,
       }))
@@ -257,15 +271,17 @@ export default function TaskEditor({
               </SelectContent>
             </Select>
           </Field>
-          {/* Date + time need the full row on phones, or the date collapses to "dd/". */}
-          <Field label={t("taskFieldStart")} className="col-span-2 sm:col-span-1">
-            <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2 sm:grid-cols-[minmax(0,1fr)_6.5rem] sm:gap-1">
-              <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-            </div>
-          </Field>
+          <StartField
+            className="col-span-2"
+            date={start}
+            time={startTime}
+            useTime={useTime}
+            onDateChange={setStart}
+            onTimeChange={setStartTime}
+            onUseTimeChange={setUseTime}
+          />
           <Field label={t("taskFieldDue")}>
-            <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            <DateInput value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
           <Field label={t("taskFieldRecurrence")}>
             <Select value={recurrence} onValueChange={setRecurrence}>
@@ -291,11 +307,10 @@ export default function TaskEditor({
             />
           </Field>
           <Field label={t("taskFieldTimeBlockEnd")}>
-            <Input
-              type="time"
+            <TimeInput
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              disabled={!start}
+              disabled={!start || !useTime}
             />
           </Field>
           {pid && (

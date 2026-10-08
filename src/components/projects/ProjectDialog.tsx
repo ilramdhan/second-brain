@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -117,7 +118,8 @@ function ProjectForm({
     if (
       !project ||
       !(await confirm({
-        title: t("wsProjectDeleteConfirm", { name: project.name }),
+        title: t("wsProjectDeleteConfirmTitle"),
+        description: t("wsProjectDeleteConfirmDesc", { name: project.name }),
         destructive: true,
       }))
     )
@@ -222,13 +224,13 @@ function ProjectForm({
             </Select>
           </Field>
           <Field label={t("wsStart")}>
-            <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <DateInput value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
           <Field label={t("wsDue")}>
-            <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            <DateInput value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
           <Field label={t("wsLaunchDate")}>
-            <Input type="date" value={launch} onChange={(e) => setLaunch(e.target.value)} />
+            <DateInput value={launch} onChange={(e) => setLaunch(e.target.value)} />
           </Field>
         </div>
         <div className="space-y-1.5">

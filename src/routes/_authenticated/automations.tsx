@@ -414,7 +414,13 @@ function RuleForm({ rule, onClose }: { rule: Partial<Automation> | null; onClose
     onClose();
   }
   async function remove() {
-    if (!rule?.id || !(await confirm({ title: t("autoConfirmDelete"), destructive: true }))) return;
+    if (!rule?.id) return;
+    const ok = await confirm({
+      title: t("autoDeleteConfirmTitle"),
+      description: t("autoDeleteConfirmDesc", { name: rule.name || name }),
+      destructive: true,
+    });
+    if (!ok) return;
     await actions.remove(rule.id);
     onClose();
   }

@@ -26,6 +26,7 @@ import { TaskViews } from "@/components/tasks/TaskViews";
 import { Timeline } from "@/components/Timeline";
 import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { color } from "@/lib/constants";
@@ -319,6 +320,12 @@ function Milestones({ project }: { project: Project }) {
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const list = milestones.filter((m) => m.project_id === project.id);
+  const confirmDeleteMilestone = (name: string) =>
+    confirm({
+      title: tr("wsDeleteMilestoneConfirmTitle"),
+      description: tr("wsDeleteMilestoneConfirmDesc", { title: name }),
+      destructive: true,
+    });
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -343,11 +350,10 @@ function Milestones({ project }: { project: Project }) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder={tr("wsMilestonePlaceholder")}
         />
-        <Input
-          type="date"
+        <DateInput
           value={due}
           onChange={(e) => setDue(e.target.value)}
-          className="sm:w-44"
+          wrapperClassName="sm:w-44"
         />
         <Button type="submit">
           <Plus /> {tr("wsAdd")}
@@ -385,19 +391,18 @@ function Milestones({ project }: { project: Project }) {
                     {tr("wsTasksProgress", { done: d, total: ts.length })}
                   </p>
                 </div>
-                <Input
-                  type="date"
+                <DateInput
                   value={m.due_date ?? ""}
                   onChange={(e) => actions.update(m.id, { due_date: e.target.value || null })}
-                  className="hidden h-8 w-40 sm:block"
+                  className="h-8"
+                  wrapperClassName="hidden w-40 sm:block"
                 />
                 <IconButton
                   label={tr("wsDeleteMilestone")}
                   variant="danger-ghost"
                   size="icon-sm"
                   onClick={async () => {
-                    if (await confirm({ title: tr("wsDeleteMilestoneConfirm"), destructive: true }))
-                      actions.remove(m.id);
+                    if (await confirmDeleteMilestone(m.title)) actions.remove(m.id);
                   }}
                 >
                   <Trash2 />
@@ -451,7 +456,10 @@ function Team({ project }: { project: Project }) {
   async function revokeInvite(id: string) {
     if (
       !(await confirm({
-        title: t("teamRevokeConfirm"),
+        title: t("teamRevokeConfirmTitle"),
+        description: t("teamRevokeConfirmDesc", {
+          email: invites.find((i) => i.id === id)?.email ?? "",
+        }),
         confirmLabel: t("confirmRevoke"),
         destructive: true,
       }))
@@ -466,9 +474,13 @@ function Team({ project }: { project: Project }) {
   }
 
   async function removeMember(userId: string) {
+    const person = people.find((p) => p.user_id === userId);
     if (
       !(await confirm({
-        title: t("wsRemoveMemberConfirm"),
+        title: t("wsRemoveMemberConfirmTitle"),
+        description: t("wsRemoveMemberConfirmDesc", {
+          name: person?.display_name || person?.email || t("wsRoleMember"),
+        }),
         confirmLabel: t("confirmRemove"),
         destructive: true,
       }))
