@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight, Diamond, Rocket } from "lucide-react";
 
 import { useTaskDialog } from "@/components/tasks/TaskDialogProvider";
 import { Button } from "@/components/ui/button";
+import { NAV_ITEM_CLASS, navAttrs, useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { color } from "@/lib/constants";
 import {
   shiftIso,
@@ -68,6 +69,15 @@ export function Timeline({
       tasks: ts,
     }));
   }, [dated, projects, groupByProject]);
+
+  // j/k (↑/↓ while focused) move between task rows, Enter/o open the task. The row label is the
+  // navigable item; the bar keeps its own arrow keys (move/resize by day) and is not resized here.
+  const navColumns = useMemo(() => [groups.flatMap((g) => g.tasks.map((t) => t.id))], [groups]);
+  const { containerProps, nav } = useKeyboardNav({
+    columns: navColumns,
+    kind: "task",
+    onOpen: openTask,
+  });
 
   function begin(e: React.PointerEvent, t: Task, mode: Drag["mode"]) {
     e.stopPropagation();
@@ -192,7 +202,12 @@ export function Timeline({
         </span>
       </div>
 
-      <div className="scrollbar-subtle overflow-x-auto rounded-2xl border bg-card">
+      <div
+        {...containerProps}
+        role="group"
+        aria-label={tl("kbTimelineLabel")}
+        className="scrollbar-subtle overflow-x-auto rounded-2xl border bg-card"
+      >
         <div className="relative" style={{ width: DAYS * W + 180 }}>
           {/* header */}
           <div className="sticky top-0 z-10 flex border-b bg-card">
@@ -283,6 +298,8 @@ export function Timeline({
                     label={t.title}
                     onLabel={() => openTask(t.id)}
                     done={t.status === "done"}
+                    navId={t.id}
+                    nav={nav}
                   >
                     {geo.visible && (
                       <div
@@ -359,18 +376,26 @@ function Row({
   children,
   onLabel,
   done,
+  navId,
+  nav,
 }: {
   label: string;
   children: React.ReactNode;
   onLabel?: (() => void) | undefined;
   done?: boolean | undefined;
+  navId?: string | undefined;
+  nav?: NavState | undefined;
 }) {
   return (
     <div className="flex border-b last:border-b-0">
       <button
         onClick={onLabel}
+        {...(navId && nav
+          ? navAttrs(navId, nav.selectedId === navId, nav.tabStopId === navId)
+          : {})}
         className={cn(
           "sticky left-0 z-[5] w-[180px] shrink-0 truncate border-r bg-card px-3 py-2 text-left text-xs hover:text-primary",
+          navId && nav && NAV_ITEM_CLASS,
           done && "text-muted-foreground line-through",
         )}
       >

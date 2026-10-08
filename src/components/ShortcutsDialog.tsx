@@ -46,35 +46,36 @@ export function ShortcutsDialog({
           <section key={g.scope} className="space-y-2">
             <h3 className="text-sm font-semibold">{t(g.title)}</h3>
             <dl className="divide-y rounded-lg border text-sm">
-              {SHORTCUTS.filter((s) => s.scope === g.scope).map((s) => ({
-                s,
-                bindings: activeBindings(s, singleKeyShortcuts),
-              }))
+              {SHORTCUTS.filter((s) => s.scope === g.scope)
+                .map((s) => ({
+                  s,
+                  bindings: activeBindings(s, singleKeyShortcuts),
+                }))
                 .filter(({ bindings }) => bindings.length > 0)
                 .map(({ s, bindings }) => (
-                <div key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                  <dt>{t(s.label)}</dt>
-                  <dd className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                    {bindings.map((b, i) => (
-                      <Fragment key={i}>
-                        {i > 0 && (
-                          <span className="text-xs text-muted-foreground">{t("kbOr")}</span>
-                        )}
-                        <span className="flex gap-0.5">
-                          {bindingKeys(b, mac).map((k) => (
-                            <kbd
-                              key={k}
-                              className="min-w-6 rounded border bg-muted px-1.5 py-0.5 text-center font-mono text-xs"
-                            >
-                              {k}
-                            </kbd>
-                          ))}
-                        </span>
-                      </Fragment>
-                    ))}
-                  </dd>
-                </div>
-              ))}
+                  <div key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <dt>{t(s.label)}</dt>
+                    <dd className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                      {bindings.map((b, i) => (
+                        <Fragment key={i}>
+                          {i > 0 && (
+                            <span className="text-xs text-muted-foreground">{t("kbOr")}</span>
+                          )}
+                          <span className="flex gap-0.5">
+                            {bindingKeys(b, mac).map((k) => (
+                              <kbd
+                                key={k}
+                                className="min-w-6 rounded border bg-muted px-1.5 py-0.5 text-center font-mono text-xs"
+                              >
+                                {k}
+                              </kbd>
+                            ))}
+                          </span>
+                        </Fragment>
+                      ))}
+                    </dd>
+                  </div>
+                ))}
             </dl>
           </section>
         ))}

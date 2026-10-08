@@ -22,6 +22,7 @@ import { color, labelOf, NOTE_STATUS } from "@/lib/constants";
 import { useDebounced } from "@/hooks/use-debounced";
 import { NAV_ITEM_CLASS, navAttrs, useKeyboardNav, type NavState } from "@/hooks/use-keyboard-nav";
 import { usePreferences } from "@/lib/preferences";
+import { gridColumns } from "@/lib/shortcuts";
 import {
   useNoteActions,
   useNoteSearch,
@@ -79,13 +80,18 @@ export function NotesBoard({ projectId }: { projectId?: string | undefined }) {
 
   const paged = usePaged(filtered, 24, `${q}-${tag}`);
 
-  // j/k walk the grid in reading order (h/l between kanban columns), Enter/o/e open.
+  // Grid: 2-D, j/k (↑/↓) move a row, h/l (←/→) within the row, for the column count of the
+  // current breakpoint. Board: h/l between kanban columns. Enter/o/e open.
+  const gridCols = useGridColumns();
   const navColumns = useMemo(
     () =>
       view === "board"
         ? NOTE_STATUS.map((c) => filtered.filter((n) => n.status === c.id).map((n) => n.id))
-        : [paged.visible.map((n) => n.id)],
-    [view, filtered, paged.visible],
+        : gridColumns(
+            paged.visible.map((n) => n.id),
+            gridCols,
+          ),
+    [view, filtered, paged.visible, gridCols],
   );
   const { containerProps, nav } = useKeyboardNav({
     columns: navColumns,

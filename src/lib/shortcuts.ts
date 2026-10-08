@@ -329,7 +329,10 @@ export function moveSelection(
  */
 export function gridColumns(ids: readonly string[], cols: number): string[][] {
   const n = Math.max(1, Math.floor(cols));
-  const columns: string[][] = Array.from({ length: Math.min(n, Math.max(ids.length, 1)) }, () => []);
+  const columns: string[][] = Array.from(
+    { length: Math.min(n, Math.max(ids.length, 1)) },
+    () => [],
+  );
   ids.forEach((id, i) => columns[i % n]!.push(id));
   return columns;
 }

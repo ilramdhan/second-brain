@@ -169,12 +169,7 @@ export function TaskViews({ projectId }: { projectId?: string | undefined }) {
 
       {view === "upcoming" && (
         <div {...containerProps} role="group" aria-label={t("kbTaskListLabel")}>
-          <Upcoming
-            buckets={upcoming.buckets}
-            days={upcoming.days}
-            lookups={lookups}
-            nav={nav}
-          />
+          <Upcoming buckets={upcoming.buckets} days={upcoming.days} lookups={lookups} nav={nav} />
         </div>
       )}
     </div>
@@ -195,12 +190,7 @@ function Upcoming({
   const { t, dateFns } = useI18n();
   return (
     <div className="space-y-6">
-      <Group
-        title={t("taskGroupOverdue")}
-        items={buckets.overdue}
-        lookups={lookups}
-        nav={nav}
-      />
+      <Group title={t("taskGroupOverdue")} items={buckets.overdue} lookups={lookups} nav={nav} />
       {days.map((d) => {
         const items = buckets.days.get(dayKeyOf(d)) ?? [];
         const label = isToday(d)
