@@ -58,7 +58,7 @@ jobs:
         run: bunx playwright test
       - name: Upload report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-local
           path: |
@@ -116,7 +116,7 @@ jobs:
           bunx playwright test
       - name: Upload report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-deployment
           path: |
