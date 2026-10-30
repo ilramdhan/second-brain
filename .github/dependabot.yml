@@ -37,6 +37,11 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint-plugin-*"
         update-types: ["version-update:semver-major"]
+      # @types/node follows the Node major we run on (.nvmrc, CI node-version-file),
+      # not the latest Node release. Newer majors type APIs that don't exist at
+      # runtime. Bump it together with .nvmrc when moving to a new Node LTS.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       radix-ui:
         patterns: ["@radix-ui/*"]
