@@ -12,6 +12,13 @@ describe("secretsMatch", () => {
     expect(secretsMatch("short", "s3cret-value")).toBe(false);
     expect(secretsMatch("s3cret-value-longer", "s3cret-value")).toBe(false);
     expect(secretsMatch("", "s3cret-value")).toBe(false);
+    // A prefix of the secret padded with NUL bytes must not match either.
+    expect(secretsMatch("s3cret", "s3cret\0\0\0\0\0\0")).toBe(false);
+  });
+
+  it("compares multi-byte characters by their UTF-8 bytes", () => {
+    expect(secretsMatch("kunci-rahasia-é", "kunci-rahasia-é")).toBe(true);
+    expect(secretsMatch("kunci-rahasia-e", "kunci-rahasia-é")).toBe(false);
   });
 
   it("rejects missing values", () => {

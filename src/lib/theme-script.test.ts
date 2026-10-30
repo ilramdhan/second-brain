@@ -37,6 +37,12 @@ describe("theme init script", () => {
     expect(run(null, false)).toEqual({ dark: false, scheme: "light" });
   });
 
+  it("reads the same storage key PreferencesProvider writes", () => {
+    expect(THEME_INIT_SCRIPT).toContain(
+      `localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})`,
+    );
+  });
+
   it("never throws when storage is blocked", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("blocked");

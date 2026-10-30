@@ -10,10 +10,11 @@ export const THEME_STORAGE_KEY = "second-brain-theme";
  * (blocked storage, no matchMedia) leaves the default light theme; PreferencesProvider re-applies
  * the theme after mount anyway.
  *
+ * The storage key is a literal rather than interpolated, so no value is ever spliced into code
+ * (CodeQL js/bad-code-sanitization); theme-script.test.ts checks it matches THEME_STORAGE_KEY.
+ *
  * CSP: inline scripts are allowed by `script-src 'unsafe-inline'` (src/server/securityHeaders.ts);
  * the policy test pins that. If script-src is ever tightened to hashes, add
  * `'sha256-<hash of this exact string>'` (see securityHeaders.test.ts).
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
-  THEME_STORAGE_KEY,
-)});var d=t==="dark"||((t!=="light")&&window.matchMedia("(prefers-color-scheme: dark)").matches);var e=document.documentElement;e.classList.toggle("dark",d);e.style.colorScheme=d?"dark":"light";}catch(_){}})();`;
+export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("second-brain-theme");var d=t==="dark"||((t!=="light")&&window.matchMedia("(prefers-color-scheme: dark)").matches);var e=document.documentElement;e.classList.toggle("dark",d);e.style.colorScheme=d?"dark":"light";}catch(_){}})();`;
