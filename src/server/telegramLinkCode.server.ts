@@ -2,7 +2,7 @@
 // Pure helpers (no I/O) so generation, parsing and hashing can be unit-tested.
 import { createHash, randomBytes } from "node:crypto";
 
-/** 32 symbols without the look-alikes 0/O and 1/I, so `byte % 32` is unbiased. */
+/** 32 symbols without the look-alikes 0/O and 1/I, so the low 5 bits of a byte pick one unbiased. */
 export const LINK_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const LINK_CODE_LENGTH = 8;
 export const LINK_CODE_TTL_MS = 10 * 60 * 1000;
@@ -12,7 +12,8 @@ export function generateLinkCode(random: (size: number) => Uint8Array = randomBy
   const bytes = random(LINK_CODE_LENGTH);
   let code = "";
   for (let i = 0; i < LINK_CODE_LENGTH; i++) {
-    code += LINK_CODE_ALPHABET[bytes[i]! % LINK_CODE_ALPHABET.length];
+    // Mask instead of `%`: every value 0..31 is equally likely (CodeQL js/biased-cryptographic-random).
+    code += LINK_CODE_ALPHABET[bytes[i]! & 0b11111];
   }
   return code;
 }
