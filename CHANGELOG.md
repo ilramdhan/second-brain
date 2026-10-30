@@ -10,6 +10,15 @@ releases may contain breaking changes; they are listed under **⚠ BREAKING CHAN
 > and including 0.1.0 were written by hand in the
 > [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [0.7.1](https://github.com/ilramdhan/second-brain/compare/v0.7.0...v0.7.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **a11y:** include visible text in the language toggle's accessible name ([#111](https://github.com/ilramdhan/second-brain/issues/111)) ([467757d](https://github.com/ilramdhan/second-brain/commit/467757d67e7bab47293a798ae69682ee6b4b86d8)), closes [#109](https://github.com/ilramdhan/second-brain/issues/109)
+* **a11y:** start the language toggle label with its visible text ([#113](https://github.com/ilramdhan/second-brain/issues/113)) ([998e28a](https://github.com/ilramdhan/second-brain/commit/998e28a29c8320254719d3485cda3ebc448062cd)), closes [#109](https://github.com/ilramdhan/second-brain/issues/109)
+* **security:** resolve CodeQL code scanning alerts ([#110](https://github.com/ilramdhan/second-brain/issues/110)) ([1899088](https://github.com/ilramdhan/second-brain/commit/18990884e0ad8522f8476dce1fc4a4096be6092d)), closes [#108](https://github.com/ilramdhan/second-brain/issues/108)
+
 ## [0.7.0](https://github.com/ilramdhan/second-brain/compare/v0.6.0...v0.7.0) (2026-10-08)
 
 
