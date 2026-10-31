@@ -117,6 +117,8 @@ export const id = {
   wsTplTags: "Tag",
   wsPriority: "Prioritas",
   wsTplEstimate: "Estimasi menit",
+  wsTplSubtasks: "Subtasks / Checklist",
+  wsTplSubtasksPlaceholder: "Satu subtask per baris",
   wsCancel: "Batal",
   wsSave: "Simpan",
   wsActivitySubtitle: "Log hanya menyimpan metadata perubahan, bukan isi catatan pribadi.",

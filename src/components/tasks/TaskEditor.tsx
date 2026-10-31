@@ -81,6 +81,7 @@ export default function TaskEditor({
   const [assigneeName, setAssigneeName] = useState(task?.assignee_name ?? "");
   const [tags, setTags] = useState<string[]>(task?.tags ?? defaults.tags ?? []);
   const [recurrence, setRecurrence] = useState(task?.recurrence ?? defaults.recurrence ?? NONE);
+  const [draftSubtasks, setDraftSubtasks] = useState<string[]>([]);
   const [estimate, setEstimate] = useState(
     task?.estimate_minutes ?? defaults.estimate_minutes ?? 25,
   );
@@ -148,6 +149,18 @@ export default function TaskEditor({
     } else {
       const created = await actions.create({ ...payload, parent_id: defaults.parent_id ?? null });
       if (created) {
+        // Insert draft subtasks
+        for (const subTitle of draftSubtasks) {
+          if (subTitle.trim()) {
+            await actions.create({
+              title: subTitle.trim(),
+              parent_id: created.id,
+              project_id: created.project_id,
+              status: "todo",
+              priority: created.priority,
+            });
+          }
+        }
         toast.success(t("taskCreated"));
         onClose();
       }
@@ -381,7 +394,13 @@ export default function TaskEditor({
           </div>
         )}
         {task && <Dependencies task={task} onOpen={onOpen} />}
-        {task && <Subtasks parent={task} onOpen={onOpen} />}
+        <Subtasks
+          parent={task}
+          onOpen={onOpen}
+          draftMode={!task}
+          draftItems={draftSubtasks}
+          onDraftChange={setDraftSubtasks}
+        />
         {task && <Comments key={task.id} taskId={task.id} />}
       </div>
 
@@ -513,24 +532,52 @@ function Dependencies({ task, onOpen }: { task: Task; onOpen: (id: string) => vo
   );
 }
 
-function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => void }) {
+function Subtasks({
+  parent,
+  onOpen,
+  draftMode = false,
+  draftItems = [],
+  onDraftChange,
+}: {
+  parent: Task | null | undefined;
+  onOpen: (id: string) => void;
+  draftMode?: boolean;
+  draftItems?: string[];
+  onDraftChange?: (items: string[]) => void;
+}) {
   const { data: tasks = [] } = useTasks();
   const actions = useTaskActions();
   const [draft, setDraft] = useState("");
   const { t } = useI18n();
-  const subs = tasks.filter((t) => t.parent_id === parent.id);
+
+  // Draft mode: use prop array; normal mode: query DB
+  const subs = draftMode
+    ? draftItems.map((title, i) => ({ id: `draft-${i}`, title, status: "todo" as const }))
+    : parent
+      ? tasks.filter((t) => t.parent_id === parent.id)
+      : [];
   const done = subs.filter((s) => s.status === "done").length;
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!draft.trim()) return;
-    await actions.create({
-      title: draft.trim(),
-      parent_id: parent.id,
-      project_id: parent.project_id,
-      priority: parent.priority,
-    });
+    if (draftMode && onDraftChange) {
+      onDraftChange([...draftItems, draft.trim()]);
+    } else if (parent) {
+      await actions.create({
+        title: draft.trim(),
+        parent_id: parent.id,
+        project_id: parent.project_id,
+        priority: parent.priority,
+      });
+    }
     setDraft("");
+  }
+
+  function removeDraft(index: number) {
+    if (onDraftChange) {
+      onDraftChange(draftItems.filter((_, i) => i !== index));
+    }
   }
 
   return (
@@ -552,33 +599,43 @@ function Subtasks({ parent, onOpen }: { parent: Task; onOpen: (id: string) => vo
         </div>
       )}
       <ul className="space-y-1">
-        {subs.map((s) => (
+        {subs.map((s, i) => (
           <li
             key={s.id}
             className="group flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-accent/50"
           >
-            <CheckCircle
-              done={s.status === "done"}
-              onClick={() => actions.setStatus(s, s.status === "done" ? "todo" : "done")}
-            />
-            {/* eslint-disable-next-line no-restricted-syntax -- exception: list row title opens the task */}
-            <button
-              type="button"
-              onClick={() => onOpen(s.id)}
-              className={cn(
-                "flex-1 truncate rounded-sm text-left text-sm",
-                pressableFocus,
-                s.status === "done" && "text-muted-foreground line-through",
-              )}
-            >
-              {s.title}
-            </button>
+            {draftMode ? (
+              <div className="h-4 w-4 shrink-0 rounded-full border-2 border-muted-foreground/30" />
+            ) : (
+              <CheckCircle
+                done={s.status === "done"}
+                onClick={() =>
+                  parent && actions.setStatus(s as Task, s.status === "done" ? "todo" : "done")
+                }
+              />
+            )}
+            {draftMode ? (
+              <span className="flex-1 truncate text-sm">{s.title}</span>
+            ) : (
+              // eslint-disable-next-line no-restricted-syntax -- exception: list row title opens the task
+              <button
+                type="button"
+                onClick={() => onOpen(s.id)}
+                className={cn(
+                  "flex-1 truncate rounded-sm text-left text-sm",
+                  pressableFocus,
+                  s.status === "done" && "text-muted-foreground line-through",
+                )}
+              >
+                {s.title}
+              </button>
+            )}
             <IconButton
               label={t("taskSubtaskDelete")}
               variant="danger-ghost"
               size="icon-sm"
               className="opacity-100 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-coarse:md:opacity-100"
-              onClick={() => actions.remove(s.id)}
+              onClick={() => (draftMode ? removeDraft(i) : actions.remove(s.id))}
             >
               <Trash2 />
             </IconButton>
