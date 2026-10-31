@@ -19,6 +19,7 @@ export const BACKUP_TABLES = [
   // logs after their habits; files from before habits existed simply have no such tables.
   "habits",
   "habit_logs",
+  "templates",
 ] as const;
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
@@ -153,6 +154,14 @@ const schemas = {
     date: isoDay,
     count: z.number().int().min(0).max(1000).optional(),
     note: optStr(500),
+    created_at: ts.optional(),
+    updated_at: ts.optional(),
+  }),
+  templates: z.object({
+    id: uuid,
+    name: str(200),
+    kind: z.enum(["task", "note"]),
+    payload: json.optional(),
     created_at: ts.optional(),
     updated_at: ts.optional(),
   }),

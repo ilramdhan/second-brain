@@ -75,6 +75,9 @@ export const id = {
   admIdle30: "Setelah 30 menit",
   admIdle60: "Setelah 1 jam",
   admIdle240: "Setelah 4 jam",
+  admLandingTitle: "Halaman beranda",
+  admLandingBody: "Nonaktifkan untuk langsung ke halaman login saat mengunjungi `/`.",
+  admLandingEnabled: "Tampilkan halaman beranda",
 
   // Archive & trash
   admArchiveTitle: "Arsip & Tempat Sampah",
@@ -275,6 +278,9 @@ export const en = {
   admIdle30: "After 30 minutes",
   admIdle60: "After 1 hour",
   admIdle240: "After 4 hours",
+  admLandingTitle: "Landing page",
+  admLandingBody: "Disable to go straight to login when visiting `/`.",
+  admLandingEnabled: "Show landing page",
 
   // Archive & trash
   admArchiveTitle: "Archive & Trash",
