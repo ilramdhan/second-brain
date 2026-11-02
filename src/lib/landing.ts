@@ -19,6 +19,15 @@ export const ENV_EXAMPLE_URL = `${GITHUB_URL}/blob/main/.env.example`;
 /** Same value as APP_HOME in src/lib/auth.ts (kept here so the landing chunk stays Supabase-free). */
 export const APP_HOME_PATH = "/today";
 
+/**
+ * Landing page at `/` (`VITE_LANDING_PAGE` at build time). On by default; set to `"false"` to
+ * send signed-out visitors straight to `/login` (private instances where marketing page not needed).
+ */
+export function landingPageEnabled(raw: unknown = import.meta.env["VITE_LANDING_PAGE"]): boolean {
+  const flag = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  return flag !== "false";
+}
+
 /** Social preview image: public/og-image.png, rendered from scripts/brand/og-image.svg. */
 export const OG_IMAGE = {
   url: `${SITE_URL}/og-image.png`,
