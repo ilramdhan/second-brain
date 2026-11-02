@@ -343,6 +343,8 @@ export const en = {
   wsTplTags: "Tags",
   wsPriority: "Priority",
   wsTplEstimate: "Estimate in minutes",
+  wsTplSubtasks: "Subtasks / Checklist",
+  wsTplSubtasksPlaceholder: "One subtask per line",
   wsCancel: "Cancel",
   wsSave: "Save",
   wsActivitySubtitle: "The log keeps only change metadata, never the content of your notes.",

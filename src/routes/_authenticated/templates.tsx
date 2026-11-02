@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CheckSquare, Pencil, Plus, StickyNote, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -259,43 +259,18 @@ function TemplateDialog({
   initial: { id: string; kind: "task" | "note"; name: string; payload: unknown } | null;
   onSave: (id: string | null, kind: "task" | "note", name: string, p: Payload) => Promise<void>;
 }) {
-  const [kind, setKind] = useState<"task" | "note">("task");
-  const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [priority, setPriority] = useState("medium");
-  const [tags, setTags] = useState("");
-  const [estimate, setEstimate] = useState(25);
-  const [subtasks, setSubtasks] = useState<string[]>([]);
+  const initPayload = initial ? ((initial.payload ?? {}) as Payload) : {};
+  const [kind, setKind] = useState<"task" | "note">(initial?.kind ?? "task");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [title, setTitle] = useState(initPayload.title ?? "");
+  const [body, setBody] = useState(initPayload.body ?? "");
+  const [priority, setPriority] = useState(initPayload.priority ?? "medium");
+  const [tags, setTags] = useState(initPayload.tags?.join(", ") ?? "");
+  const [estimate, setEstimate] = useState(initPayload.estimate ?? 25);
+  const [subtasks, setSubtasks] = useState<string[]>(initPayload.subtasks ?? []);
   const [subtaskDraft, setSubtaskDraft] = useState("");
   const draftTemplate = useServerFn(draftTemplateFromText);
   const { t: tr } = usePreferences();
-
-  // Sync state when initial changes (edit mode)
-  useEffect(() => {
-    if (initial) {
-      const p = (initial.payload ?? {}) as Payload;
-      setKind(initial.kind);
-      setName(initial.name);
-      setTitle(p.title ?? "");
-      setBody(p.body ?? "");
-      setPriority(p.priority ?? "medium");
-      setTags(p.tags?.join(", ") ?? "");
-      setEstimate(p.estimate ?? 25);
-      setSubtasks(p.subtasks ?? []);
-    } else {
-      // Reset for new template
-      setKind("task");
-      setName("");
-      setTitle("");
-      setBody("");
-      setPriority("medium");
-      setTags("");
-      setEstimate(25);
-      setSubtasks([]);
-    }
-    setSubtaskDraft("");
-  }, [initial]);
 
   async function save() {
     if (!name.trim()) {
@@ -321,7 +296,7 @@ function TemplateDialog({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent key={initial?.id ?? "new"} className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{tr("wsTplNew")}</DialogTitle>
           <DialogDescription>{tr("wsTplNewDescription")}</DialogDescription>
