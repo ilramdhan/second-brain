@@ -11,6 +11,7 @@ import { logActivity } from "@/lib/activity";
 import { DemoNotice } from "@/components/demo/DemoBanner";
 import { demoCredentials, isDemo } from "@/lib/app-mode";
 import { APP_HOME, safeRedirect } from "@/lib/auth";
+import { getLandingEnabled } from "@/lib/landing";
 import {
   authCallbackUrl,
   googleAuthEnabled,
@@ -173,16 +174,18 @@ function LoginPage() {
     <main className="relative flex min-h-screen items-center justify-center bg-background px-4 pt-20 pb-10">
       {/* Back to the landing: first in the tab order, pinned top-left on the page gutter
           (outside the card), 44px tap target. */}
-      <Button
-        asChild
-        variant="tertiary"
-        className="absolute top-4 left-4 text-muted-foreground sm:top-6 sm:left-6"
-      >
-        <Link to="/" aria-label={t("loginBackHomeLabel")}>
-          <ArrowLeft aria-hidden />
-          {t("loginBackHome")}
-        </Link>
-      </Button>
+      {getLandingEnabled() && (
+        <Button
+          asChild
+          variant="tertiary"
+          className="absolute top-4 left-4 text-muted-foreground sm:top-6 sm:left-6"
+        >
+          <Link to="/" aria-label={t("loginBackHomeLabel")}>
+            <ArrowLeft aria-hidden />
+            {t("loginBackHome")}
+          </Link>
+        </Button>
+      )}
       <div className="w-full max-w-sm">
         <DemoNotice active={demo} className="mb-6" />
         <div className="mb-8 flex flex-col items-center gap-3 text-center">

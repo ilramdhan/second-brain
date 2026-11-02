@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DEMO_IDLE_OPTIONS, getIdleMinutes, IDLE_KEY } from "@/hooks/use-idle-logout";
+import { getLandingEnabled, LANDING_ENABLED_KEY, setLandingEnabledCookie } from "@/lib/landing";
 import { DemoDisabled } from "@/components/demo/DemoDisabled";
 import { isDemo } from "@/lib/app-mode";
 import { createFileRoute } from "@tanstack/react-router";
@@ -195,6 +196,8 @@ function SettingsPage() {
       </section>
 
       <IdleSetting />
+
+      <LandingPageSetting />
 
       <SecurityPanel />
 
@@ -876,6 +879,37 @@ function IdleSetting() {
           ))}
         </SelectContent>
       </Select>
+    </section>
+  );
+}
+
+function LandingPageSetting() {
+  const { t } = usePreferences();
+  const [enabled, setEnabled] = useState(true);
+  
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- read stored value after mount (localStorage is not available during SSR).
+    setEnabled(getLandingEnabled());
+  }, []);
+  
+  return (
+    <section className="mb-4 rounded-md border bg-card p-5">
+      <h2 className="font-semibold">{t("admLandingTitle")}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {t("admLandingBody")}
+      </p>
+      <div className="mt-3 flex items-center gap-3">
+        <Switch
+          checked={enabled}
+          onCheckedChange={(checked) => {
+            setEnabled(checked);
+            localStorage.setItem(LANDING_ENABLED_KEY, String(checked));
+            setLandingEnabledCookie(checked);
+            toast.success(t("saved"));
+          }}
+        />
+        <label className="text-sm">{t("admLandingEnabled")}</label>
+      </div>
     </section>
   );
 }

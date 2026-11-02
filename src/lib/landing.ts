@@ -19,6 +19,30 @@ export const ENV_EXAMPLE_URL = `${GITHUB_URL}/blob/main/.env.example`;
 /** Same value as APP_HOME in src/lib/auth.ts (kept here so the landing chunk stays Supabase-free). */
 export const APP_HOME_PATH = "/today";
 
+export const LANDING_ENABLED_KEY = "second-brain-landing-enabled";
+export const LANDING_ENABLED_COOKIE = "sb_landing_enabled";
+
+export function getLandingEnabled(): boolean {
+  if (typeof window === "undefined") {
+    // Server-side: cannot access window or document in TanStack Start server context
+    // Cookie will be read from request headers in beforeLoad context if available
+    return true; // default enabled on server
+  }
+  
+  // Client-side: check localStorage (primary) or cookie (fallback)
+  const stored = localStorage.getItem(LANDING_ENABLED_KEY);
+  if (stored !== null) return stored === "true";
+  
+  const match = document.cookie.match(new RegExp(`${LANDING_ENABLED_COOKIE}=([^;]+)`));
+  return match ? match[1] === "true" : true;
+}
+
+export function setLandingEnabledCookie(enabled: boolean): void {
+  const value = enabled ? "true" : "false";
+  const maxAge = 365 * 24 * 60 * 60; // 1 year
+  document.cookie = `${LANDING_ENABLED_COOKIE}=${value}; path=/; max-age=${maxAge}; samesite=lax`;
+}
+
 /** Social preview image: public/og-image.png, rendered from scripts/brand/og-image.svg. */
 export const OG_IMAGE = {
   url: `${SITE_URL}/og-image.png`,
@@ -180,6 +204,38 @@ export async function redirectSignedInVisitor(target?: string): Promise<void> {
   throw target
     ? redirect({ href: target, replace: true })
     : redirect({ to: APP_HOME_PATH, replace: true });
+}
+
+/**
+ * `beforeLoad` of `/`: throws a router redirect to login for a signed-out visitor when the
+ * landing page is disabled in settings.
+ */
+export async function redirectIfLandingDisabled(): Promise<void> {
+  if (!getLandingEnabled() && !(await isSignedIn())) {
+    const { LOGIN_PATH } = await import("@/lib/auth");
+    throw redirect({ to: LOGIN_PATH, replace: true });
+  }
+}
+
+/**
+ * Client fallback for {@link redirectIfLandingDisabled}. On first page load `beforeLoad` ran
+ * on the server (where window is undefined) and is not repeated during hydration, so a
+ * signed-out visitor with landing disabled is forwarded from here after mount.
+ */
+export function useRedirectIfLandingDisabled(): void {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      if (!getLandingEnabled() && !(await isSignedIn())) {
+        const { LOGIN_PATH } = await import("@/lib/auth");
+        if (active) void navigate({ to: LOGIN_PATH, replace: true });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
 }
 
 /**
